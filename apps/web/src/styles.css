@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Existing custom styles can follow */
+body {
+    font-family: Arial, sans-serif;
+    background: #f7f9fc;
+}
+
+button {
+    cursor: pointer;
+    border: 1px solid #444;
+    background: #fff;
+}
+
+button:hover {
+    background: #eee;
+}
