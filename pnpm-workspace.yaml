@@ -1,0 +1,7 @@
+packages:
+  - backend
+  - apps/web
+  - apps/mobile
+  - contracts
+  - subgraph
+  - shared
