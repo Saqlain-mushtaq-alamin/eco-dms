@@ -1,0 +1,5 @@
+type Profile @entity {
+  id: ID!
+  handle: String!
+  createdAt: BigInt!
+}
