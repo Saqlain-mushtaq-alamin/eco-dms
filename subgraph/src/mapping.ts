@@ -7,7 +7,9 @@ export function handleProfileCreated(event: ProfileCreated): void {
     if (profile == null) {
         profile = new Profile(id);
         profile.handle = event.params.handle;
-        profile.createdAt = event.block.timestamp;
+        // Type assertion to access block timestamp without TS error
+        const timestamp = (event as unknown as { block: { timestamp: BigInt } }).block.timestamp;
+        profile.createdAt = timestamp;
         profile.save();
     }
 }
