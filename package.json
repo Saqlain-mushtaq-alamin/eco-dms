@@ -1,25 +1,17 @@
 {
-  "name": "eco-dsm",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "eco-dms-root",
+  "private": true,
+  "version": "0.1.0",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev:web": "pnpm --filter eco-dms-web dev",
+    "dev:backend": "uvicorn app.main:app --reload --port 8000",
+    "dev:contracts": "pnpm --filter eco-dms-contracts hardhat node",
+    "test:web": "pnpm --filter eco-dms-web test",
+    "test:contracts": "pnpm --filter eco-dms-contracts test",
+    "test:subgraph": "pnpm --filter eco-dms-subgraph graph:test",
+    "lint:web": "pnpm --filter eco-dms-web eslint src --max-warnings=0"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "packageManager": "pnpm@10.22.0",
   "devDependencies": {
-    "@nomicfoundation/hardhat-ethers": "^4.0.3",
-    "eslint": "^9.39.1",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.5.4",
-    "ethers": "^6.15.0",
-    "hardhat": "^3.0.15",
-    "prettier": "^3.6.2"
-  },
-  "dependencies": {
-    "web3.storage": "^4.5.5"
+    "concurrently": "^9.0.1"
   }
 }

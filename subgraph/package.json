@@ -1,0 +1,18 @@
+{
+    "name": "eco-dms-subgraph",
+    "private": true,
+    "version": "0.1.0",
+    "scripts": {
+        "graph:prepare": "node ./scripts/prepare.js",
+        "graph:codegen": "graph codegen",
+        "graph:build": "graph build",
+        "graph:test": "echo \"(add graph tests later)\""
+    },
+    "devDependencies": {
+        "@graphprotocol/graph-cli": "^0.69.0",
+        "typescript": "^5.4.5"
+    },
+    "dependencies": {
+        "@graphprotocol/graph-ts": "^0.33.0"
+    }
+}

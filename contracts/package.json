@@ -1,20 +1,22 @@
 {
-  "name": "contracts",
-  "version": "1.0.0",
-  "type": "module",
+  "name": "eco-dms-contracts",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "hardhat": "hardhat",
+    "build": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:staging": "hardhat run scripts/deploy.ts --network polygonMumbai"
+  },
   "devDependencies": {
-    "@nomicfoundation/hardhat-ethers": "^4.0.3",
-    "@nomicfoundation/hardhat-ignition": "^3.0.5",
-    "@nomicfoundation/hardhat-toolbox-mocha-ethers": "^3.0.1",
-    "@types/chai": "^4.3.20",
-    "@types/chai-as-promised": "^8.0.2",
-    "@types/mocha": "^10.0.10",
-    "@types/node": "^22.19.1",
-    "chai": "^5.3.3",
-    "ethers": "^6.15.0",
-    "forge-std": "github:foundry-rs/forge-std#v1.9.4",
-    "hardhat": "^3.0.15",
-    "mocha": "^11.7.5",
-    "typescript": "~5.8.0"
+    "hardhat": "^2.22.3",
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "typescript": "^5.4.5",
+    "ts-node": "^10.9.2",
+    "@types/node": "^20.12.12",
+    "dotenv": "^16.4.5"
+  },
+  "dependencies": {
+    "ethers": "^6.8.1"
   }
 }
