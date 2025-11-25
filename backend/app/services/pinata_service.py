@@ -3,9 +3,11 @@ Pinata Service - pins content to ensure availability.
 Free tier: 1GB storage, good for testing.
 """
 import requests
+import json
 from typing import Dict, Any, Optional
 import sys
 import os
+import io
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import settings
@@ -25,25 +27,13 @@ class PinataService:
         if self.jwt:
             self.headers = {"Authorization": f"Bearer {self.jwt}"}
         else:
-            print("⚠️ Pinata JWT not configured")
+            print("⚠️ Pinata JWT not configured in .env")
             self.headers = {}
     
-    def pin_json(self, data: Dict[str, Any], name: str = None) -> Optional[str]:
-        """
-        Pin JSON data to Pinata.
-        
-        Args:
-            data: Dictionary to pin
-            name: Optional name for this pin
-            
-        Returns:
-            IPFS CID
-            
-        Example:
-            cid = pinata.pin_json({"user": "alice"}, name="user_alice")
-        """
+    def pin_json(self, data: Dict[str, Any], name: Optional[str] = None) -> Optional[str]:
+        """Pin JSON data to Pinata."""
         if not self.jwt:
-            print("⚠️ Pinata not configured, skipping pin")
+            print("❌ Pinata not configured")
             return None
         
         url = f"{self.base_url}/pinning/pinJSONToIPFS"
@@ -65,17 +55,29 @@ class PinataService:
             print(f"❌ Pinata pin failed: {e}")
             return None
     
-    def pin_by_cid(self, cid: str, name: str = None) -> bool:
-        """
-        Pin existing IPFS content by CID.
+    def pin_file_bytes(self, data: bytes, filename: str = "file") -> Optional[str]:
+        """Pin file bytes to Pinata."""
+        if not self.jwt:
+            return None
         
-        Args:
-            cid: Content identifier to pin
-            name: Optional name
+        url = f"{self.base_url}/pinning/pinFileToIPFS"
+        
+        files = {"file": (filename, io.BytesIO(data))}
+        
+        try:
+            response = requests.post(url, headers=self.headers, files=files)
+            response.raise_for_status()
             
-        Returns:
-            True if successful
-        """
+            result = response.json()
+            cid = result['IpfsHash']
+            print(f"📌 File pinned: {cid}")
+            return cid
+        except Exception as e:
+            print(f"❌ File pin failed: {e}")
+            return None
+    
+    def pin_by_cid(self, cid: str, name: Optional[str] = None) -> bool:
+        """Pin existing IPFS content."""
         if not self.jwt:
             return False
         
@@ -89,10 +91,10 @@ class PinataService:
         try:
             response = requests.post(url, headers=self.headers, json=payload)
             response.raise_for_status()
-            print(f"📌 Pinned CID: {cid}")
+            print(f"📌 CID pinned: {cid}")
             return True
         except Exception as e:
-            print(f"❌ Pin failed: {e}")
+            print(f"❌ Pin CID failed: {e}")
             return False
 
 

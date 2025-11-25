@@ -36,7 +36,7 @@ class UserService:
         """
         self.user_cache = {}  # {wallet_address: profile_cid}
     
-    async def get_or_create_profile(self, wallet_address: str) -> tuple[UserProfile, str]:
+    async def get_or_create_profile(self, wallet_address: str) -> tuple[UserProfile, Optional[str]]:
         """
         Get existing profile or create new one.
         
@@ -68,6 +68,8 @@ class UserService:
             wallet_address=wallet_address,
             username=f"user_{wallet_address[:8]}",  # Default: "user_0x123456"
             bio="New Eco-DMS user 🌱",
+            avatar_cid=None,
+            documents_cid=None,
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
         )
