@@ -9,14 +9,14 @@
     "deploy:staging": "hardhat run scripts/deploy.ts --network polygonMumbai"
   },
   "devDependencies": {
-    "hardhat": "^2.22.3",
-    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
-    "typescript": "^5.4.5",
-    "ts-node": "^10.9.2",
-    "@types/node": "^20.12.12",
-    "dotenv": "^16.4.5"
+    "hardhat": "2.22.7",
+    "@nomicfoundation/hardhat-toolbox": "4.0.0",
+    "typescript": "5.4.5",
+    "ts-node": "10.9.2",
+    "@types/node": "20.12.12",
+    "dotenv": "16.4.5"
   },
   "dependencies": {
-    "ethers": "^6.8.1"
+    "ethers": "6.8.1"
   }
 }

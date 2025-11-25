@@ -1,46 +1,49 @@
-SHELL := /usr/bin/env bash
+# Use Windows command shell
+SHELL := cmd.exe
+.SHELLFLAGS := /C
 
-PY_ENV := backend/.venv
-BACKEND_PORT := 8000
+PY_ENV=backend\.venv
+PYTHON=py -3.11
 
-.PHONY: install dev backend web contracts ipfs test deploy-staging clean
-
+# Install dependencies
 install:
-    pnpm install
-    if [ ! -d "$(PY_ENV)" ]; then python -m venv $(PY_ENV); fi
-    $(PY_ENV)/Scripts/pip install -r backend/requirements.txt
+	@if not exist "$(PY_ENV)" ($(PYTHON) -m venv "$(PY_ENV)")
+	@"$(PY_ENV)\Scripts\pip" install -r backend\requirements.txt
 
-dev: install ipfs contracts backend web
-    @echo "Dev started:"
-    @echo " Web    -> http://localhost:5173"
-    @echo " API    -> http://localhost:8000"
-    @echo " Hardhat-> http://localhost:8545 (after node starts)"
+# Dev setup: start backend, contracts, and web
+dev: install
+	@echo Starting Backend...
+	@start "" /B "$(PY_ENV)\Scripts\uvicorn" backend.app.main:app --reload --port 8000
+	@echo Starting Hardhat...
+	@start "" /B pnpm --filter eco-dms-contracts hardhat node
+	@echo Starting Web...
+	@pnpm --filter eco-dms-web dev
 
-backend:
-    cd backend && ../$(PY_ENV)/Scripts/uvicorn app.main:app --reload --port $(BACKEND_PORT) &
+# Backend only (runs inside backend directory)
+backend: install
+	@echo Starting Backend only...
+	@cd backend && start "" /B "..\$(PY_ENV)\Scripts\uvicorn" app.main:app --reload --port 8000
 
+# Web only
 web:
-    pnpm --filter eco-dms-web dev &
+	@pnpm --filter eco-dms-web dev
 
+# Contracts only
 contracts:
-    pnpm --filter eco-dms-contracts hardhat node &
+	@pnpm --filter eco-dms-contracts hardhat node
 
-ipfs:
-    if [ -f infrastructure/docker-compose.dev.yml ]; then \
-        docker compose -f infrastructure/docker-compose.dev.yml up -d ipfs postgres graph-node; \
-    else \
-        echo "Skip IPFS/Graph: docker-compose.dev.yml missing or Docker not installed."; \
-    fi
-
+# Run tests
 test:
-    pnpm --filter eco-dms-web test || true
-    pnpm --filter eco-dms-contracts test || true
-    if [ -d "$(PY_ENV)" ]; then $(PY_ENV)/Scripts/python -m pytest backend/app/tests -q || true; fi
+	@pnpm --filter eco-dms-web test || exit 0
+	@pnpm --filter eco-dms-contracts test || exit 0
+	@if exist "$(PY_ENV)" "$(PY_ENV)\Scripts\python" -m pytest backend\app\tests -q || exit 0
 
+# Deploy to staging
 deploy-staging:
-    pnpm --filter eco-dms-contracts build
-    pnpm --filter eco-dms-contracts deploy:staging
-    @echo "Staging deploy done (Polygon Mumbai). Update subgraph.yaml address."
+	@pnpm --filter eco-dms-contracts build
+	@pnpm --filter eco-dms-contracts deploy:staging
+	@echo Staging deploy done.
 
+# Clean
 clean:
-    if [ -f infrastructure/docker-compose.dev.yml ]; then docker compose -f infrastructure/docker-compose.dev.yml down; fi
+	@echo Nothing to clean.
