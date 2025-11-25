@@ -1,2 +1,9 @@
-node_modules
-node_modules
+node_modules/
+backend/.venv/
+.env
+*.log
+dist/
+coverage/
+__pycache__/
+artifacts/
+cache/

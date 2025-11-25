@@ -5,3 +5,11 @@ packages:
   - contracts
   - subgraph
   - shared
+
+ignoredBuiltDependencies:
+  - '@reown/appkit'
+  - better-sqlite3
+  - esbuild
+  - keccak
+  - protobufjs
+  - secp256k1
