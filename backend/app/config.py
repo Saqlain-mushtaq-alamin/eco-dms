@@ -1,16 +1,45 @@
-import os
-from dotenv import load_dotenv
+"""
+Configuration management for decentralized backend.
+Loads environment variables for IPFS and Pinata integration.
+"""
+from pydantic_settings import BaseSettings
+from typing import List
 
-load_dotenv()
 
-class Settings:
-    APP_ENV: str = os.getenv("APP_ENV", "dev")
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "insecure_dev_key")
-    SESSION_COOKIE_NAME: str = os.getenv("SESSION_COOKIE_NAME", "eco_session")
-    FRONTEND_ORIGIN: str = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
-    MOBILE_ORIGIN: str = os.getenv("MOBILE_ORIGIN", "http://localhost:19000")
-    CORS_ORIGINS: list[str] = [FRONTEND_ORIGIN, MOBILE_ORIGIN]
-    NONCE_TTL_SECONDS: int = 300
-    SESSION_TTL_SECONDS: int = 3600
+class Settings(BaseSettings):
+    """
+    Application settings loaded from .env file.
+    No more database URLs - we're using IPFS for storage!
+    """
+    
+    # API Configuration
+    API_V1_STR: str = "/api/v1"
+    PROJECT_NAME: str = "Eco-DMS Decentralized"
+    
+    # IPFS Configuration - connects to local IPFS node
+    IPFS_API_URL: str = "http://127.0.0.1:5001"
+    IPFS_GATEWAY_URL: str = "https://ipfs.io/ipfs/"
+    
+    # Pinata - pins content to prevent garbage collection
+    PINATA_API_KEY: str = ""
+    PINATA_SECRET_KEY: str = ""
+    PINATA_JWT: str = ""
+    
+    # JWT Configuration - for session management
+    JWT_SECRET_KEY: str = "change-this-secret-key"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRATION_MINUTES: int = 1440  # 24 hours
+    
+    # CORS - frontend access control
+    ALLOWED_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+    ]
+    
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
 
+
+# Global settings instance
 settings = Settings()

@@ -1,17 +1,24 @@
-black==25.11.0
-flake8==7.3.0
-fastapi==0.115.5
-uvicorn[standard]==0.29.0
+# Web Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# IPFS Integration
+ipfshttpclient==0.8.0a2
+
+# Pinata & HTTP
+requests==2.31.0
+
+# Web3 & Authentication
+web3==6.11.3
+siwe==3.0.0
+eth-account==0.9.0
+
+# JWT & Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
+
+# Environment & Utils
 python-dotenv==1.0.0
-pydantic==2.9.2
-pydantic-settings==2.5.2
-sqlalchemy>=2.0.36
-sqlmodel>=0.0.14
-web3==6.13.0
-eth-account==0.10.0
-itsdangerous==2.2.0
-python-multipart==0.0.9
-redis==7.1.0
-pyjwt==2.10.1
-cryptography==46.0.3
-setuptools==75.1.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
