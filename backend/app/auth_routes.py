@@ -8,21 +8,18 @@ from jose import jwt, JWTError
 from siwe import SiweMessage
 from datetime import datetime, timedelta
 import secrets
+from urllib.parse import urlparse
 from web3 import Web3
-from eth_account.messages import encode_defunct
 
 from .models import (
     NonceRequest,
     NonceResponse,
     VerifyRequest,
     TokenResponse,
-    ProfileUpdateRequest,
-    User
+    ProfileUpdateRequest
 )
 from .services.user_service import user_service
 from .config import settings
-from .siwe_store import nonce_store, session_store
-from .session_middleware import set_session_cookie, clear_session_cookie
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 security = HTTPBearer()
@@ -32,12 +29,42 @@ security = HTTPBearer()
 # In production, use Redis or on-chain storage
 nonce_store = {}
 
-
 def build_siwe_message(addr: str, chain_id: int, nonce: str) -> str:
-    # Minimal SIWE message
+    """
+    Build SIWE-compliant message for signing.
+    
+    Args:
+        addr: Wallet address
+        chain_id: Blockchain chain ID (1 for Ethereum mainnet)
+        nonce: Random nonce for this session
+        
+    Returns:
+        Formatted SIWE message string
+    """
+    # Safely get configuration values with fallbacks
+    uri = (
+        getattr(settings, "URI", None)
+        or getattr(settings, "BASE_URI", None)
+        or getattr(settings, "API_URL", None)
+        or getattr(settings, "FRONTEND_URL", None)
+        or getattr(settings, "BACKEND_URL", None)
+        or getattr(settings, "BASE_URL", None)
+        or "http://localhost:8000"
+    )
+    
+    parsed = urlparse(uri)
+    domain = getattr(settings, "DOMAIN", None) or (parsed.netloc or "localhost")
+    version = getattr(settings, "VERSION", "1")
+    
     return (
-        f"{addr.lower()} wants to sign in to {settings.DOMAIN}.\n\n"
-        f"URI: {settings.URI}\nVersion: {settings.VERSION}\nChain ID: {chain_id}\nNonce: {nonce}"
+        f"{domain} wants you to sign in with your Ethereum account:\n"
+        f"{addr}\n\n"
+        f"Sign in to Eco-DMS\n\n"
+        f"URI: {uri}\n"
+        f"Version: {version}\n"
+        f"Chain ID: {chain_id}\n"
+        f"Nonce: {nonce}\n"
+        f"Issued At: {datetime.utcnow().isoformat()}Z"
     )
 
 
@@ -45,69 +72,64 @@ def build_siwe_message(addr: str, chain_id: int, nonce: str) -> str:
 async def get_nonce(request: NonceRequest):
     """
     Step 1: Get nonce for SIWE authentication.
-
+    
     Flow:
     1. Frontend requests nonce with wallet address
     2. Backend generates random nonce
     3. Frontend signs message with nonce using wallet
     4. Backend verifies signature in /verify endpoint
-
+    
     Example request:
         POST /auth/nonce
         {"wallet_address": "0x1234..."}
-
+        
     Example response:
         {
             "nonce": "abc123xyz789",
-            "message": "Sign this message to authenticate with Eco-DMS\nNonce: abc123xyz789"
+            "message": "localhost wants you to sign in..."
         }
     """
-    wallet_address = request.wallet_address.lower()
+    # Validate wallet address format
+    if not Web3.is_address(request.wallet_address):
+        raise HTTPException(status_code=400, detail="Invalid Ethereum address")
+    
+    wallet_address = Web3.to_checksum_address(request.wallet_address)
 
     # Generate random nonce (prevents replay attacks)
     nonce = secrets.token_hex(16)
 
     # Store nonce with timestamp (expires after 5 minutes)
-    nonce_store[wallet_address] = {
+    nonce_store[wallet_address.lower()] = {
         "nonce": nonce,
         "timestamp": datetime.utcnow()
     }
 
-    # Message for user to sign with their wallet
-    message = f"Sign this message to authenticate with Eco-DMS\nNonce: {nonce}"
+    # Build SIWE message with default chain ID
+    default_chain_id = getattr(settings, "CHAIN_ID", 1)
+    message = build_siwe_message(wallet_address, default_chain_id, nonce)
 
     return NonceResponse(nonce=nonce, message=message)
 
 
-@router.post("/prepare", response_model=NonceResponse)
-def prepare_message(payload: NonceRequest):
-    if not Web3.is_address(payload.wallet_address):
-        raise HTTPException(status_code=400, detail="Invalid address")
-    if not nonce_store.validate_and_consume(payload.nonce):
-        raise HTTPException(status_code=400, detail="Invalid or expired nonce")
-    message = build_siwe_message(payload.wallet_address, payload.chain_id, payload.nonce)
-    return NonceResponse(nonce=payload.nonce, message=message)
-
-
 @router.post("/verify", response_model=TokenResponse)
-async def verify_signature(request: VerifyRequest):
+async def verify_signature(request: VerifyRequest, response: Response):
     """
     Step 2: Verify wallet signature and issue JWT token.
-
+    
     Flow:
     1. Verify nonce is valid and not expired
     2. Verify signature matches wallet address
     3. Create or get user profile from IPFS
     4. Issue JWT token for session management
-
+    
     Example request:
         POST /auth/verify
         {
             "wallet_address": "0x1234...",
             "signature": "0xabcd...",
-            "message": "Sign this message..."
+            "message": "localhost wants you to sign in..."
         }
-
+        
     Example response:
         {
             "access_token": "eyJhbGc...",
@@ -115,7 +137,11 @@ async def verify_signature(request: VerifyRequest):
             "wallet_address": "0x1234..."
         }
     """
-    wallet_address = request.wallet_address.lower()
+    # Validate wallet address
+    if not Web3.is_address(request.wallet_address):
+        raise HTTPException(status_code=400, detail="Invalid Ethereum address")
+    
+    wallet_address = Web3.to_checksum_address(request.wallet_address).lower()
 
     # Check if nonce exists
     if wallet_address not in nonce_store:
@@ -170,7 +196,7 @@ async def verify_signature(request: VerifyRequest):
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
     """
     Dependency to get current authenticated user from JWT token.
-
+    
     Usage in routes:
         @router.get("/profile")
         async def get_profile(wallet: str = Depends(get_current_user)):
@@ -185,12 +211,12 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             algorithms=[settings.JWT_ALGORITHM]
         )
 
-        wallet_address: str = payload.get("sub")
+        sub = payload.get("sub")
 
-        if not wallet_address:
+        if not isinstance(sub, str) or not sub:
             raise HTTPException(status_code=401, detail="Invalid token")
 
-        return wallet_address.lower()
+        return sub.lower()
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
@@ -200,13 +226,13 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 async def get_current_user_profile(wallet_address: str = Depends(get_current_user)):
     """
     Get current user's profile from IPFS.
-
+    
     Requires authentication (JWT token in header).
-
+    
     Example request:
         GET /auth/me
         Authorization: Bearer eyJhbGc...
-
+        
     Example response:
         {
             "wallet_address": "0x1234...",
@@ -233,9 +259,9 @@ async def update_profile(
 ):
     """
     Update user profile.
-
+    
     Requires authentication.
-
+    
     Example request:
         PUT /auth/profile
         Authorization: Bearer eyJhbGc...
@@ -243,7 +269,7 @@ async def update_profile(
             "username": "alice_eco",
             "bio": "Saving the planet one document at a time 🌍"
         }
-
+        
     Example response:
         {
             "success": true,
@@ -270,5 +296,16 @@ async def update_profile(
 
 @router.post("/logout")
 def logout(response: Response):
-    clear_session_cookie(response)
-    return {"ok": True}
+    """
+    Logout user (clears session).
+    
+    Note: JWT tokens are stateless, so we can't truly "invalidate" them.
+    Frontend should delete the token from storage.
+    
+    Example request:
+        POST /auth/logout
+        
+    Example response:
+        {"ok": true}
+    """
+    return {"ok": True, "message": "Logged out successfully"}

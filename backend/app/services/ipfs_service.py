@@ -1,149 +1,113 @@
 """
-IPFS Service - handles all IPFS interactions.
-Replaces traditional database with distributed storage.
+IPFS Service with Pinata fallback.
+Works without local IPFS node.
 """
-import ipfshttpclient
 import json
-from typing import Dict, Any, Optional, cast
+from typing import Dict, Any, Optional
 import sys
 import os
 
-# Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import settings
 
 
 class IPFSService:
     """
-    Manages IPFS connections and operations.
-    Stores all data (users, documents) as JSON in IPFS.
+    IPFS service with Pinata-only mode support.
+    If no local IPFS, falls back to Pinata API.
     """
     
     def __init__(self):
-        """Connect to IPFS daemon."""
-        try:
-            self.client = ipfshttpclient.connect(settings.IPFS_API_URL)
-            print(f"✅ Connected to IPFS at {settings.IPFS_API_URL}")
-        except Exception as e:
-            print(f"⚠️ IPFS connection failed: {e}")
-            print("💡 Make sure IPFS daemon is running: ipfs daemon")
-            self.client = None
+        """Initialize IPFS or Pinata-only mode."""
+        self.client = None
+        self.pinata_only = False
+        
+        if settings.IPFS_API_URL:
+            # Try to connect to local IPFS
+            try:
+                import ipfshttpclient
+                self.client = ipfshttpclient.connect(settings.IPFS_API_URL)
+                print(f"✅ Connected to IPFS at {settings.IPFS_API_URL}")
+            except Exception as e:
+                print(f"⚠️ IPFS connection failed: {e}")
+                print("💡 Falling back to Pinata-only mode")
+                self.pinata_only = True
+        else:
+            # Pinata-only mode
+            print("📌 Running in Pinata-only mode (no local IPFS)")
+            self.pinata_only = True
     
     def add_json(self, data: Dict[str, Any]) -> Optional[str]:
-        """
-        Add JSON data to IPFS.
-        
-        Args:
-            data: Dictionary to store
-            
-        Returns:
-            CID (Content Identifier) - like "QmXyz123..."
-            
-        Example:
-            user_data = {"wallet": "0x123...", "username": "alice"}
-            cid = ipfs.add_json(user_data)
-            # Returns: "QmAbc123..."
-        """
-        if not self.client:
-            print("❌ IPFS not connected")
-            return None
-        
-        try:
-            result = self.client.add_json(data)
-            print(f"✅ Added to IPFS: {result}")
-            return result
-        except Exception as e:
-            print(f"❌ Failed to add to IPFS: {e}")
-            return None
+        """Add JSON to IPFS or Pinata."""
+        if self.client and not self.pinata_only:
+            # Use local IPFS
+            try:
+                result = self.client.add_json(data)
+                print(f"✅ Added to IPFS: {result}")
+                return result
+            except Exception as e:
+                print(f"❌ IPFS add failed: {e}")
+                return None
+        else:
+            # Use Pinata API directly
+            from services.pinata_service import pinata_service
+            cid = pinata_service.pin_json(data)
+            return cid
     
     def get_json(self, cid: str) -> Optional[Dict[str, Any]]:
-        """
-        Retrieve JSON data from IPFS.
+        """Get JSON from IPFS or Pinata gateway."""
+        if self.client and not self.pinata_only:
+            try:
+                return self.client.get_json(cid)
+            except Exception as e:
+                print(f"❌ IPFS get failed: {e}")
+                # Fallback to HTTP gateway
+                pass
         
-        Args:
-            cid: Content identifier
-            
-        Returns:
-            Dictionary containing the data
-            
-        Example:
-            data = ipfs.get_json("QmAbc123...")
-            # Returns: {"wallet": "0x123...", "username": "alice"}
-        """
-        if not self.client:
-            print("❌ IPFS not connected")
-            return None
-        
+        # Fetch from HTTP gateway
         try:
-            # Use bytes API to avoid streamed iterator types and parse JSON manually
-            raw = self.client.cat(cid)
-            if not isinstance(raw, (bytes, bytearray)):
-                # Some versions may return an iterator of byte chunks
-                raw = b"".join(chunk for chunk in raw)
-            obj = json.loads(raw.decode("utf-8"))
-            if isinstance(obj, dict):
-                return obj
-            else:
-                print("❌ IPFS content is not a JSON object")
-                return None
+            import requests
+            url = f"{settings.IPFS_GATEWAY_URL}{cid}"
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            return response.json()
         except Exception as e:
-            print(f"❌ Failed to get from IPFS: {e}")
+            print(f"❌ Gateway fetch failed: {e}")
             return None
     
     def add_bytes(self, data: bytes) -> Optional[str]:
-        """
-        Add raw bytes (file upload) to IPFS.
-        
-        Args:
-            data: File bytes
-            
-        Returns:
-            CID of uploaded file
-        """
-        if not self.client:
-            return None
-        
-        try:
-            result = self.client.add_bytes(data)
-            print(f"✅ File added to IPFS: {result}")
-            return result
-        except Exception as e:
-            print(f"❌ Failed to add file: {e}")
-            return None
+        """Add bytes to IPFS or Pinata."""
+        if self.client and not self.pinata_only:
+            try:
+                result = self.client.add_bytes(data)
+                print(f"✅ Bytes added to IPFS: {result}")
+                return result
+            except Exception as e:
+                print(f"❌ IPFS add bytes failed: {e}")
+                return None
+        else:
+            # Use Pinata file upload
+            from services.pinata_service import pinata_service
+            return pinata_service.pin_file_bytes(data)
     
     def pin(self, cid: str) -> bool:
-        """
-        Pin content to prevent garbage collection.
+        """Pin content."""
+        if self.client and not self.pinata_only:
+            try:
+                self.client.pin.add(cid)
+                print(f"📌 Pinned locally: {cid}")
+                return True
+            except:
+                pass
         
-        Args:
-            cid: Content to pin
-            
-        Returns:
-            True if successful
-        """
-        if not self.client:
-            return False
-        
-        try:
-            cast(Any, self.client).pin.add(cid)
-            print(f"📌 Pinned: {cid}")
-            return True
-        except Exception as e:
-            print(f"❌ Pin failed: {e}")
-            return False
+        # Pin to Pinata
+        from services.pinata_service import pinata_service
+        return pinata_service.pin_by_cid(cid)
     
     def get_url(self, cid: str) -> str:
-        """
-        Get public gateway URL for content.
-        
-        Args:
-            cid: Content identifier
-            
-        Returns:
-            Public URL like "https://ipfs.io/ipfs/QmXyz..."
-        """
+        """Get public URL for content."""
         return f"{settings.IPFS_GATEWAY_URL}{cid}"
 
 
-# Global IPFS service instance
+# Global instance
 ipfs_service = IPFSService()
