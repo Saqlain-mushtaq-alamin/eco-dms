@@ -5,6 +5,7 @@ No database - everything stored in IPFS!
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .auth_routes import router as auth_router
+from .auth_routes import siwe_router, siwe_alias_router
 from .user_routes import router as user_router  # Add this import
 from .config import settings
 from .services.ipfs_service import ipfs_service
@@ -28,6 +29,20 @@ app.add_middleware(
 # Register routes
 app.include_router(auth_router, prefix=settings.API_V1_STR)
 app.include_router(user_router, prefix=settings.API_V1_STR)  # Add this line
+
+# Legacy and other routers
+app.include_router(auth_router)
+
+# SIWE under /api/siwe/... if API_V1_STR is /api or /api/v1
+try:
+    from .config import settings
+    api_prefix = settings.API_V1_STR or "/api"
+except Exception:
+    api_prefix = "/api"
+
+app.include_router(siwe_router, prefix=api_prefix)
+# Absolute aliases that directly match /api/siwe/... even if no prefix is set
+app.include_router(siwe_alias_router)
 
 
 @app.on_event("startup")
