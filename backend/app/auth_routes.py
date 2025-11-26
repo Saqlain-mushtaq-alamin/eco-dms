@@ -1,311 +1,208 @@
 """
+Configuration management for decentralized backend.
+Loads environment variables for IPFS and Pinata integration.
+"""
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import List, Union
+from pydantic import field_validator
+
+
+class Settings(BaseSettings):
+    """
+    Application settings loaded from .env file.
+    No more database URLs - we're using IPFS for storage!
+    """
+
+    # Added missing fields so .env keys are recognized
+    APP_ENV: str = "dev"
+    SECRET_KEY: str = "change_me_dev_long_random"
+    SESSION_COOKIE_NAME: str = "eco_dms_session"
+    FRONTEND_ORIGIN: str = "http://localhost:5173"
+    MOBILE_ORIGIN: str = "exp://127.0.0.1:8081"
+
+    # API Configuration
+    API_V1_STR: str = "/api/v1"
+    PROJECT_NAME: str = "Eco-DMS Decentralized"
+
+    # IPFS Configuration
+    IPFS_API_URL: str = ""
+    IPFS_GATEWAY_URL: str = "https://gateway.pinata.cloud/ipfs/"
+
+    # Pinata
+    PINATA_API_KEY: str = ""
+    PINATA_SECRET_KEY: str = ""
+    PINATA_JWT: str = ""
+
+    # JWT Configuration
+    JWT_SECRET_KEY: str = "change-this-secret-key"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRATION_MINUTES: int = 1440
+
+    # CORS
+    ALLOWED_ORIGINS: Union[str, List[str]] = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+    ]
+
+    # Chain ID
+    CHAIN_ID: int = 1
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+        extra="ignore"  # ignore any remaining unexpected env vars
+    )
+
+    @field_validator('ALLOWED_ORIGINS', mode='before')
+    @classmethod
+    def parse_cors_origins(cls, v):
+        if isinstance(v, str):
+            v = v.strip()
+            if v.startswith('[') and v.endswith(']'):
+                import json
+                try:
+                    return json.loads(v)
+                except:
+                    v = v[1:-1]
+            if ',' in v:
+                return [origin.strip().strip('"').strip("'") for origin in v.split(',')]
+            return [v] if v else []
+        return v
+
+
+# Global settings instance
+settings = Settings()
+
+"""
 Authentication routes using SIWE (Sign-In with Ethereum).
 No passwords, no database - just wallet signatures!
 """
-from fastapi import APIRouter, HTTPException, Depends, Response
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import jwt, JWTError
-from siwe import SiweMessage
-from datetime import datetime, timedelta
-import secrets
-from urllib.parse import urlparse
-from web3 import Web3
+from fastapi import APIRouter, HTTPException, Header
+from pydantic import BaseModel
+from eth_account import Account
+from eth_account.messages import encode_defunct
+from app.config import settings
+from app.services.ipfs_service import ipfs_service
+import time
 
-from .models import (
-    NonceRequest,
-    NonceResponse,
-    VerifyRequest,
-    TokenResponse,
-    ProfileUpdateRequest
-)
-from .services.user_service import user_service
-from .config import settings
+router = APIRouter()
 
-router = APIRouter(prefix="/auth", tags=["Authentication"])
-security = HTTPBearer()
+_nonce_store: dict[str, dict] = {}
+_user_profiles: dict[str, str] = {}
 
-# In-memory nonce storage
-# Maps wallet_address -> {nonce, timestamp}
-# In production, use Redis or on-chain storage
-nonce_store = {}
-
-def build_siwe_message(addr: str, chain_id: int, nonce: str) -> str:
-    """
-    Build SIWE-compliant message for signing.
-    
-    Args:
-        addr: Wallet address
-        chain_id: Blockchain chain ID (1 for Ethereum mainnet)
-        nonce: Random nonce for this session
-        
-    Returns:
-        Formatted SIWE message string
-    """
-    # Safely get configuration values with fallbacks
-    uri = (
-        getattr(settings, "URI", None)
-        or getattr(settings, "BASE_URI", None)
-        or getattr(settings, "API_URL", None)
-        or getattr(settings, "FRONTEND_URL", None)
-        or getattr(settings, "BACKEND_URL", None)
-        or getattr(settings, "BASE_URL", None)
-        or "http://localhost:8000"
-    )
-    
-    parsed = urlparse(uri)
-    domain = getattr(settings, "DOMAIN", None) or (parsed.netloc or "localhost")
-    version = getattr(settings, "VERSION", "1")
-    
-    return (
-        f"{domain} wants you to sign in with your Ethereum account:\n"
-        f"{addr}\n\n"
-        f"Sign in to Eco-DMS\n\n"
-        f"URI: {uri}\n"
-        f"Version: {version}\n"
-        f"Chain ID: {chain_id}\n"
-        f"Nonce: {nonce}\n"
-        f"Issued At: {datetime.utcnow().isoformat()}Z"
-    )
+NONCE_TTL = 300
+SESSION_TTL = 3600
 
 
-@router.post("/nonce", response_model=NonceResponse)
-async def get_nonce(request: NonceRequest):
-    """
-    Step 1: Get nonce for SIWE authentication.
-    
-    Flow:
-    1. Frontend requests nonce with wallet address
-    2. Backend generates random nonce
-    3. Frontend signs message with nonce using wallet
-    4. Backend verifies signature in /verify endpoint
-    
-    Example request:
-        POST /auth/nonce
-        {"wallet_address": "0x1234..."}
-        
-    Example response:
-        {
-            "nonce": "abc123xyz789",
-            "message": "localhost wants you to sign in..."
-        }
-    """
-    # Validate wallet address format
-    if not Web3.is_address(request.wallet_address):
-        raise HTTPException(status_code=400, detail="Invalid Ethereum address")
-    
-    wallet_address = Web3.to_checksum_address(request.wallet_address)
-
-    # Generate random nonce (prevents replay attacks)
-    nonce = secrets.token_hex(16)
-
-    # Store nonce with timestamp (expires after 5 minutes)
-    nonce_store[wallet_address.lower()] = {
-        "nonce": nonce,
-        "timestamp": datetime.utcnow()
-    }
-
-    # Build SIWE message with default chain ID
-    default_chain_id = getattr(settings, "CHAIN_ID", 1)
-    message = build_siwe_message(wallet_address, default_chain_id, nonce)
-
-    return NonceResponse(nonce=nonce, message=message)
+class NonceResponse(BaseModel):
+    address: str
+    nonce: str
+    expires_at: int
 
 
-@router.post("/verify", response_model=TokenResponse)
-async def verify_signature(request: VerifyRequest, response: Response):
-    """
-    Step 2: Verify wallet signature and issue JWT token.
-    
-    Flow:
-    1. Verify nonce is valid and not expired
-    2. Verify signature matches wallet address
-    3. Create or get user profile from IPFS
-    4. Issue JWT token for session management
-    
-    Example request:
-        POST /auth/verify
-        {
-            "wallet_address": "0x1234...",
-            "signature": "0xabcd...",
-            "message": "localhost wants you to sign in..."
-        }
-        
-    Example response:
-        {
-            "access_token": "eyJhbGc...",
-            "token_type": "bearer",
-            "wallet_address": "0x1234..."
-        }
-    """
-    # Validate wallet address
-    if not Web3.is_address(request.wallet_address):
-        raise HTTPException(status_code=400, detail="Invalid Ethereum address")
-    
-    wallet_address = Web3.to_checksum_address(request.wallet_address).lower()
+class PrepareMessageRequest(BaseModel):
+    address: str
+    nonce: str
 
-    # Check if nonce exists
-    if wallet_address not in nonce_store:
-        raise HTTPException(status_code=400, detail="Nonce not found. Request a new nonce.")
 
-    nonce_data = nonce_store[wallet_address]
+class PrepareMessageResponse(BaseModel):
+    message: str
 
-    # Check nonce expiration (5 minutes)
-    if (datetime.utcnow() - nonce_data["timestamp"]).total_seconds() > 300:
-        del nonce_store[wallet_address]
-        raise HTTPException(status_code=400, detail="Nonce expired. Request a new nonce.")
 
+class VerifyRequest(BaseModel):
+    address: str
+    signature: str
+    nonce: str
+
+
+class AuthResponse(BaseModel):
+    address: str
+    profile_cid: str | None
+    token: str
+
+
+def _generate_nonce() -> str:
+    return Account.create().address[2:10]
+
+
+@router.post("/auth/nonce", response_model=NonceResponse)
+def get_nonce(address: str):
+    address_lc = address.lower()
+    nonce = _generate_nonce()
+    expires = int(time.time()) + NONCE_TTL
+    _nonce_store[address_lc] = {"nonce": nonce, "expires": expires}
+    return NonceResponse(address=address_lc, nonce=nonce, expires_at=expires)
+
+
+@router.post("/auth/prepare", response_model=PrepareMessageResponse)
+def prepare(req: PrepareMessageRequest):
+    entry = _nonce_store.get(req.address.lower())
+    if not entry or entry["nonce"] != req.nonce or entry["expires"] < time.time():
+        raise HTTPException(400, "Invalid or expired nonce")
+    message = f"Sign in to Eco-DMS:\nAddress: {req.address.lower()}\nNonce: {req.nonce}\nExpires: {entry['expires']}"
+    return PrepareMessageResponse(message=message)
+
+
+def _verify_sig(address: str, message: str, signature: str) -> bool:
+    encoded = encode_defunct(text=message)
     try:
-        # Parse SIWE message
-        siwe_message = SiweMessage.from_message(request.message)
-
-        # Verify signature
-        siwe_message.verify(request.signature)
-
-        # Verify wallet address matches
-        if siwe_message.address.lower() != wallet_address:
-            raise HTTPException(status_code=400, detail="Wallet address mismatch")
-
-        # Delete used nonce (prevent replay attacks)
-        del nonce_store[wallet_address]
-
-        # Get or create user profile in IPFS
-        profile, profile_cid = await user_service.get_or_create_profile(wallet_address)
-
-        # Create JWT token
-        token_data = {
-            "sub": wallet_address,
-            "exp": datetime.utcnow() + timedelta(minutes=settings.JWT_EXPIRATION_MINUTES)
-        }
-
-        access_token = jwt.encode(
-            token_data,
-            settings.JWT_SECRET_KEY,
-            algorithm=settings.JWT_ALGORITHM
-        )
-
-        return TokenResponse(
-            access_token=access_token,
-            token_type="bearer",
-            wallet_address=wallet_address
-        )
-
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Signature verification failed: {str(e)}")
+        recovered = Account.recover_message(encoded, signature=signature).lower()
+        return recovered == address.lower()
+    except Exception:
+        return False
 
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
-    """
-    Dependency to get current authenticated user from JWT token.
-    
-    Usage in routes:
-        @router.get("/profile")
-        async def get_profile(wallet: str = Depends(get_current_user)):
-            # wallet contains authenticated user's address
-            pass
-    """
+@router.post("/auth/verify", response_model=AuthResponse)
+def verify(req: VerifyRequest):
+    address_lc = req.address.lower()
+    entry = _nonce_store.get(address_lc)
+    if not entry or entry["nonce"] != req.nonce or entry["expires"] < time.time():
+        raise HTTPException(400, "Invalid or expired nonce")
+
+    message = f"Sign in to Eco-DMS:\nAddress: {address_lc}\nNonce: {req.nonce}\nExpires: {entry['expires']}"
+    if not _verify_sig(address_lc, message, req.signature):
+        raise HTTPException(401, "Signature invalid")
+
+    import jwt, time as _t
+    payload = {"sub": address_lc, "exp": int(_t.time()) + SESSION_TTL, "iat": int(_t.time())}
+    token = jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+
+    profile_cid = _user_profiles.get(address_lc)
+    return AuthResponse(address=address_lc, profile_cid=profile_cid, token=token)
+
+# NEW: JWT decode helper + dependency
+def _decode_jwt(token: str) -> dict:
+    import jwt
     try:
-        # Decode JWT token
-        payload = jwt.decode(
-            credentials.credentials,
-            settings.JWT_SECRET_KEY,
-            algorithms=[settings.JWT_ALGORITHM]
-        )
-
-        sub = payload.get("sub")
-
-        if not isinstance(sub, str) or not sub:
-            raise HTTPException(status_code=401, detail="Invalid token")
-
-        return sub.lower()
-
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
+        return jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+    except Exception:
+        raise HTTPException(401, "Invalid or expired token")
 
 
-@router.get("/me")
-async def get_current_user_profile(wallet_address: str = Depends(get_current_user)):
-    """
-    Get current user's profile from IPFS.
-    
-    Requires authentication (JWT token in header).
-    
-    Example request:
-        GET /auth/me
-        Authorization: Bearer eyJhbGc...
-        
-    Example response:
-        {
-            "wallet_address": "0x1234...",
-            "username": "alice",
-            "bio": "Eco enthusiast",
-            "avatar_cid": "QmXyz...",
-            "following": ["0x5678..."],
-            "followers": ["0x9abc..."]
-        }
-    """
-    profile = await user_service.get_profile(wallet_address)
-
-    if not profile:
-        # Create profile if doesn't exist
-        profile, _ = await user_service.get_or_create_profile(wallet_address)
-
-    return profile
+def get_current_user(authorization: str = Header(...)):
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(401, "Missing Bearer token")
+    raw = authorization[len("Bearer "):].strip()
+    payload = _decode_jwt(raw)
+    address = payload.get("sub")
+    if not address:
+        raise HTTPException(401, "Token missing subject")
+    return {"address": address}
 
 
-@router.put("/profile")
-async def update_profile(
-    update_data: ProfileUpdateRequest,
-    wallet_address: str = Depends(get_current_user)
-):
-    """
-    Update user profile.
-    
-    Requires authentication.
-    
-    Example request:
-        PUT /auth/profile
-        Authorization: Bearer eyJhbGc...
-        {
-            "username": "alice_eco",
-            "bio": "Saving the planet one document at a time 🌍"
-        }
-        
-    Example response:
-        {
-            "success": true,
-            "new_profile_cid": "QmNewCid123...",
-            "message": "Profile updated successfully"
-        }
-    """
-    new_cid = await user_service.update_profile(
-        wallet_address,
-        username=update_data.username,
-        bio=update_data.bio,
-        avatar_cid=update_data.avatar_cid
-    )
-
-    if not new_cid:
-        raise HTTPException(status_code=500, detail="Failed to update profile")
-
-    return {
-        "success": True,
-        "new_profile_cid": new_cid,
-        "message": "Profile updated successfully"
-    }
+@router.post("/profile")
+def set_profile(address: str, profile: dict):
+    cid = ipfs_service.add_json(profile)
+    if not cid:
+        raise HTTPException(500, "IPFS store failed")
+    _user_profiles[address.lower()] = cid
+    return {"address": address.lower(), "profile_cid": cid, "url": ipfs_service.get_url(cid)}
 
 
-@router.post("/logout")
-def logout(response: Response):
-    """
-    Logout user (clears session).
-    
-    Note: JWT tokens are stateless, so we can't truly "invalidate" them.
-    Frontend should delete the token from storage.
-    
-    Example request:
-        POST /auth/logout
-        
-    Example response:
-        {"ok": true}
-    """
-    return {"ok": True, "message": "Logged out successfully"}
+@router.get("/profile/{address}")
+def get_profile(address: str):
+    cid = _user_profiles.get(address.lower())
+    if not cid:
+        raise HTTPException(404, "Not found")
+    data = ipfs_service.get_json(cid)
+    return {"cid": cid, "data": data}

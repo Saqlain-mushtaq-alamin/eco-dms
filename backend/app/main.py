@@ -5,6 +5,7 @@ No database - everything stored in IPFS!
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .auth_routes import router as auth_router
+from .user_routes import router as user_router  # Add this import
 from .config import settings
 from .services.ipfs_service import ipfs_service
 
@@ -26,6 +27,7 @@ app.add_middleware(
 
 # Register routes
 app.include_router(auth_router, prefix=settings.API_V1_STR)
+app.include_router(user_router, prefix=settings.API_V1_STR)  # Add this line
 
 
 @app.on_event("startup")
@@ -39,8 +41,7 @@ async def startup_event():
     if ipfs_service.client:
         print("✅ IPFS connected successfully")
     else:
-        print("⚠️ IPFS not connected - please start IPFS daemon:")
-        print("   Run: ipfs daemon")
+        print("⚠️ IPFS not connected - using Pinata-only mode")
 
 
 @app.get("/")
@@ -52,7 +53,7 @@ async def root():
         "name": settings.PROJECT_NAME,
         "version": "2.0.0",
         "description": "Fully decentralized document management",
-        "storage": "IPFS",
+        "storage": "IPFS + Pinata",
         "database": "None (decentralized)",
         "ipfs_connected": ipfs_service.client is not None
     }
@@ -65,7 +66,8 @@ async def health_check():
     Check if IPFS is connected.
     """
     return {
-        "status": "healthy" if ipfs_service.client else "degraded",
+        "status": "healthy" if ipfs_service.client or settings.PINATA_JWT else "degraded",
         "ipfs_connected": ipfs_service.client is not None,
-        "message": "IPFS connected" if ipfs_service.client else "IPFS not connected - start daemon"
+        "pinata_configured": bool(settings.PINATA_JWT),
+        "message": "System operational" if (ipfs_service.client or settings.PINATA_JWT) else "Configure Pinata or IPFS"
     }
