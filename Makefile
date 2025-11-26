@@ -13,36 +13,31 @@ install:
 # Dev setup: start backend, contracts, and web
 dev: install
 	@echo Starting Backend...
-	@start "" /B "$(PY_ENV)\Scripts\uvicorn" backend.app.main:app --reload --port 8000
+	@pushd backend && start "" /B cmd /C "set PYTHONPATH=%CD%&& .venv\Scripts\python -m uvicorn backend.app.main:app --reload --port 8000" && popd
 	@echo Starting Hardhat...
-	@start "" /B pnpm --filter eco-dms-contracts hardhat node
+	@pushd contracts && start "" /B cmd /C "npx hardhat node --port 8545" && popd
 	@echo Starting Web...
-	@pnpm --filter eco-dms-web dev
+	@pushd apps\web && start "" /B cmd /C "pnpm dev" && popd
+	@echo All services started: Backend http://127.0.0.1:8000  Web http://localhost:5173  Hardhat http://127.0.0.1:8545
 
 # Backend only (runs inside backend directory)
 backend: install
 	@echo Starting Backend only...
-	@cd backend && start "" /B "..\$(PY_ENV)\Scripts\uvicorn" app.main:app --reload --port 8000
+	@pushd backend && start "" /B cmd /C "set PYTHONPATH=%CD%&& .venv\Scripts\python -m uvicorn backend.app.main:app --reload --port 8000" && popd
 
 # Web only
 web:
-	@pnpm --filter eco-dms-web dev
+	@pushd apps\web && pnpm dev && popd
 
 # Contracts only
 contracts:
-	@pnpm --filter eco-dms-contracts hardhat node
+	@pushd contracts && npx hardhat node --port 8545 && popd
 
 # Run tests
 test:
 	@pnpm --filter eco-dms-web test || exit 0
 	@pnpm --filter eco-dms-contracts test || exit 0
 	@if exist "$(PY_ENV)" "$(PY_ENV)\Scripts\python" -m pytest backend\app\tests -q || exit 0
-
-# Deploy to staging
-deploy-staging:
-	@pnpm --filter eco-dms-contracts build
-	@pnpm --filter eco-dms-contracts deploy:staging
-	@echo Staging deploy done.
 
 # Clean
 clean:

@@ -10,7 +10,7 @@ import os
 # Add root path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.config import settings
+from backend.app.config import settings
 
 
 class IPFSService:
@@ -52,7 +52,7 @@ class IPFSService:
                 print(f"❌ IPFS add_json failed: {e}")
 
         # Pinata fallback
-        from app.services.pinata_service import pinata_service
+        from backend.app.services.pinata_service import pinata_service
         cid = pinata_service.pin_json(data)
         return cid
 
@@ -93,7 +93,7 @@ class IPFSService:
                 print(f"❌ IPFS add_bytes failed: {e}")
 
         # Pinata fallback
-        from app.services.pinata_service import pinata_service
+        from backend.app.services.pinata_service import pinata_service
         return pinata_service.pin_file_bytes(data)
 
     # ----------------------------------------------------------------------
@@ -117,7 +117,7 @@ class IPFSService:
                 print(f"❌ Local IPFS pin failed: {e}")
 
         # Pinata fallback
-        from app.services.pinata_service import pinata_service
+        from backend.app.services.pinata_service import pinata_service
         return pinata_service.pin_by_cid(cid)
 
     # ----------------------------------------------------------------------
