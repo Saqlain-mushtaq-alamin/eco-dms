@@ -2,7 +2,7 @@
 User Service - manages user profiles in IPFS.
 Replaces database queries with IPFS operations.
 """
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 import sys
 import os
@@ -68,8 +68,8 @@ class UserService:
             wallet_address=wallet_address,
             username=f"user_{wallet_address[:8]}",  # Default: "user_0x123456"
             bio="New Eco-DMS user 🌱",
-            avatar_cid=None,
-            documents_cid=None,
+            avatar_cid="",
+            documents_cid="",
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
         )
@@ -191,7 +191,126 @@ class UserService:
         
         # Save (creates new CID)
         return await self.save_profile(profile)
+    
+    async def follow_user(self, follower_address: str, following_address: str) -> bool:
+        """
+        Follow another user.
+        
+        Args:
+            follower_address: Wallet address of user who wants to follow
+            following_address: Wallet address of user to follow
+            
+        Returns:
+            True if successful
+            
+        Example:
+            success = await user_service.follow_user("0x123...", "0x456...")
+        """
+        try:
+            # Get both profiles (create if don't exist)
+            follower_profile, _ = await self.get_or_create_profile(follower_address)
+            following_profile, _ = await self.get_or_create_profile(following_address)
+            
+            # Update following list
+            if following_address not in follower_profile.following:
+                follower_profile.following.append(following_address)
+                await self.save_profile(follower_profile)
+            
+            # Update followers list
+            if follower_address not in following_profile.followers:
+                following_profile.followers.append(follower_address)
+                await self.save_profile(following_profile)
+            
+            print(f"✅ {follower_address[:8]} now follows {following_address[:8]}")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Follow failed: {e}")
+            return False
+    
+    async def unfollow_user(self, follower_address: str, following_address: str) -> bool:
+        """
+        Unfollow a user.
+        
+        Args:
+            follower_address: Wallet address of user who wants to unfollow
+            following_address: Wallet address of user to unfollow
+            
+        Returns:
+            True if successful
+            
+        Example:
+            success = await user_service.unfollow_user("0x123...", "0x456...")
+        """
+        try:
+            # Get both profiles
+            follower_profile = await self.get_profile(follower_address)
+            following_profile = await self.get_profile(following_address)
+            
+            if not follower_profile or not following_profile:
+                return False
+            
+            # Remove from following list
+            if following_address in follower_profile.following:
+                follower_profile.following.remove(following_address)
+                await self.save_profile(follower_profile)
+            
+            # Remove from followers list
+            if follower_address in following_profile.followers:
+                following_profile.followers.remove(follower_address)
+                await self.save_profile(following_profile)
+            
+            print(f"✅ {follower_address[:8]} unfollowed {following_address[:8]}")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Unfollow failed: {e}")
+            return False
+    
+    async def get_followers(self, wallet_address: str) -> List[str]:
+        """
+        Get list of followers for a user.
+        
+        Args:
+            wallet_address: User's wallet address
+            
+        Returns:
+            List of follower wallet addresses
+            
+        Example:
+            followers = await user_service.get_followers("0x123...")
+            # Returns: ["0x456...", "0x789..."]
+        """
+        profile = await self.get_profile(wallet_address)
+        
+        if not profile:
+            # Try to create profile if doesn't exist
+            profile, _ = await self.get_or_create_profile(wallet_address)
+        
+        return profile.followers if profile else []
+    
+    async def get_following(self, wallet_address: str) -> List[str]:
+        """
+        Get list of users this user follows.
+        
+        Args:
+            wallet_address: User's wallet address
+            
+        Returns:
+            List of wallet addresses being followed
+            
+        Example:
+            following = await user_service.get_following("0x123...")
+            # Returns: ["0xabc...", "0xdef..."]
+        """
+        profile = await self.get_profile(wallet_address)
+        
+        if not profile:
+            # Try to create profile if doesn't exist
+            profile, _ = await self.get_or_create_profile(wallet_address)
+        
+        return profile.following if profile else []
 
 
-# Global instance
+# Create global user service instance
 user_service = UserService()
