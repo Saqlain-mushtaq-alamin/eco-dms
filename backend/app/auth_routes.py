@@ -6,8 +6,8 @@ from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
 from eth_account import Account
 from eth_account.messages import encode_defunct
-from app.config import settings
-from app.services.ipfs_service import ipfs_service
+from backend.app.config import settings
+from backend.app.services.ipfs_service import ipfs_service
 import time
 import re
 
