@@ -2,10 +2,11 @@
 IPFS Service with Pinata fallback.
 Works even without a local IPFS node.
 """
+import os
+import sys
 import json
 from typing import Dict, Any, Optional
-import sys
-import os
+import requests
 
 # Add root path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -21,21 +22,28 @@ class IPFSService:
 
     def __init__(self):
         """Initialize IPFS or Pinata-only mode."""
-        self.client = None
+        self.client = None  # bool flag: IPFS API reachable
         self.pinata_only = False
+        self.api_url = (settings.IPFS_API_URL or "").strip().rstrip("/")
+        self.gateway_url = (settings.IPFS_GATEWAY_URL or "https://ipfs.io/ipfs/").strip().rstrip("/") + "/"
 
-        if settings.IPFS_API_URL:
+        if self.api_url:
             try:
-                import ipfshttpclient
-                self.client = ipfshttpclient.connect(settings.IPFS_API_URL)
-                print(f"✅ Connected to IPFS at {settings.IPFS_API_URL}")
-            except Exception as e:
-                print(f"⚠️ IPFS connection failed: {e}")
-                print("➡️ Falling back to Pinata-only mode")
+                # Simple ping
+                r = requests.post(f"{self.api_url}/version", timeout=2)
+                if r.ok:
+                    ver = r.json().get("Version", "unknown")
+                    self.client = True
+                    print(f"✅ Connected to IPFS API ({ver}) at {self.api_url}")
+                else:
+                    self.pinata_only = True
+                    print("⚠️ IPFS API not responding, falling back to Pinata")
+            except Exception:
                 self.pinata_only = True
+                print("⚠️ Could not connect to IPFS API, falling back to Pinata")
         else:
-            print("📌 Pinata-only mode enabled (no IPFS_API_URL)")
             self.pinata_only = True
+            print("📌 Pinata-only mode enabled (no IPFS_API_URL)")
 
     # ----------------------------------------------------------------------
     # Add JSON
@@ -44,88 +52,88 @@ class IPFSService:
         """Add JSON to IPFS or Pinata."""
         if self.client and not self.pinata_only:
             try:
-                # ipfshttpclient supports add_json()
-                result = self.client.add_json(data)  # type: ignore
-                print(f"✅ Added JSON to IPFS: {result}")
-                return result
+                payload = json.dumps(data).encode("utf-8")
+                files = {"file": ("data.json", payload, "application/json")}
+                r = requests.post(f"{self.api_url}/add?pin=true&wrap-with-directory=false", files=files, timeout=30)
+                r.raise_for_status()
+                # ipfs add returns NDJSON; take the last line's Hash
+                last = r.text.strip().splitlines()[-1]
+                obj = json.loads(last)
+                return obj.get("Hash")
             except Exception as e:
-                print(f"❌ IPFS add_json failed: {e}")
+                print(f"⚠️ IPFS add_json failed: {e}. Falling back to Pinata.")
 
         # Pinata fallback
-        from backend.app.services.pinata_service import pinata_service
-        cid = pinata_service.pin_json(data)
-        return cid
+        try:
+            from backend.app.services.pinata_service import pinata_service
+            return pinata_service.pin_json(data)
+        except Exception as e:
+            print(f"❌ Pinata add_json failed: {e}")
+            return None
 
     # ----------------------------------------------------------------------
     # Get JSON
     # ----------------------------------------------------------------------
     def get_json(self, cid: str) -> Optional[Dict[str, Any]]:
         """Get JSON from IPFS or fallback gateway."""
-        if self.client and not self.pinata_only:
-            try:
-                result = self.client.cat(cid)  # type: ignore
-                return json.loads(result)
-            except Exception as e:
-                print(f"⚠️ Local IPFS get failed: {e}")
-
-        # Fallback: public gateway fetch
+        # Always use gateway for reads (works for both local and pinned)
         try:
-            import requests
-            url = f"{settings.IPFS_GATEWAY_URL}{cid}"
-            response = requests.get(url, timeout=10)
-            response.raise_for_status()
-            return response.json()
+            url = self.get_url(cid)
+            r = requests.get(url, timeout=20)
+            r.raise_for_status()
+            return r.json()
         except Exception as e:
-            print(f"❌ Gateway fetch failed: {e}")
+            print(f"⚠️ get_json failed from gateway: {e}")
             return None
 
     # ----------------------------------------------------------------------
     # Add Bytes
     # ----------------------------------------------------------------------
-    def add_bytes(self, data: bytes) -> Optional[str]:
+    def add_bytes(self, data: bytes, filename: str = "file.bin", mime: str = "application/octet-stream") -> Optional[str]:
         """Add raw bytes to IPFS or Pinata."""
         if self.client and not self.pinata_only:
             try:
-                result = self.client.add_bytes(data)  # type: ignore
-                print(f"✅ Bytes added to IPFS: {result}")
-                return result
+                files = {"file": (filename, data, mime)}
+                r = requests.post(f"{self.api_url}/add?pin=true&wrap-with-directory=false", files=files, timeout=60)
+                r.raise_for_status()
+                last = r.text.strip().splitlines()[-1]
+                obj = json.loads(last)
+                return obj.get("Hash")
             except Exception as e:
-                print(f"❌ IPFS add_bytes failed: {e}")
+                print(f"⚠️ IPFS add_bytes failed: {e}. Falling back to Pinata.")
 
         # Pinata fallback
-        from backend.app.services.pinata_service import pinata_service
-        return pinata_service.pin_file_bytes(data)
+        try:
+            from backend.app.services.pinata_service import pinata_service
+            return pinata_service.pin_file_bytes(data, filename=filename)
+        except Exception as e:
+            print(f"❌ Pinata add_bytes failed: {e}")
+            return None
 
     # ----------------------------------------------------------------------
     # Pin
     # ----------------------------------------------------------------------
     def pin(self, cid: str) -> bool:
-        """Pin content locally or to Pinata."""
+        """Pin an existing CID on IPFS or via Pinata."""
         if self.client and not self.pinata_only:
             try:
-                # ipfshttpclient exposes "pin" dynamically, Pylance can't see it → use getattr
-                pin_api = getattr(self.client, "pin", None)  # type: ignore
-
-                if pin_api:
-                    pin_api.add(cid)  # type: ignore
-                    print(f"📌 Pinned locally: {cid}")
-                    return True
-                else:
-                    print("⚠️ IPFS pin API not available (unexpected)")
-
+                r = requests.post(f"{self.api_url}/pin/add?arg={cid}", timeout=15)
+                return r.ok
             except Exception as e:
-                print(f"❌ Local IPFS pin failed: {e}")
+                print(f"⚠️ IPFS pin failed: {e}. Falling back to Pinata.")
 
-        # Pinata fallback
-        from backend.app.services.pinata_service import pinata_service
-        return pinata_service.pin_by_cid(cid)
+        try:
+            from backend.app.services.pinata_service import pinata_service
+            return pinata_service.pin_by_cid(cid)
+        except Exception as e:
+            print(f"❌ Pinata pin_by_cid failed: {e}")
+            return False
 
     # ----------------------------------------------------------------------
     # URL helper
     # ----------------------------------------------------------------------
     def get_url(self, cid: str) -> str:
-        """Return public URL for a CID."""
-        return f"{settings.IPFS_GATEWAY_URL}{cid}"
+        return f"{self.gateway_url}{cid}"
 
 
 # Export global instance

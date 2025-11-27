@@ -54,7 +54,7 @@ async def startup_event():
     print("🚀 Starting Eco-DMS Decentralized Backend...")
     
     if ipfs_service.client:
-        print("✅ IPFS connected successfully")
+        print("✅ IPFS connected via API:", settings.IPFS_API_URL)
     else:
         print("⚠️ IPFS not connected - using Pinata-only mode")
 
