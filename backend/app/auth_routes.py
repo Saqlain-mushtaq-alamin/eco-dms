@@ -10,6 +10,7 @@ from backend.app.config import settings
 from backend.app.services.ipfs_service import ipfs_service
 import time
 import re
+import jwt
 
 # Main router (legacy /auth routes will remain)
 router = APIRouter()
@@ -172,13 +173,12 @@ def siwe_verify(req: SiweVerifyRequest):
 
     if not _verify_sig(address_lc, message, req.signature):
         raise HTTPException(401, "Signature invalid")
-
     # Consume nonce
     _nonce_index.pop(nonce, None)
     _nonce_store.pop(address_lc, None)
 
-    import jwt, time as _t
-    payload = {"sub": address_lc, "exp": int(_t.time()) + SESSION_TTL, "iat": int(_t.time())}
+    payload = {"sub": address_lc, "exp": int(time.time()) + SESSION_TTL, "iat": int(time.time())}
+    token = jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
     token = jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
     profile_cid = _user_profiles.get(address_lc)
@@ -211,7 +211,6 @@ def siwe_logout_alias(authorization: str | None = Header(default=None)):
 # ---------------- Auth helpers ----------------
 
 def _decode_jwt(token: str) -> dict:
-    import jwt
     try:
         return jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
     except Exception:
