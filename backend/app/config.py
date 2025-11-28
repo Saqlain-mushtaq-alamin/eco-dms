@@ -31,6 +31,14 @@ class Settings(BaseSettings):
     # Blockchain
     CHAIN_ID: int = 1
 
+    # Redis
+    REDIS_URL: str = "redis://127.0.0.1:6379/0"
+    NONCE_TTL_SECONDS: int = 300
+    SESSION_TTL_SECONDS: int = 3600
+    RATE_LIMIT_WINDOW_SEC: int = 60
+    RATE_LIMIT_MAX_NONCE: int = 20
+    RATE_LIMIT_MAX_VERIFY: int = 60
+
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=True,
