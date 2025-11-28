@@ -9,6 +9,7 @@ from backend.app.auth_routes import siwe_router, siwe_alias_router
 from backend.app.user_routes import router as user_router
 from backend.app.config import settings
 from backend.app.services.ipfs_service import ipfs_service
+from backend.app.services.redis_service import redis_service
 
 # Create FastAPI app
 app = FastAPI(
@@ -57,6 +58,8 @@ async def startup_event():
         print("✅ IPFS connected via API:", settings.IPFS_API_URL)
     else:
         print("⚠️ IPFS not connected - using Pinata-only mode")
+
+    print("✅ Redis connected" if redis_service.ping() else f"⚠️ Redis not reachable: {settings.REDIS_URL}")
 
 
 @app.get("/")

@@ -2,12 +2,13 @@
 Authentication routes using SIWE (Sign-In with Ethereum).
 No passwords, no database - just wallet signatures!
 """
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Header, Request
 from pydantic import BaseModel
 from eth_account import Account
 from eth_account.messages import encode_defunct
 from backend.app.config import settings
 from backend.app.services.ipfs_service import ipfs_service
+from backend.app.services.redis_service import redis_service
 import time
 import re
 import jwt
@@ -17,45 +18,17 @@ router = APIRouter()
 siwe_router = APIRouter()
 siwe_alias_router = APIRouter()
 
-_nonce_index: dict[str, int] = {}
-_nonce_store: dict[str, dict] = {}
-_user_profiles: dict[str, str] = {}
+# Remove in-memory stores; use Redis instead
+# _nonce_index = {}
+# _nonce_store = {}
+# _user_profiles = {}
 
-NONCE_TTL = 300
-SESSION_TTL = 3600
+NONCE_TTL = settings.NONCE_TTL_SECONDS
+SESSION_TTL = settings.SESSION_TTL_SECONDS
 
-class NonceResponse(BaseModel):
-    address: str
-    nonce: str
-    expires_at: int
-
-class SiweNonceResponse(BaseModel):
-    nonce: str
-    expires_at: int
-
-class PrepareMessageRequest(BaseModel):
-    address: str
-    nonce: str
-
-class PrepareMessageResponse(BaseModel):
-    message: str
-
-class VerifyRequest(BaseModel):
-    address: str
-    signature: str
-    nonce: str
-
-# NEW: Accept SIWE style body too
-class SiweVerifyRequest(BaseModel):
-    message: str | None = None
-    signature: str
-    address: str | None = None
-    nonce: str | None = None
-
-class AuthResponse(BaseModel):
-    address: str
-    profile_cid: str | None
-    token: str
+def _rl(key: str, limit: int, window: int):
+    if redis_service.incr(key, ex=window) > limit:
+        raise HTTPException(status_code=429, detail="Too many requests")
 
 def _generate_nonce() -> str:
     return Account.create().address[2:10]
@@ -89,25 +62,19 @@ def _parse_prepared_message(message: str) -> tuple[str | None, str | None, int |
 # ---------------- Legacy endpoints (/auth/...) ----------------
 
 @router.post("/auth/nonce", response_model=NonceResponse)
-def get_nonce(address: str):
-    address_lc = address.lower()
+def get_nonce(address: str, request: Request):
+    ip = request.client.host if request.client else "unknown"
+    _rl(f"rl:nonce:{ip}", settings.RATE_LIMIT_MAX_NONCE, settings.RATE_LIMIT_WINDOW_SEC)
     nonce = _generate_nonce()
     expires = int(time.time()) + NONCE_TTL
-    _nonce_store[address_lc] = {"nonce": nonce, "expires": expires}
-    _nonce_index[nonce] = expires
-    return NonceResponse(address=address_lc, nonce=nonce, expires_at=expires)
+    redis_service.set_str(_nonce_key(nonce), "1", ex=NONCE_TTL)
+    return NonceResponse(address=address.lower(), nonce=nonce, expires_at=expires)
 
 @router.post("/auth/prepare", response_model=PrepareMessageResponse)
 def prepare(req: PrepareMessageRequest):
-    now = int(time.time())
-    entry = _nonce_store.get(req.address.lower())
-    expires = None
-    if entry and entry["nonce"] == req.nonce:
-        expires = entry["expires"]
-    elif req.nonce in _nonce_index:
-        expires = _nonce_index[req.nonce]
-    if not expires or expires < now:
+    if not redis_service.get_str(_nonce_key(req.nonce)):
         raise HTTPException(400, "Invalid or expired nonce")
+    expires = int(time.time()) + NONCE_TTL
     message = f"Sign in to Eco-DMS:\nAddress: {req.address.lower()}\nNonce: {req.nonce}\nExpires: {expires}"
     return PrepareMessageResponse(message=message)
 
@@ -127,61 +94,57 @@ def verify(req: VerifyRequest):
 # ---------------- SIWE endpoints (/siwe/...) ----------------
 
 @siwe_router.get("/nonce", response_model=SiweNonceResponse)
-def siwe_nonce():
+def siwe_nonce(request: Request):
+    ip = request.client.host if request.client else "unknown"
+    _rl(f"rl:nonce:{ip}", settings.RATE_LIMIT_MAX_NONCE, settings.RATE_LIMIT_WINDOW_SEC)
     nonce = _generate_nonce()
     expires = int(time.time()) + NONCE_TTL
-    _nonce_index[nonce] = expires
+    redis_service.set_str(_nonce_key(nonce), "1", ex=NONCE_TTL)
     return SiweNonceResponse(nonce=nonce, expires_at=expires)
 
 @siwe_router.post("/prepare", response_model=PrepareMessageResponse)
 def siwe_prepare(req: PrepareMessageRequest):
-    now = int(time.time())
-    expires = _nonce_index.get(req.nonce)
-    if not expires or expires < now:
+    if not redis_service.get_str(_nonce_key(req.nonce)):
         raise HTTPException(400, "Invalid or expired nonce")
+    # approximate remaining TTL in message for UX
+    expires = int(time.time()) + NONCE_TTL
     message = f"Sign in to Eco-DMS:\nAddress: {req.address.lower()}\nNonce: {req.nonce}\nExpires: {expires}"
     return PrepareMessageResponse(message=message)
 
 @siwe_router.post("/verify", response_model=AuthResponse)
-def siwe_verify(req: SiweVerifyRequest):
-    # Accept either {message, signature} or {address, nonce, signature}
+def siwe_verify(req: SiweVerifyRequest, request: Request):
+    ip = request.client.host if request.client else "unknown"
+    _rl(f"rl:verify:{ip}", settings.RATE_LIMIT_MAX_VERIFY, settings.RATE_LIMIT_WINDOW_SEC)
+
     if req.message:
         parsed_addr, parsed_nonce, parsed_exp = _parse_prepared_message(req.message)
         if not parsed_addr or not parsed_nonce:
             raise HTTPException(400, "Invalid message format")
         address_lc = parsed_addr
         nonce = parsed_nonce
-        # Check nonce validity
-        now = int(time.time())
-        expires = _nonce_index.get(nonce, parsed_exp)
-        if not expires or expires < now:
-            raise HTTPException(400, "Invalid or expired nonce")
         message = req.message
     else:
         if not (req.address and req.nonce):
             raise HTTPException(422, "address and nonce required when message is not provided")
         address_lc = req.address.lower()
         nonce = req.nonce
-        now = int(time.time())
-        expires = _nonce_index.get(nonce)
-        if not expires or expires < now:
-            entry = _nonce_store.get(address_lc)
-            if not entry or entry.get("nonce") != nonce or entry.get("expires", 0) < now:
-                raise HTTPException(400, "Invalid or expired nonce")
-            expires = entry["expires"]
+        expires = int(time.time()) + NONCE_TTL
         message = f"Sign in to Eco-DMS:\nAddress: {address_lc}\nNonce: {nonce}\nExpires: {expires}"
+
+    if not redis_service.get_str(_nonce_key(nonce)):
+        raise HTTPException(400, "Invalid or expired nonce")
 
     if not _verify_sig(address_lc, message, req.signature):
         raise HTTPException(401, "Signature invalid")
-    # Consume nonce
-    _nonce_index.pop(nonce, None)
-    _nonce_store.pop(address_lc, None)
 
-    payload = {"sub": address_lc, "exp": int(time.time()) + SESSION_TTL, "iat": int(time.time())}
-    token = jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    # consume nonce
+    redis_service.delete(_nonce_key(nonce))
+
+    import jwt, time as _t
+    payload = {"sub": address_lc, "exp": int(_t.time()) + SESSION_TTL, "iat": int(_t.time())}
     token = jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
-    profile_cid = _user_profiles.get(address_lc)
+    profile_cid = redis_service.get_str(_profile_cid_key(address_lc))
     return AuthResponse(address=address_lc, profile_cid=profile_cid, token=token)
 
 # NEW: SIWE logout (stateless - client should discard token)
@@ -231,7 +194,7 @@ def set_profile(address: str, profile: dict):
     cid = ipfs_service.add_json(profile)
     if not cid:
         raise HTTPException(500, "IPFS store failed")
-    _user_profiles[address.lower()] = cid
+    redis_service.set_str(_profile_cid_key(address), cid, ex=24*3600)
     return {"address": address.lower(), "profile_cid": cid, "url": ipfs_service.get_url(cid)}
 
 @router.get("/profile/{address}")
