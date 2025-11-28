@@ -27,7 +27,7 @@ class UserService:
             if data:
                 return (UserProfile(**data), cid)
         # default minimal profile
-        profile = UserProfile(wallet_address=addr, followers=[], following=[])
+        profile = UserProfile(wallet_address=addr, followers=[], following=[], username="", bio="", avatar_cid="", documents_cid="")
         new_cid = await self.save_profile(profile)
         return (profile, new_cid)
 
