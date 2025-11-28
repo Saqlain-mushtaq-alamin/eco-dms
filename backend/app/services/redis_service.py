@@ -21,7 +21,7 @@ class RedisService:
         if not raw:
             return None
         try:
-            return json.loads(raw)
+            return json.loads(str(raw))
         except Exception:
             return None
 
@@ -29,7 +29,8 @@ class RedisService:
         self.client.set(key, value, ex=ex)
 
     def get_str(self, key: str) -> Optional[str]:
-        return self.client.get(key)
+        result = self.client.get(key)
+        return result if isinstance(result, str) else None
 
     def delete(self, key: str):
         self.client.delete(key)
