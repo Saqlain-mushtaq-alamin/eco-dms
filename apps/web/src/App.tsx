@@ -19,20 +19,24 @@ export default function App() {
                 const token = localStorage.getItem('auth_token')
 
                 if (!token) {
-                    console.log('No auth token found')
+                    console.log('No auth token found - showing sign in')
                     setView('signin')
                     setLoading(false)
                     return
                 }
 
                 const profile = await getMe()
-                console.log('User authenticated:', profile)
+                console.log('User profile:', profile)
 
                 setAddress(profile.wallet_address)
 
-                if (profile.username) {
+                // If user HAS a username, they completed profile - go to feed
+                if (profile.username && profile.username.trim()) {
+                    console.log('Profile exists, going to feed')
                     setView('feed')
                 } else {
+                    // If NO username, profile incomplete - show create profile
+                    console.log('No username, showing create profile')
                     setView('create-profile')
                 }
             } catch (error) {
@@ -61,9 +65,21 @@ export default function App() {
 
             {view === 'signin' && (
                 <WalletConnect
-                    onConnected={(connectedAddress: string) => {
+                    onConnected={async (connectedAddress: string) => {
                         setAddress(connectedAddress)
-                        setView('create-profile')
+                        try {
+                            const profile = await getMe()
+                            // If profile exists (has username), go to feed, otherwise to create-profile
+                            if (profile?.username && profile.username.trim()) {
+                                setView('feed')
+                            } else {
+                                setView('create-profile')
+                            }
+                        } catch (err) {
+                            // If getMe fails (e.g., no token yet), default to create-profile
+                            console.log('getMe after connect failed:', err)
+                            setView('create-profile')
+                        }
                     }}
                 />
             )}
