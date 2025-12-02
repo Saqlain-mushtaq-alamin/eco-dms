@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: Union[str, List[str]] = ["http://localhost:3000", "http://localhost:5173"]
 
     # API
-    API_V1_STR: str = "/api/v1"
+    API_V1_STR: str = "/api"
     PROJECT_NAME: str = "Eco-DMS Decentralized"
 
     # Blockchain

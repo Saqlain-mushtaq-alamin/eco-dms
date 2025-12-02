@@ -4,12 +4,27 @@ No SQLite - uses IPFS storage via user_service.
 """
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Optional
+from datetime import datetime
+import json
 
 from .auth_routes import get_current_user
 from .models import UserProfile, ProfileUpdateRequest
 from .services.user_service import user_service
 
 router = APIRouter(prefix="/api/users", tags=["users"])
+
+
+def _serialize_profile(profile: dict) -> dict:
+    """Convert datetime objects to ISO strings for JSON serialization."""
+    serialized = {}
+    for key, value in profile.items():
+        if isinstance(value, datetime):
+            serialized[key] = value.isoformat()  # Convert to string
+        elif isinstance(value, (list, tuple)):
+            serialized[key] = [v.isoformat() if isinstance(v, datetime) else v for v in value]
+        else:
+            serialized[key] = value
+    return serialized
 
 
 @router.get("/me", response_model=UserProfile)
@@ -45,6 +60,13 @@ async def update_my_profile(
     Returns:
         Success message with new profile CID
     """
+    print(f"DEBUG: PUT /me called")
+    print(f"DEBUG: wallet_address from auth: {wallet_address}")
+    print(f"DEBUG: update_data: {update_data}")
+    
+    if not wallet_address:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
     new_cid = await user_service.update_profile(
         wallet_address,
         username=update_data.username,

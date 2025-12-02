@@ -3,7 +3,8 @@ Authentication routes using SIWE (Sign-In with Ethereum).
 No passwords, no database - just wallet signatures!
 Uses Redis for nonces, profile CID cache, and simple rate limiting.
 """
-from fastapi import APIRouter, HTTPException, Header, Request
+from fastapi import APIRouter, HTTPException, Header, Request, Depends
+from fastapi.security import HTTPBearer
 from pydantic import BaseModel
 from eth_account import Account
 from eth_account.messages import encode_defunct
@@ -15,6 +16,7 @@ import time
 import re
 import secrets
 import jwt
+from datetime import datetime, timedelta
 
 # Routers
 router = APIRouter()
@@ -101,21 +103,62 @@ def _verify_sig(address: str, message: str, signature: str) -> bool:
     except Exception:
         return False
 
-def _decode_jwt(token: str) -> dict:
-    try:
-        return jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
-    except Exception:
-        raise HTTPException(401, "Invalid or expired token")
+def _encode_jwt(wallet_address: str) -> str:
+    """Create JWT token for authenticated user."""
+    payload = {
+        "sub": wallet_address,
+        "iat": datetime.utcnow(),
+        "exp": datetime.utcnow() + timedelta(minutes=settings.JWT_EXPIRATION_MINUTES)
+    }
+    token = jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    return token
 
-def get_current_user(authorization: str = Header(...)) -> str:
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(401, "Missing Bearer token")
-    raw = authorization[len("Bearer "):].strip()
-    payload = _decode_jwt(raw)
-    address = payload.get("sub")
-    if not address:
-        raise HTTPException(401, "Token missing subject")
-    return address
+def _decode_jwt(token: str) -> dict:
+    """Decode and verify JWT token."""
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+async def get_current_user(authorization: str | None = Header(default=None)) -> str:
+    """
+    Extract wallet address from Bearer token in Authorization header.
+    """
+    print(f"DEBUG: get_current_user called")
+    print(f"DEBUG: authorization header: {authorization}")
+    
+    if not authorization:
+        print("DEBUG: No authorization header provided")
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    try:
+        # Extract Bearer token
+        if not authorization.startswith("Bearer "):
+            print("DEBUG: Authorization header doesn't start with 'Bearer '")
+            raise HTTPException(status_code=401, detail="Invalid authorization format")
+        
+        token = authorization.replace("Bearer ", "")
+        print(f"DEBUG: Token extracted: {token[:20]}...")
+        
+        # Verify token and extract wallet
+        payload = _decode_jwt(token)
+        wallet_address = payload.get("sub")
+        
+        if not wallet_address:
+            print("DEBUG: No wallet address in token")
+            raise HTTPException(status_code=401, detail="No wallet address in token")
+        
+        print(f"DEBUG: Successfully authenticated: {wallet_address}")
+        return wallet_address
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"DEBUG: Auth error: {e}")
+        raise HTTPException(status_code=401, detail=f"Auth failed: {str(e)}")
 
 # ---------------- Legacy endpoints (/auth/...) ----------------
 
@@ -228,8 +271,32 @@ def siwe_prepare_alias(req: PrepareMessageRequest):
     return siwe_prepare(req)
 
 @siwe_alias_router.post("/api/siwe/verify", response_model=AuthResponse)
-def siwe_verify_alias(req: SiweVerifyRequest, request: Request):
-    return siwe_verify(req, request)
+async def verify_signature_alias(req: SiweVerifyRequest):
+    """Verify SIWE signature and return JWT token."""
+    print(f"DEBUG: verify endpoint called")
+    print(f"DEBUG: message: {req.message}")
+    print(f"DEBUG: signature: {req.signature[:20]}...")
+    
+    try:
+        # Recover wallet from signature
+        message = encode_defunct(text=req.message)
+        recovered_address = Account.recover_message(message, signature=req.signature)
+        
+        print(f"DEBUG: Recovered address: {recovered_address}")
+        
+        # Create JWT token
+        jwt_token = _encode_jwt(recovered_address)
+        
+        print(f"DEBUG: JWT token created")
+        
+        return AuthResponse(
+            address=recovered_address,
+            profile_cid=None,
+            token=jwt_token
+        )
+    except Exception as e:
+        print(f"DEBUG: Verification failed: {e}")
+        raise HTTPException(status_code=401, detail=str(e))
 
 @siwe_alias_router.post("/api/siwe/logout")
 def siwe_logout_alias(authorization: str | None = Header(default=None)):
@@ -260,6 +327,7 @@ def get_profile(address: str):
 @router.post("/dev/cleanup")
 def dev_cleanup():
     result: dict[str, dict | None] = {"redis": None, "pinata": None, "ipfs": None}
+    print("💥DEV CLEANUP: Starting cleanup of Redis, Pinata, and IPFS local...")
     # Redis
     try:
         if getattr(redis_service, "client", None):

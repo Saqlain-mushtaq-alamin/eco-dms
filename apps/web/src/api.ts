@@ -24,15 +24,42 @@ export async function verifySignature(message: string, signature: string) {
         body: JSON.stringify({ message, signature })
     })
     if (!r.ok) throw new Error('verify failed')
-    return r.json()
+
+    const data = await r.json()
+
+    // Store the JWT token from the response
+    if (data.token) {
+        localStorage.setItem('auth_token', data.token)
+        console.log('Token stored:', data.token.substring(0, 20) + '...')
+    }
+
+    return data
+}
+
+export async function getToken(): Promise<string | null> {
+    // Get token from localStorage (set by verifySignature)
+    return localStorage.getItem('auth_token')
 }
 
 export async function getMe() {
-    const r = await fetch(`${API_BASE}/api/me`, {
+    const token = await getToken()
+
+    if (!token) {
+        throw new Error('No authentication token found')
+    }
+
+    const res = await fetch(`${API_BASE}/api/users/me`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
         credentials: 'include'
     })
-    if (!r.ok) throw new Error('not authed')
-    return r.json()
+
+    if (!res.ok) {
+        throw new Error(`Failed to fetch user profile: ${res.status}`)
+    }
+    return res.json()
 }
 
 export async function logout() {
