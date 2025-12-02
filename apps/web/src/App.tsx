@@ -20,41 +20,11 @@ export default function App() {
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        const checkAuth = async () => {
-            try {
-                const token = localStorage.getItem('auth_token')
-
-                if (!token) {
-                    console.log('No auth token found - showing sign in')
-                    setView('signin')
-                    setLoading(false)
-                    return
-                }
-
-                const profile = await getMe()
-                console.log('User profile:', profile)
-
-                setAddress(profile.wallet_address)
-
-                // If user HAS a username, they completed profile - go to feed
-                if (profile.username && profile.username.trim()) {
-                    console.log('Profile exists, going to feed')
-                    setView('feed')
-                } else {
-                    // If NO username, profile incomplete - show create profile
-                    console.log('No username, showing create profile')
-                    setView('create-profile')
-                }
-            } catch (error) {
-                console.log('Auth check failed:', error)
-                localStorage.removeItem('auth_token')
-                setView('signin')
-            } finally {
-                setLoading(false)
-            }
-        }
-
-        checkAuth()
+        // Always start on sign-in
+        // For clean dev runs, uncomment the next line to clear any stored session:
+        // localStorage.removeItem('auth_token')
+        setView('signin')
+        setLoading(false)
     }, [])
 
     if (loading) {
