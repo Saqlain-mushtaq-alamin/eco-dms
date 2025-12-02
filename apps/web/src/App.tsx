@@ -6,6 +6,12 @@ import { ProfileCreate } from './pages/ProfileCreate'
 import { Feed } from './pages/Feed'
 import UserProfile from './pages/UserProfile'
 
+// ! there is a bug need to fix with the page layout when switching between views 
+// there i want when the app starts it show the signin page first  that if the user is not authenticated
+// and if the user is authenticated it should check if the profile is complete or not 
+// if complete go to feed else go to create profile page
+
+
 type View = 'signin' | 'create-profile' | 'feed' | 'userprofile'
 
 export default function App() {
@@ -134,7 +140,7 @@ export default function App() {
 
 // In WalletConnect.tsx
 export async function verifySignature(message: string, signature: string) {
-    const r = await fetch(`${API_BASE}/api/siwe/verify`, {
+    const r = await fetch(`/api/siwe/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
