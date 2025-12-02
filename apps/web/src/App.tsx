@@ -1,109 +1,140 @@
 // filepath: d:\canvas\eco-dms\eco-dms\apps\web\src\App.tsx
 import React, { useEffect, useState } from 'react'
-import { SignInPanel } from './components/SignInPanel'
 import { getMe, logout } from './api'
+import WalletConnect from './pages/WalletConnect'
 import { ProfileCreate } from './pages/ProfileCreate'
 import { Feed } from './pages/Feed'
 import UserProfile from './pages/UserProfile'
-import type { AuthResponse } from './hooks/useSIWE'
-
 
 type View = 'signin' | 'create-profile' | 'feed' | 'userprofile'
-
-interface UserProfileProps {
-    address: string
-    onBack: () => void
-}
 
 export default function App() {
     const [view, setView] = useState<View>('signin')
     const [address, setAddress] = useState<string>('')
+    const [loading, setLoading] = useState(true)
 
-    // Try existing session on load
     useEffect(() => {
-        ; (async () => {
+        const checkAuth = async () => {
             try {
-                const me = await getMe()
-                setAddress(me.address)
-                setView('feed')
-            } catch {
+                const token = localStorage.getItem('auth_token')
+
+                if (!token) {
+                    console.log('No auth token found')
+                    setView('signin')
+                    setLoading(false)
+                    return
+                }
+
+                const profile = await getMe()
+                console.log('User authenticated:', profile)
+
+                setAddress(profile.wallet_address)
+
+                if (profile.username) {
+                    setView('feed')
+                } else {
+                    setView('create-profile')
+                }
+            } catch (error) {
+                console.log('Auth check failed:', error)
+                localStorage.removeItem('auth_token')
                 setView('signin')
+            } finally {
+                setLoading(false)
             }
-        })()
+        }
+
+        checkAuth()
     }, [])
 
-    const handleAuth = (auth: AuthResponse) => {
-        setAddress(auth.address)
-        if (auth.is_new) setView('create-profile')
-        else setView('feed')
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-screen">
+                <p>Loading...</p>
+            </div>
+        )
     }
 
     return (
         <div className="max-w-xl mx-auto p-6">
-            <h1 className="text-2xl font-bold mb-4">Eco DMS Web  SIWE</h1>
-            {/*  Development-only Clear DB button */}
+            <h1 className="text-2xl font-bold mb-4">Eco DMS Web SIWE</h1>
+
             {view === 'signin' && (
-                <button
-                    className="border px-3 py-2 mt-4 bg-red-600 text-white"
-                    onClick={async () => {
-                        if (process.env.NODE_ENV === 'development') {
-                            try {
-                                await fetch('/dev/cleanup', { method: 'POST' })
-                                alert('Database cleared')
-                            } catch (error) {
-                                console.error('Delete failed:', error)
-                            }
-                        }
+                <WalletConnect
+                    onConnected={(connectedAddress: string) => {
+                        setAddress(connectedAddress)
+                        setView('create-profile')
                     }}
-                >
-                    Clear DB (Dev Only)
-                </button>
+                />
             )}
 
-            {view === 'signin' && <SignInPanel onAuth={handleAuth} />}
-
-            {view === 'create-profile' && (
+            {view === 'create-profile' && address && (
                 <ProfileCreate
                     address={address}
                     onDone={() => setView('feed')}
                 />
             )}
 
-            {view === 'feed' && (
+            {view === 'feed' && address && (
                 <>
                     <Feed address={address} />
 
-                    <button
-                        className="border px-3 py-2 mt-4"
-                        onClick={() => setView('userprofile')}
-                    >
-                        Profile
-                    </button>
-                       <button
-                        className="border px-3 py-2 mt-4"
-                        onClick={() => setView('create-profile')}
-                    >
-                        create Profile
-                    </button>
-                    <button
-                        className="border px-3 py-2 mt-4"
-                        onClick={async () => {
-                            await logout()
-                            setView('signin')
-                            setAddress('')
-                        }}
-                    >
-                        Logout
-                    </button>
-
+                    <div className="flex gap-2 mt-4 flex-wrap">
+                        <button
+                            className="border px-3 py-2 bg-blue-600 text-white"
+                            onClick={() => setView('userprofile')}
+                        >
+                            View Profile
+                        </button>
+                        <button
+                            className="border px-3 py-2 bg-blue-600 text-white"
+                            onClick={() => setView('create-profile')}
+                        >
+                            Edit Profile
+                        </button>
+                        <button
+                            className="border px-3 py-2 bg-red-600 text-white"
+                            onClick={async () => {
+                                await logout()
+                                setView('signin')
+                                setAddress('')
+                            }}
+                        >
+                            Logout
+                        </button>
+                    </div>
                 </>
             )}
 
-            {view === 'userprofile' && (
-                <UserProfile address={address} onBack={() => setView('feed')} />
+            {view === 'userprofile' && address && (
+                <UserProfile
+                    address={address}
+                    onBack={() => setView('feed')}
+                />
             )}
         </div>
     )
+}
+
+// In WalletConnect.tsx
+export async function verifySignature(message: string, signature: string) {
+    const r = await fetch(`${API_BASE}/api/siwe/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ message, signature })
+    })
+    if (!r.ok) throw new Error('verify failed')
+
+    const data = await r.json()
+
+    // Store the JWT token
+    if (data.token) {
+        localStorage.setItem('auth_token', data.token)
+        console.log('Token stored')
+    }
+
+    return data
 }
 
 

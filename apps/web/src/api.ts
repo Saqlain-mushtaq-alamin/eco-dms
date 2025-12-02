@@ -27,26 +27,18 @@ export async function verifySignature(message: string, signature: string) {
 
     const data = await r.json()
 
-    // Store the JWT token from the response
+    // Store the JWT token from response
     if (data.token) {
         localStorage.setItem('auth_token', data.token)
-        console.log('Token stored:', data.token.substring(0, 20) + '...')
+        console.log('✅ Token stored')
     }
 
     return data
 }
 
-export async function getToken(): Promise<string | null> {
-    // Get token from localStorage (set by verifySignature)
-    return localStorage.getItem('auth_token')
-}
-
 export async function getMe() {
-    const token = await getToken()
-
-    if (!token) {
-        throw new Error('No authentication token found')
-    }
+    const token = localStorage.getItem('auth_token')
+    if (!token) throw new Error('No authentication token')
 
     const res = await fetch(`${API_BASE}/api/users/me`, {
         headers: {
@@ -56,15 +48,22 @@ export async function getMe() {
         credentials: 'include'
     })
 
-    if (!res.ok) {
-        throw new Error(`Failed to fetch user profile: ${res.status}`)
-    }
+    if (!res.ok) throw new Error(`Failed to fetch user profile: ${res.status}`)
     return res.json()
 }
 
 export async function logout() {
-    await fetch(`${API_BASE}/api/siwe/logout`, {
-        method: 'POST',
-        credentials: 'include'
-    })
+    const token = localStorage.getItem('auth_token')
+    if (token) {
+        try {
+            await fetch(`${API_BASE}/api/siwe/logout`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                credentials: 'include'
+            })
+        } catch (error) {
+            console.error('Logout failed:', error)
+        }
+    }
+    localStorage.removeItem('auth_token')
 }
