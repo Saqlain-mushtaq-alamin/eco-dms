@@ -10,6 +10,7 @@ from backend.app.user_routes import router as user_router
 from backend.app.config import settings
 from backend.app.services.ipfs_service import ipfs_service
 from backend.app.services.redis_service import redis_service
+from .posts_manage.post_routes import router as posts_router
 
 # Create FastAPI app
 app = FastAPI(
@@ -32,6 +33,7 @@ app.include_router(auth_router, prefix="/auth")  # /auth/nonce, /auth/verify, et
 app.include_router(user_router)  # /api/users/me (prefix already in router)
 app.include_router(siwe_router, prefix="/api/siwe")  # /api/siwe/nonce, /api/siwe/verify
 app.include_router(siwe_alias_router)  # Direct /api/siwe/... routes
+app.include_router(posts_router)  # Include posts router
 
 
 @app.on_event("startup")

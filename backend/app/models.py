@@ -87,3 +87,10 @@ class ProfileUpdateRequest(BaseModel):
     username: Optional[str] = None
     bio: Optional[str] = None
     avatar_cid: Optional[str] = None
+
+#-------------------------this part is for posts models-------------------------#
+class PostCreate(BaseModel):
+    author_wallet: str = Field(..., description="Author's wallet address")
+    content: str = Field(..., description="Post text content")
+    media_cids: Optional[List[str]] = Field(default=None, description="Optional CID list for media")
+    tags: Optional[List[str]] = None
