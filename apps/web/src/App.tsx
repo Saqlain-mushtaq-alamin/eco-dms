@@ -33,7 +33,24 @@ export default function App() {
 
     return (
         <div className="max-w-xl mx-auto p-6">
-            <h1 className="text-2xl font-bold mb-4">Eco DMS Web SIWE</h1>
+            <h1 className="text-2xl font-bold mb-4">Eco DMS Web  SIWE</h1>
+            {view === 'signin' && (
+                <button
+                    className="border px-3 py-2 mt-4 bg-red-600 text-white"
+                    onClick={async () => {
+                        if (process.env.NODE_ENV === 'development') {
+                            try {
+                                await fetch('/api/dev/delete-all-data', { method: 'POST' })
+                                alert('Database cleared')
+                            } catch (error) {
+                                console.error('Delete failed:', error)
+                            }
+                        }
+                    }}
+                >
+                    Clear DB (Dev Only)
+                </button>
+            )}
 
             {view === 'signin' && <SignInPanel onAuth={handleAuth} />}
 

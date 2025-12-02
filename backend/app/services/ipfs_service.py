@@ -135,6 +135,27 @@ class IPFSService:
     def get_url(self, cid: str) -> str:
         return f"{self.gateway_url}{cid}"
 
+    # ! >>> DEV-ONLY: Remove all local pins and run repo GC
+    def dev_unpin_all_and_gc(self) -> dict:
+        if not self.client or self.pinata_only or not self.api_url:
+            return {"ok": False, "error": "IPFS API not connected"}
+        try:
+            # list pins
+            ls = requests.post(f"{self.api_url}/pin/ls", timeout=20)
+            if not ls.ok:
+                return {"ok": False, "error": f"pin/ls {ls.status_code}"}
+            rows = ls.json().get("Keys", {}) or {}
+            removed = 0
+            for cid in list(rows.keys()):
+                rm = requests.post(f"{self.api_url}/pin/rm?arg={cid}", timeout=20)
+                if rm.ok:
+                    removed += 1
+            gc = requests.post(f"{self.api_url}/repo/gc", timeout=60)
+            return {"ok": True, "removed": removed, "gc_status": gc.status_code}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+    # <<< DEV-ONLY
+
 
 # Export global instance
 ipfs_service = IPFSService()

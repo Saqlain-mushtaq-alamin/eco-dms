@@ -8,6 +8,7 @@ from typing import Dict, Any, Optional
 import sys
 import os
 import io
+from backend.app.config import settings
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import settings
@@ -96,6 +97,45 @@ class PinataService:
         except Exception as e:
             print(f"❌ Pin CID failed: {e}")
             return False
+        
+        #!  this code is for development/testing purposes only !___________________and it unpins all pins from Pinata
+    
+    # >>> DEV-ONLY: Unpin all pins from Pinata (dangerous; dev only)
+    def unpin_all(self) -> dict:
+        if not self.jwt:
+            return {"ok": False, "error": "PINATA_JWT missing"}
+        headers = {"Authorization": f"Bearer {self.jwt}"}
+        deleted = 0
+        page_offset = 0
+        page_limit = 100
+        while True:
+            r = requests.get(
+                "https://api.pinata.cloud/data/pinList",
+                headers=headers,
+                params={"pageLimit": page_limit, "pageOffset": page_offset},
+                timeout=30,
+            )
+            if not r.ok:
+                return {"ok": False, "error": f"pinList {r.status_code}: {r.text}"}
+            items = r.json().get("rows", [])
+            if not items:
+                break
+            for row in items:
+                cid = row.get("ipfs_pin_hash")
+                if not cid:
+                    continue
+                d = requests.delete(
+                    f"https://api.pinata.cloud/pinning/unpin/{cid}",
+                    headers=headers,
+                    timeout=30,
+                )
+                if d.ok:
+                    deleted += 1
+            if len(items) < page_limit:
+                break
+            page_offset += page_limit
+        return {"ok": True, "deleted": deleted}
+    # <<< DEV-ONLY
 
 
 # Global Pinata service instance

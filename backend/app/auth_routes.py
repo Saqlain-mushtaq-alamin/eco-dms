@@ -8,8 +8,9 @@ from pydantic import BaseModel
 from eth_account import Account
 from eth_account.messages import encode_defunct
 from backend.app.config import settings
-from backend.app.services.ipfs_service import ipfs_service
+from backend.app.services.pinata_service import pinata_service
 from backend.app.services.redis_service import redis_service
+from backend.app.services.ipfs_service import ipfs_service
 import time
 import re
 import secrets
@@ -251,3 +252,37 @@ def get_profile(address: str):
         raise HTTPException(404, "Not found")
     data = ipfs_service.get_json(cid)
     return {"cid": cid, "data": data}
+
+
+# ! this code is for development/testing purposes only !___________________and it remove all cached CIDs and pins
+
+# >>> DEV-ONLY: Full reset (Redis flush + Pinata unpin-all + IPFS unpin-all & GC)
+@router.post("/dev/cleanup")
+def dev_cleanup():
+    result: dict[str, dict | None] = {"redis": None, "pinata": None, "ipfs": None}
+    # Redis
+    try:
+        if getattr(redis_service, "client", None):
+            redis_service.client.flushdb()
+            result["redis"] = {"ok": True}
+        else:
+            result["redis"] = {"ok": False, "error": "Redis not connected"}
+    except Exception as e:
+        result["redis"] = {"ok": False, "error": str(e)}
+    # Pinata
+    try:
+        result["pinata"] = pinata_service.unpin_all()
+    except Exception as e:
+        result["pinata"] = {"ok": False, "error": str(e)}
+    # IPFS local
+    try:
+        result["ipfs"] = ipfs_service.dev_unpin_all_and_gc()
+    except Exception as e:
+        result["ipfs"] = {"ok": False, "error": str(e)}
+    # Summarize
+    ok = all(v and v.get("ok") for v in result.values() if v is not None)
+    if not ok:
+        # Return 200 with detail so you can inspect which part failed in dev
+        return {"ok": False, "detail": result}
+    return {"ok": True, "detail": result}
+# <<< DEV-ONLY
