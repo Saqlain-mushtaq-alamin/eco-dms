@@ -5,8 +5,8 @@ from ..models import PostCreate
 from ..auth_routes import get_current_user
 # Use posts IPFS service for pin/get
 from backend.app.posts_manage.ipfs_post_service import ipfs_service
-# Import Redis from shared services
-from backend.app.services.redis_service import redis_service
+# Use Ceramic/IDX for decentralized CID indexing
+from backend.app.services.ceramic_service import ceramic_service
 
 router = APIRouter(prefix="/api/posts", tags=["posts"])
 
@@ -27,12 +27,13 @@ async def create_post(
             "tags": payload.tags or [],
             "created_at": datetime.utcnow().isoformat(),
         })
-        # index post CID by author for fast listing
-        try:
-            redis_service.client.sadd(f"posts:{wallet_address.lower()}", cid)
-        except Exception:
-            pass
-        return {"success": True, "cid": cid}
+
+        ok = await ceramic_service.append_author_post(wallet_address.lower(), cid)
+        if not ok:
+            # We still return success for pinning; client can retry index update
+            return {"success": True, "cid": cid, "indexed": False}
+
+        return {"success": True, "cid": cid, "indexed": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -42,18 +43,17 @@ async def list_author_posts(
     current_user: str = Depends(get_current_user),
 ):
     """
-    List posts for an author. Uses Redis index for CIDs and fetches content from IPFS.
+    List posts for an author via Ceramic/IDX index; fetch content from IPFS.
     """
-    key = f"posts:{wallet_address.lower()}"
     try:
-        cids: List[str] = list(await redis_service.client.smembers(key))  # may be empty
+        cids: List[str] = await ceramic_service.get_author_posts(wallet_address.lower())
     except Exception:
         cids = []
 
     posts: List[dict] = []
     for cid in cids:
         try:
-            post = await ipfs_service.get_json(cid)  # now async
+            post = await ipfs_service.get_json(cid)
             if post:
                 post["cid"] = cid
                 posts.append(post)
