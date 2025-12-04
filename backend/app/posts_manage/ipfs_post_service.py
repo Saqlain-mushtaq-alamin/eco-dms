@@ -24,6 +24,34 @@ class PostsIPFS:
         else:
             return await self._pin_via_local_ipfs(payload)
 
+    async def get_json(self, cid: str) -> Optional[Dict]:
+        """
+        Fetch JSON content by CID. Tries nft.storage gateway first if token provided;
+        otherwise falls back to local IPFS gateway/API.
+        """
+        # Prefer a public gateway with CID
+        gateways = []
+        if self.token:
+            gateways.append(f"https://{cid}.ipfs.nftstorage.link")
+        # Local IPFS HTTP API gateway (if configured)
+        api_base = settings.IPFS_API_URL.rstrip("/")
+        # Try /cat on API
+        gateways.append(f"{api_base}/cat?arg={cid}")
+        # Generic public gateway as last resort
+        gateways.append(f"https://ipfs.io/ipfs/{cid}")
+
+        for url in gateways:
+            try:
+                async with httpx.AsyncClient(timeout=20) as client:
+                    r = await client.get(url)
+                if r.status_code >= 300:
+                    continue
+                text = r.text
+                return json.loads(text)
+            except Exception:
+                continue
+        return None
+
     async def _pin_via_nft_storage(self, payload: Dict) -> str:
         async with httpx.AsyncClient(timeout=30) as client:
             r = await client.post(
