@@ -3,15 +3,16 @@ from typing import List, Optional
 import httpx
 from backend.app.config import settings
 
+
 class CeramicService:
     """
     Minimal Ceramic/IDX client that stores a list of CIDs per author wallet.
     Replace endpoints with your Ceramic node + model definitions.
     """
     def __init__(self):
-        self.base = settings.CERAMIC_API_URL.rstrip("/")  # e.g., http://localhost:7007
-        # Model/definition where we store per-author posts list (array of CIDs)
-        self.model_stream = settings.CERAMIC_POSTS_MODEL_STREAM  # e.g., a StreamID or model ID
+        
+        self.base = settings.CERAMIC_API_URL.rstrip("/")
+        self.model_stream = settings.CERAMIC_POSTS_MODEL_STREAM
 
     async def get_author_posts(self, wallet_address: str) -> List[str]:
         """
