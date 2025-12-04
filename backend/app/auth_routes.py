@@ -13,8 +13,9 @@ from backend.app.services.pinata_service import pinata_service
 from backend.app.services.redis_service import redis_service
 from backend.app.services.ipfs_service import ipfs_service
 import time
-import re
 import secrets
+import re
+import logging
 import jwt
 from datetime import datetime, timedelta
 
@@ -51,7 +52,7 @@ class VerifyRequest(BaseModel):
     nonce: str
 
 class SiweVerifyRequest(BaseModel):
-    message: str | None = None
+    message: str  # make required for alias verify, or use a second model for alias
     signature: str
     address: str | None = None
     nonce: str | None = None
@@ -127,37 +128,26 @@ async def get_current_user(authorization: str | None = Header(default=None)) -> 
     """
     Extract wallet address from Bearer token in Authorization header.
     """
-    print(f"DEBUG: get_current_user called")
-    print(f"DEBUG: authorization header: {authorization}")
-    
+    # Use logging instead of print; avoid noisy sync I/O
+    # logger = logging.getLogger(__name__)
+    # logger.debug("get_current_user called auth header: %s", authorization)
+
     if not authorization:
-        print("DEBUG: No authorization header provided")
         raise HTTPException(status_code=401, detail="Not authenticated")
     
     try:
-        # Extract Bearer token
         if not authorization.startswith("Bearer "):
-            print("DEBUG: Authorization header doesn't start with 'Bearer '")
             raise HTTPException(status_code=401, detail="Invalid authorization format")
         
         token = authorization.replace("Bearer ", "")
-        print(f"DEBUG: Token extracted: {token[:20]}...")
-        
-        # Verify token and extract wallet
         payload = _decode_jwt(token)
         wallet_address = payload.get("sub")
-        
         if not wallet_address:
-            print("DEBUG: No wallet address in token")
             raise HTTPException(status_code=401, detail="No wallet address in token")
-        
-        print(f"DEBUG: Successfully authenticated: {wallet_address}")
         return wallet_address
-        
     except HTTPException:
         raise
     except Exception as e:
-        print(f"DEBUG: Auth error: {e}")
         raise HTTPException(status_code=401, detail=f"Auth failed: {str(e)}")
 
 # ---------------- Legacy endpoints (/auth/...) ----------------
@@ -273,21 +263,28 @@ def siwe_prepare_alias(req: PrepareMessageRequest):
 @siwe_alias_router.post("/api/siwe/verify", response_model=AuthResponse)
 async def verify_signature_alias(req: SiweVerifyRequest):
     """Verify SIWE signature and return JWT token."""
-    print(f"DEBUG: verify endpoint called")
-    print(f"DEBUG: message: {req.message}")
-    print(f"DEBUG: signature: {req.signature[:20]}...")
+    # print(f"DEBUG: verify endpoint called")
+    # print(f"DEBUG: message: {req.message}")
+    # print(f"DEBUG: signature: {req.signature[:20]}...")
     
     try:
-        # Recover wallet from signature
-        message = encode_defunct(text=req.message)
+        if not req.message:
+            # If message not provided, build it from address/nonce or return 400
+            if not (req.address and req.nonce):
+                raise HTTPException(status_code=400, detail="Missing message or address/nonce")
+            expires = int(time.time()) + NONCE_TTL
+            req.message = f"Sign in to Eco-DMS:\nAddress: {req.address.lower()}\nNonce: {req.nonce}\nExpires: {expires}"
+
+        assert isinstance(req.message, str)
+        message = encode_defunct(text=req.message)  # req.message is guaranteed str now
         recovered_address = Account.recover_message(message, signature=req.signature)
         
-        print(f"DEBUG: Recovered address: {recovered_address}")
+        # print(f"DEBUG: Recovered address: {recovered_address}")
         
         # Create JWT token
         jwt_token = _encode_jwt(recovered_address)
         
-        print(f"DEBUG: JWT token created")
+        # print(f"DEBUG: JWT token created")
         
         return AuthResponse(
             address=recovered_address,
@@ -295,7 +292,7 @@ async def verify_signature_alias(req: SiweVerifyRequest):
             token=jwt_token
         )
     except Exception as e:
-        print(f"DEBUG: Verification failed: {e}")
+        # print(f"DEBUG: Verification failed: {e}")
         raise HTTPException(status_code=401, detail=str(e))
 
 @siwe_alias_router.post("/api/siwe/logout")

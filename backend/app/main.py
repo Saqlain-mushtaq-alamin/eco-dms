@@ -4,6 +4,7 @@ No database - everything stored in IPFS!
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from backend.app.auth_routes import router as auth_router
 from backend.app.auth_routes import siwe_router, siwe_alias_router
 from backend.app.user_routes import router as user_router
@@ -18,6 +19,9 @@ app = FastAPI(
     description="Decentralized Document Management System using IPFS",
     version="2.0.0"
 )
+
+# Add GZip middleware for compression
+app.add_middleware(GZipMiddleware, minimum_size=512)
 
 # CORS configuration
 app.add_middleware(

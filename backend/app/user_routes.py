@@ -6,13 +6,16 @@ from fastapi import APIRouter, Depends, HTTPException
 from typing import Optional
 from datetime import datetime
 import json
+import logging
 
 from .auth_routes import get_current_user
 from .models import UserProfile, ProfileUpdateRequest
 from .services.user_service import user_service
+from .services.redis_service import redis_service  # add Redis cache
 
 router = APIRouter(prefix="/api/users", tags=["users"])
-
+logger = logging.getLogger(__name__)
+CACHE_TTL = 60  # bump to 60s for fewer backend hits
 
 def _serialize_profile(profile: dict) -> dict:
     """Convert datetime objects to ISO strings for JSON serialization."""
@@ -26,25 +29,23 @@ def _serialize_profile(profile: dict) -> dict:
             serialized[key] = value
     return serialized
 
-
 @router.get("/me", response_model=UserProfile)
 async def get_my_profile(wallet_address: str = Depends(get_current_user)):
     """
     Get current user's profile from IPFS.
-    
-    Requires authentication.
-    
-    Returns:
-        UserProfile with all user data
     """
-    profile = await user_service.get_profile(wallet_address)
-    
-    if not profile:
-        # Create profile if doesn't exist
-        profile, _ = await user_service.get_or_create_profile(wallet_address)
-    
-    return profile
+    cache_key = f"profile:{wallet_address.lower()}"
+    cached = redis_service.get_json(cache_key)
+    if cached:
+        return cached
 
+    # IPFS operations can be slow—ensure user_service uses async non-blocking client
+    profile = await user_service.get_profile(wallet_address)
+    if not profile:
+        profile, _ = await user_service.get_or_create_profile(wallet_address)
+
+    redis_service.set_json(cache_key, profile, ex=CACHE_TTL)
+    return profile
 
 @router.put("/me", response_model=dict)
 async def update_my_profile(
@@ -53,17 +54,8 @@ async def update_my_profile(
 ):
     """
     Update current user's profile.
-    
-    Args:
-        update_data: Fields to update (username, bio, avatar_cid)
-    
-    Returns:
-        Success message with new profile CID
     """
-    print(f"DEBUG: PUT /me called")
-    print(f"DEBUG: wallet_address from auth: {wallet_address}")
-    print(f"DEBUG: update_data: {update_data}")
-    
+    logger.debug("PUT /me called for %s", wallet_address)
     if not wallet_address:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -73,16 +65,17 @@ async def update_my_profile(
         bio=update_data.bio,
         avatar_cid=update_data.avatar_cid
     )
-    
     if not new_cid:
         raise HTTPException(status_code=500, detail="Failed to update profile")
-    
+
+    # bust profile cache
+    redis_service.delete(f"profile:{wallet_address.lower()}")
+
     return {
         "success": True,
         "profile_cid": new_cid,
         "message": "Profile updated successfully"
     }
-
 
 @router.get("/{wallet_address}", response_model=UserProfile)
 async def get_user_profile(
@@ -91,20 +84,18 @@ async def get_user_profile(
 ):
     """
     Get any user's profile by wallet address.
-    
-    Args:
-        wallet_address: Target user's wallet address
-    
-    Returns:
-        UserProfile data
     """
+    key = f"profile:{wallet_address.lower()}"
+    cached = redis_service.get_json(key)
+    if cached:
+        return cached
+
     profile = await user_service.get_profile(wallet_address.lower())
-    
     if not profile:
         raise HTTPException(status_code=404, detail="User not found")
-    
-    return profile
 
+    redis_service.set_json(key, profile, ex=CACHE_TTL)
+    return profile
 
 @router.post("/follow/{wallet_address}", response_model=dict)
 async def follow_user(
@@ -113,27 +104,22 @@ async def follow_user(
 ):
     """
     Follow another user.
-    
-    Args:
-        wallet_address: User to follow
-    
-    Returns:
-        Success message
     """
-    # Can't follow yourself
     if wallet_address.lower() == current_user.lower():
         raise HTTPException(status_code=400, detail="Cannot follow yourself")
     
     success = await user_service.follow_user(current_user, wallet_address.lower())
-    
     if not success:
         raise HTTPException(status_code=500, detail="Failed to follow user")
-    
+
+    # bust caches related to following/followers
+    redis_service.delete(f"followers:{wallet_address.lower()}")
+    redis_service.delete(f"following:{current_user.lower()}")
+
     return {
         "success": True,
         "message": f"Now following {wallet_address}"
     }
-
 
 @router.delete("/follow/{wallet_address}", response_model=dict)
 async def unfollow_user(
@@ -142,23 +128,19 @@ async def unfollow_user(
 ):
     """
     Unfollow a user.
-    
-    Args:
-        wallet_address: User to unfollow
-    
-    Returns:
-        Success message
     """
     success = await user_service.unfollow_user(current_user, wallet_address.lower())
-    
     if not success:
         raise HTTPException(status_code=500, detail="Failed to unfollow user")
-    
+
+    # bust caches related to following/followers
+    redis_service.delete(f"followers:{wallet_address.lower()}")
+    redis_service.delete(f"following:{current_user.lower()}")
+
     return {
         "success": True,
         "message": f"Unfollowed {wallet_address}"
     }
-
 
 @router.get("/followers/{wallet_address}", response_model=dict)
 async def get_followers(
@@ -167,21 +149,15 @@ async def get_followers(
 ):
     """
     Get list of followers for a user.
-    
-    Args:
-        wallet_address: Target user's wallet
-    
-    Returns:
-        List of follower wallet addresses
     """
-    followers = await user_service.get_followers(wallet_address.lower())
-    
-    return {
-        "wallet_address": wallet_address,
-        "followers": followers,
-        "count": len(followers)
-    }
+    key = f"followers:{wallet_address.lower()}"
+    cached = redis_service.get_json(key)
+    if cached:
+        return {"wallet_address": wallet_address, "followers": cached, "count": len(cached)}
 
+    followers = await user_service.get_followers(wallet_address.lower())
+    redis_service.set_json(key, followers, ex=CACHE_TTL)
+    return {"wallet_address": wallet_address, "followers": followers, "count": len(followers)}
 
 @router.get("/following/{wallet_address}", response_model=dict)
 async def get_following(
@@ -190,17 +166,12 @@ async def get_following(
 ):
     """
     Get list of users that this user follows.
-    
-    Args:
-        wallet_address: Target user's wallet
-    
-    Returns:
-        List of wallet addresses being followed
     """
+    key = f"following:{wallet_address.lower()}"
+    cached = redis_service.get_json(key)
+    if cached:
+        return {"wallet_address": wallet_address, "following": cached, "count": len(cached)}
+
     following = await user_service.get_following(wallet_address.lower())
-    
-    return {
-        "wallet_address": wallet_address,
-        "following": following,
-        "count": len(following)
-    }
+    redis_service.set_json(key, following, ex=CACHE_TTL)
+    return {"wallet_address": wallet_address, "following": following, "count": len(following)}
