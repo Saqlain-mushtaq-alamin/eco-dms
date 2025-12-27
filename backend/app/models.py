@@ -94,3 +94,16 @@ class PostCreate(BaseModel):
     content: str = Field(..., description="Post text content")
     media_cids: Optional[List[str]] = Field(default=None, description="Optional CID list for media")
     tags: Optional[List[str]] = None
+
+
+class CommentCreate(BaseModel):
+    """Create a comment on a post"""
+    post_cid: str = Field(..., description="CID of the post being commented on")
+    author_wallet: str = Field(..., description="Commenter's wallet address")
+    content: str = Field(..., description="Comment text content")
+
+
+class LikeCreate(BaseModel):
+    """Like a post"""
+    post_cid: str = Field(..., description="CID of the post being liked")
+    wallet_address: str = Field(..., description="User's wallet address")

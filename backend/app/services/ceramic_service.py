@@ -1,95 +1,96 @@
 import json
 from typing import List, Optional
-import httpx
-from backend.app.config import settings
-from backend.app.services.redis_service import redis_service
+from backend.app.posts_manage.ipfs_post_service import ipfs_service
 
 
 class CeramicService:
     """
-    Minimal Ceramic/IDX client that stores a list of CIDs per author wallet.
-    Falls back to Redis if Ceramic is not available.
+    Pure IPFS-based decentralized index for posts.
+    Stores the author's posts index as a JSON file on IPFS/Pinata.
+    Each author has an index CID that points to their list of post CIDs.
+    This is fully decentralized - no centralized database needed!
     """
     def __init__(self):
-        
-        self.base = settings.CERAMIC_API_URL.rstrip("/")
-        self.model_stream = settings.CERAMIC_POSTS_MODEL_STREAM
-        self.use_redis_fallback = not self.model_stream  # Use Redis if model stream not configured
+        # In-memory cache: {wallet_address: index_cid}
+        # This stores the current index CID for each wallet
+        self._index_cache = {}
 
     async def get_author_posts(self, wallet_address: str) -> List[str]:
         """
-        Return list of CIDs for an author from Ceramic or Redis fallback. Empty on not found.
+        Get list of post CIDs for an author from IPFS.
+        The index is stored on IPFS as a JSON file containing the list of CIDs.
         """
-        # Try Redis fallback first if Ceramic not configured
-        if self.use_redis_fallback:
-            return await self._get_posts_from_redis(wallet_address)
+        wallet = wallet_address.lower()
         
-        # Try Ceramic
+        # Check if we have the index CID cached
+        index_cid = self._index_cache.get(wallet)
+        
+        if not index_cid:
+            # No index yet, return empty list
+            return []
+        
         try:
-            url = f"{self.base}/api/v1/models/{self.model_stream}/records/{wallet_address.lower()}"
-            async with httpx.AsyncClient(timeout=15) as client:
-                r = await client.get(url)
-            if r.status_code >= 300:
-                # Fallback to Redis
-                return await self._get_posts_from_redis(wallet_address)
-            data = r.json()
-            cids = data.get("cids") or data.get("value") or []
-            if not isinstance(cids, list):
+            # Fetch the index from IPFS
+            index_data = await ipfs_service.get_json(index_cid)
+            if not index_data:
                 return []
-            return [str(c) for c in cids]
-        except Exception:
-            # Fallback to Redis
-            return await self._get_posts_from_redis(wallet_address)
+            
+            cids = index_data.get("cids", [])
+            return cids if isinstance(cids, list) else []
+        except Exception as e:
+            print(f"Error fetching posts index from IPFS: {e}")
+            return []
 
     async def append_author_post(self, wallet_address: str, cid: str) -> bool:
         """
-        Append CID to author's posts list in Ceramic or Redis fallback.
+        Append a post CID to the author's index and store the updated index on IPFS.
+        This creates a new version of the index file on IPFS.
+        Returns True if successful, False otherwise.
         """
-        # Try Redis fallback first if Ceramic not configured
-        if self.use_redis_fallback:
-            return await self._append_post_to_redis(wallet_address, cid)
+        wallet = wallet_address.lower()
         
-        # Try Ceramic
         try:
-            url = f"{self.base}/api/v1/models/{self.model_stream}/records/{wallet_address.lower()}"
-            payload = {"op": "append", "cid": cid}
-            async with httpx.AsyncClient(timeout=15) as client:
-                r = await client.post(url, json=payload)
-            if r.status_code < 300:
-                return True
-            # Fallback to Redis
-            return await self._append_post_to_redis(wallet_address, cid)
-        except Exception:
-            # Fallback to Redis
-            return await self._append_post_to_redis(wallet_address, cid)
-
-    async def _get_posts_from_redis(self, wallet_address: str) -> List[str]:
-        """Get posts from Redis fallback storage"""
-        try:
-            key = f"posts:{wallet_address.lower()}"
-            data = await redis_service.get(key)
-            if data:
-                cids = json.loads(data)
-                return cids if isinstance(cids, list) else []
-            return []
-        except Exception:
-            return []
-
-    async def _append_post_to_redis(self, wallet_address: str, cid: str) -> bool:
-        """Append post to Redis fallback storage"""
-        try:
-            key = f"posts:{wallet_address.lower()}"
-            data = await redis_service.get(key)
-            cids = json.loads(data) if data else []
-            if not isinstance(cids, list):
-                cids = []
+            # Get current posts list
+            current_cids = await self.get_author_posts(wallet)
+            
             # Add new CID at the beginning (most recent first)
-            cids.insert(0, cid)
-            # Store back to Redis (no expiration for posts)
-            await redis_service.set(key, json.dumps(cids))
-            return True
-        except Exception as e:
-            print(f"Redis fallback error: {e}")
+            updated_cids = [cid] + current_cids
+            
+            # Create the updated index
+            index_data = {
+                "author_wallet": wallet,
+                "cids": updated_cids,
+                "version": len(updated_cids),
+                "updated_at": None  # ipfs_service will add timestamp
+            }
+            
+            # Pin the updated index to IPFS/Pinata
+            new_index_cid = await ipfs_service.pin_json(index_data)
+            
+            if new_index_cid:
+                # Update the cache with the new index CID
+                self._index_cache[wallet] = new_index_cid
+                print(f"✅ Posts index updated for {wallet}: {new_index_cid} ({len(updated_cids)} posts)")
+                return True
+            
             return False
+        except Exception as e:
+            print(f"❌ Error updating posts index on IPFS: {e}")
+            return False
+
+    def set_index_cid(self, wallet_address: str, index_cid: str):
+        """
+        Manually set the index CID for a wallet (used for initialization or recovery).
+        This is useful when you know the index CID from an external source.
+        """
+        self._index_cache[wallet_address.lower()] = index_cid
+        print(f"📌 Index CID set for {wallet_address.lower()}: {index_cid}")
+
+    def get_index_cid(self, wallet_address: str) -> Optional[str]:
+        """
+        Get the current index CID for a wallet.
+        Returns None if no index exists yet.
+        """
+        return self._index_cache.get(wallet_address.lower())
 
 ceramic_service = CeramicService()
