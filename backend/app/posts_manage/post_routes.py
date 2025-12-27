@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from datetime import datetime
 from typing import Dict, List
 from ..models import PostCreate
@@ -13,8 +13,9 @@ router = APIRouter(prefix="/api/posts", tags=["posts"])
 @router.post("", response_model=Dict)
 async def create_post(
     payload: PostCreate,
-    wallet_address: str = Depends(get_current_user),
+    authorization: str | None = Header(default=None),
 ):
+    wallet_address = await get_current_user(authorization)
     if wallet_address.lower() != payload.author_wallet.lower():
         raise HTTPException(status_code=403, detail="Author wallet must match authenticated user")
     try:
@@ -40,8 +41,9 @@ async def create_post(
 @router.get("/{wallet_address}", response_model=Dict)
 async def list_author_posts(
     wallet_address: str,
-    current_user: str = Depends(get_current_user),
+    authorization: str | None = Header(default=None),
 ):
+    current_user = await get_current_user(authorization)
     """
     List posts for an author via Ceramic/IDX index; fetch content from IPFS.
     """
@@ -64,6 +66,7 @@ async def list_author_posts(
 
 @router.post("/inference", response_model=Dict)
 async def inference_stub(
-    wallet_address: str = Depends(get_current_user),
+    authorization: str | None = Header(default=None),
 ):
+    wallet_address = await get_current_user(authorization)
     return {"eco": None}

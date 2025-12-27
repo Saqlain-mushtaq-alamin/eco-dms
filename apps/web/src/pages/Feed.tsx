@@ -53,10 +53,11 @@ export function Feed({ address }: { address: string }) {
 
     // Configure your API base URL
     const apiBase = import.meta.env.VITE_API_BASE ?? 'http://127.0.0.1:8000'
-    // Retrieve JWT token from your auth flow (e.g., localStorage after SIWE verify)
-    const token = typeof window !== 'undefined' ? localStorage.getItem('eco.token') ?? '' : ''
 
     const load = async () => {
+        // Retrieve JWT token from your auth flow (e.g., localStorage after SIWE verify)
+        const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') ?? '' : ''
+        console.log('Feed load - token:', token ? `${token.substring(0, 20)}...` : 'NO TOKEN')
         if (!token) {
             setError('Not authenticated')
             return
@@ -65,8 +66,12 @@ export function Feed({ address }: { address: string }) {
         setError(null)
         try {
             const data = await fetchPosts(apiBase, token, address)
+            console.log('Feed load - full response:', data)
+            console.log('Feed load - posts array:', data.posts)
+            console.log('Feed load - posts count:', data.posts?.length)
             setPosts(data.posts || [])
         } catch (e: any) {
+            console.error('Feed load error:', e)
             setError(e.message || 'Failed to load posts')
         } finally {
             setLoading(false)
@@ -81,6 +86,8 @@ export function Feed({ address }: { address: string }) {
     const onSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!content.trim()) return
+        // Retrieve JWT token from your auth flow (e.g., localStorage after SIWE verify)
+        const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') ?? '' : ''
         if (!token) {
             setError('Not authenticated')
             return
@@ -88,10 +95,12 @@ export function Feed({ address }: { address: string }) {
         setLoading(true)
         setError(null)
         try {
-            await createPost(apiBase, token, address, content.trim())
+            const result = await createPost(apiBase, token, address, content.trim())
+            console.log('Post created successfully:', result)
             setContent('')
             await load() // refresh list
         } catch (e: any) {
+            console.error('Create post error:', e)
             setError(e.message || 'Failed to create post')
         } finally {
             setLoading(false)

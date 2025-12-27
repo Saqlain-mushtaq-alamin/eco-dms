@@ -71,4 +71,12 @@ class RedisService:
         except Exception:
             return 1  # default minimal value to reduce blocking
 
+    async def get(self, key: str) -> Optional[str]:
+        """Generic async get method for any string value"""
+        return self.get_str(key)
+
+    async def set(self, key: str, value: str, ex: Optional[int] = None):
+        """Generic async set method for any string value"""
+        self.set_str(key, value, ex=ex)
+
 redis_service = RedisService()
