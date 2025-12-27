@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     RATE_LIMIT_MAX_NONCE: int = 20
     RATE_LIMIT_MAX_VERIFY: int = 60
 
+    # Ceramic
+    CERAMIC_API_URL: str = "http://localhost:7007"
+    CERAMIC_POSTS_MODEL_STREAM: str = ""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=True,

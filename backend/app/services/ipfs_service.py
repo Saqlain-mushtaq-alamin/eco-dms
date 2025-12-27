@@ -5,7 +5,8 @@ Works even without a local IPFS node.
 import os
 import sys
 import json
-from typing import Dict, Any, Optional
+import time
+from typing import Dict, Any, Optional, List
 import requests
 
 # Add root path
@@ -26,6 +27,18 @@ class IPFSService:
         self.pinata_only = False
         self.api_url = (settings.IPFS_API_URL or "").strip().rstrip("/")
         self.gateway_url = (settings.IPFS_GATEWAY_URL or "https://ipfs.io/ipfs/").strip().rstrip("/") + "/"
+        
+        # Multiple gateway fallbacks to handle rate limiting
+        self.gateway_urls: List[str] = [
+            self.gateway_url,
+            "https://ipfs.io/ipfs/",
+            "https://dweb.link/ipfs/",
+            "https://cloudflare-ipfs.com/ipfs/",
+            "https://gateway.ipfs.io/ipfs/"
+        ]
+        # Remove duplicates while preserving order
+        seen = set()
+        self.gateway_urls = [x for x in self.gateway_urls if not (x in seen or seen.add(x))]
 
         if self.api_url:
             try:
@@ -75,16 +88,47 @@ class IPFSService:
     # Get JSON
     # ----------------------------------------------------------------------
     def get_json(self, cid: str) -> Optional[Dict[str, Any]]:
-        """Get JSON from IPFS or fallback gateway."""
-        # Always use gateway for reads (works for both local and pinned)
-        try:
-            url = self.get_url(cid)
-            r = requests.get(url, timeout=20)
-            r.raise_for_status()
-            return r.json()
-        except Exception as e:
-            print(f"⚠️ get_json failed from gateway: {e}")
-            return None
+        """Get JSON from IPFS with retry logic and multiple gateway fallbacks."""
+        max_retries = 3
+        base_delay = 1  # seconds
+        
+        # Try each gateway
+        for gateway_url in self.gateway_urls:
+            url = f"{gateway_url.rstrip('/')}/{cid}"
+            
+            # Retry with exponential backoff for each gateway
+            for attempt in range(max_retries):
+                try:
+                    r = requests.get(url, timeout=20)
+                    
+                    # If rate limited, try next gateway immediately
+                    if r.status_code == 429:
+                        print(f"⚠️ Rate limited on {gateway_url}, trying next gateway...")
+                        break
+                    
+                    r.raise_for_status()
+                    return r.json()
+                    
+                except requests.exceptions.HTTPError as e:
+                    if e.response.status_code == 429:
+                        # Rate limited - don't retry on this gateway
+                        break
+                    elif attempt < max_retries - 1:
+                        delay = base_delay * (2 ** attempt)
+                        print(f"⚠️ Attempt {attempt + 1} failed for {url}, retrying in {delay}s...")
+                        time.sleep(delay)
+                    else:
+                        print(f"⚠️ All retries failed for gateway {gateway_url}: {e}")
+                except Exception as e:
+                    if attempt < max_retries - 1:
+                        delay = base_delay * (2 ** attempt)
+                        time.sleep(delay)
+                    else:
+                        print(f"⚠️ Gateway {gateway_url} failed: {e}")
+                        break
+        
+        print(f"❌ get_json failed for CID {cid} on all gateways")
+        return None
 
     # ----------------------------------------------------------------------
     # Add Bytes

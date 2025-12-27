@@ -1,8 +1,6 @@
 type AuthorPosts
   @createModel(accountRelation: SINGLE, description: "Posts CIDs per author")
 {
-  # ties this document to the authenticated account (the author’s DID)
   author: DID! @documentAccount
-  # store post CIDs
-  cids: [String!]! @array(maxLength: 10000)
+  cids: [String!]! @list(maxLength: 10000) @string(maxLength: 200)
 }
