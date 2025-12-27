@@ -14,6 +14,9 @@ class PostsIPFS:
     def __init__(self, token: Optional[str] = None):
         # Token is optional; if missing we fall back to local IPFS API
         self.token = token or os.getenv("NFT_STORAGE_TOKEN")
+        # Add simple in-memory cache for frequently accessed CIDs
+        self._cache: Dict[str, Dict] = {}
+        self._cache_max_size = 100  # Limit cache size
 
     async def pin_json(self, data: Dict) -> str:
         payload = {**data}
@@ -25,10 +28,12 @@ class PostsIPFS:
             return await self._pin_via_local_ipfs(payload)
 
     async def get_json(self, cid: str) -> Optional[Dict]:
+        """caching and shorter timeout.
         """
-        Fetch JSON content by CID. Tries nft.storage gateway first if token provided;
-        otherwise falls back to local IPFS gateway/API.
-        """
+        # Check cache first
+        if cid in self._cache:
+            return self._cache[cid]
+        
         # Prefer a public gateway with CID
         gateways = []
         if self.token:
@@ -42,12 +47,21 @@ class PostsIPFS:
 
         for url in gateways:
             try:
-                async with httpx.AsyncClient(timeout=20) as client:
+                # Reduced timeout from 20 to 8 seconds for faster failure
+                async with httpx.AsyncClient(timeout=8) as client:
                     r = await client.get(url)
                 if r.status_code >= 300:
                     continue
                 text = r.text
-                return json.loads(text)
+                data = json.loads(text)
+                
+                # Cache the result
+                if len(self._cache) >= self._cache_max_size:
+                    # Simple cache eviction: remove first item
+                    self._cache.pop(next(iter(self._cache)))
+                self._cache[cid] = data
+                
+                return data
             except Exception:
                 continue
         return None

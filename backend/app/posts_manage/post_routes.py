@@ -48,25 +48,49 @@ async def list_author_posts(
     current_user = await get_current_user(authorization)
     """
     List posts for an author via Ceramic/IDX index; fetch content from IPFS.
+    Optimized: Parallel fetching of posts and social metrics.
     """
     try:
         cids: List[str] = await ceramic_service.get_author_posts(wallet_address.lower())
     except Exception:
         cids = []
 
-    posts: List[dict] = []
-    for cid in cids:
+    if not cids:
+        return {"author_wallet": wallet_address.lower(), "count": 0, "posts": []}
+
+    # Fetch all posts in parallel (much faster!)
+    import asyncio
+    
+    async def fetch_post_with_metrics(cid: str):
         try:
-            post = await ipfs_service.get_json(cid)
-            if post:
+            # Fetch post content and metrics in parallel
+            post_task = ipfs_service.get_json(cid)
+            likes_task = social_service.get_likes_count(cid)
+            comments_task = social_service.get_comments_count(cid)
+            liked_task = social_service.has_user_liked(cid, current_user)
+            
+            post, likes_count, comments_count, liked_by_user = await asyncio.gather(
+                post_task, likes_task, comments_task, liked_task,
+                return_exceptions=True
+            )
+            
+            if isinstance(post, Exception) or not post:
+                return None
+            
+            # Handle exceptions in results
+            if isinstance(post, dict):
                 post["cid"] = cid
-                # Add social metrics
-                post["likes_count"] = await social_service.get_likes_count(cid)
-                post["comments_count"] = await social_service.get_comments_count(cid)
-                post["liked_by_user"] = await social_service.has_user_liked(cid, current_user)
-                posts.append(post)
+                post["likes_count"] = 0 if isinstance(likes_count, Exception) else likes_count
+                post["comments_count"] = 0 if isinstance(comments_count, Exception) else comments_count
+                post["liked_by_user"] = False if isinstance(liked_by_user, Exception) else liked_by_user
+                return post
+            return None
         except Exception:
-            continue
+            return None
+    
+    # Fetch all posts concurrently
+    posts = await asyncio.gather(*[fetch_post_with_metrics(cid) for cid in cids])
+    posts = [p for p in posts if p is not None]
 
     return {"author_wallet": wallet_address.lower(), "count": len(posts), "posts": posts}
 
