@@ -105,8 +105,44 @@ async function addComment(apiBase: string, token: string, postCid: string, autho
     return res.json()
 }
 
-export function Feed({ address }: { address: string }) {
+async function fetchFeedTimeline(apiBase: string, token: string) {
+    const res = await fetch(`${apiBase}/api/posts/feed/timeline`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+    })
+    if (!res.ok) {
+        const err = await res.text()
+        throw new Error(err || `Failed to load feed: ${res.status}`)
+    }
+    return res.json() as Promise<{ count: number; posts: Post[]; message?: string }>
+}
+
+async function fetchAllUsers(apiBase: string, token: string) {
+    const res = await fetch(`${apiBase}/api/users/all`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+    })
+    if (!res.ok) {
+        const err = await res.text()
+        throw new Error(err || `Failed to load users: ${res.status}`)
+    }
+    return res.json() as Promise<{ users: any[]; count: number }>
+}
+
+type User = {
+    wallet_address: string
+    username: string
+    bio: string
+    avatar_cid: string
+    followers_count: number
+    following_count: number
+}
+
+export function Feed({ address, onVisitProfile }: { address: string; onVisitProfile: (walletAddress: string) => void }) {
     const [posts, setPosts] = useState<Post[]>([])
+    const [users, setUsers] = useState<User[]>([])
     const [content, setContent] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -116,13 +152,36 @@ export function Feed({ address }: { address: string }) {
     const [selectedImages, setSelectedImages] = useState<File[]>([])
     const [uploadingImages, setUploadingImages] = useState(false)
     const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([])
+    const [showingFeed, setShowingFeed] = useState(true) // true = feed timeline, false = my posts
 
     // Configure your API base URL
     const apiBase = import.meta.env.VITE_API_BASE ?? 'http://127.0.0.1:8000'
 
-    const load = async () => {
+    const loadFeed = async () => {
         const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') ?? '' : ''
-        console.log('Feed load - token:', token ? `${token.substring(0, 20)}...` : 'NO TOKEN')
+        if (!token) {
+            setError('Not authenticated')
+            return
+        }
+        setLoading(true)
+        setError(null)
+        try {
+            const data = await fetchFeedTimeline(apiBase, token)
+            console.log('Feed timeline loaded:', data)
+            setPosts(data.posts || [])
+            if (data.message) {
+                setError(data.message)
+            }
+        } catch (e: any) {
+            console.error('Feed load error:', e)
+            setError(e.message || 'Failed to load feed')
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const loadMyPosts = async () => {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') ?? '' : ''
         if (!token) {
             setError('Not authenticated')
             return
@@ -131,22 +190,40 @@ export function Feed({ address }: { address: string }) {
         setError(null)
         try {
             const data = await fetchPosts(apiBase, token, address)
-            console.log('Feed load - full response:', data)
-            console.log('Feed load - posts array:', data.posts)
-            console.log('Feed load - posts count:', data.posts?.length)
             setPosts(data.posts || [])
         } catch (e: any) {
-            console.error('Feed load error:', e)
+            console.error('My posts load error:', e)
             setError(e.message || 'Failed to load posts')
         } finally {
             setLoading(false)
         }
     }
 
+    const loadUsers = async () => {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') ?? '' : ''
+        if (!token) return
+        try {
+            const data = await fetchAllUsers(apiBase, token)
+            // Filter out current user
+            setUsers(data.users.filter((u: User) => u.wallet_address.toLowerCase() !== address.toLowerCase()))
+        } catch (e: any) {
+            console.error('Users load error:', e)
+        }
+    }
+
+    const load = () => {
+        if (showingFeed) {
+            loadFeed()
+        } else {
+            loadMyPosts()
+        }
+    }
+
     useEffect(() => {
         load()
+        loadUsers()
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [address])
+    }, [address, showingFeed])
 
     const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || [])
@@ -296,14 +373,15 @@ export function Feed({ address }: { address: string }) {
 
     return (
         <div className="mt-6 space-y-4">
-            <h2 className="text-xl font-semibold">Feed</h2>
-            <p>Signed in as {address}</p>
+            <h2 className="text-xl font-semibold">Social Feed</h2>
+            <p className="text-sm text-gray-600">Signed in as {address.substring(0, 6)}...{address.substring(38)}</p>
 
-            <form onSubmit={onSubmit} className="space-y-2">
+            {/* Create Post Form */}
+            <form onSubmit={onSubmit} className="space-y-2 bg-white p-4 rounded-lg shadow">
                 <textarea
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
-                    placeholder="Write a post..."
+                    placeholder="What's on your mind?"
                     className="w-full border rounded p-2"
                     rows={3}
                 />
@@ -352,6 +430,72 @@ export function Feed({ address }: { address: string }) {
                     </button>
                 </div>
             </form>
+
+            {/* Discover Users Section */}
+            <div className="bg-white p-4 rounded-lg shadow">
+                <h3 className="text-lg font-semibold mb-3">Discover People</h3>
+                {users.length === 0 ? (
+                    <p className="text-gray-500 text-sm">No other users yet</p>
+                ) : (
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                        {users.map((user) => (
+                            <div
+                                key={user.wallet_address}
+                                onClick={() => onVisitProfile(user.wallet_address)}
+                                className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 cursor-pointer transition"
+                            >
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold">
+                                    {user.avatar_cid ? (
+                                        <img
+                                            src={`https://${user.avatar_cid}.ipfs.nftstorage.link`}
+                                            alt="Avatar"
+                                            className="w-10 h-10 rounded-full object-cover"
+                                            onError={(e) => {
+                                                (e.target as HTMLImageElement).style.display = 'none'
+                                            }}
+                                        />
+                                    ) : (
+                                        user.username?.charAt(0).toUpperCase() || user.wallet_address.charAt(2).toUpperCase()
+                                    )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-medium text-gray-900 truncate">
+                                        {user.username || 'Anonymous'}
+                                    </p>
+                                    <p className="text-xs text-gray-500 font-mono">
+                                        {user.wallet_address.substring(0, 6)}...{user.wallet_address.substring(38)}
+                                    </p>
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                    {user.followers_count} followers
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Feed Toggle Tabs */}
+            <div className="flex gap-2 border-b">
+                <button
+                    onClick={() => setShowingFeed(true)}
+                    className={`px-4 py-2 font-medium transition ${showingFeed
+                        ? 'border-b-2 border-blue-600 text-blue-600'
+                        : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                >
+                    Following Feed
+                </button>
+                <button
+                    onClick={() => setShowingFeed(false)}
+                    className={`px-4 py-2 font-medium transition ${!showingFeed
+                        ? 'border-b-2 border-blue-600 text-blue-600'
+                        : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                >
+                    My Posts
+                </button>
+            </div>
 
             {error && <div className="text-red-600">{error}</div>}
             {loading && !error && <div>Loading...</div>}
@@ -482,6 +626,6 @@ export function Feed({ address }: { address: string }) {
                     </div>
                 ))}
             </div>
-        </div>
+        </div >
     )
 }

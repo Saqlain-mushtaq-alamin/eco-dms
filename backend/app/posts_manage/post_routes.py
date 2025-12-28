@@ -9,6 +9,8 @@ from backend.app.posts_manage.ipfs_post_service import ipfs_service
 from backend.app.services.ceramic_service import ceramic_service
 # Use social service for likes and comments
 from backend.app.services.social_service import social_service
+# User service for follow relationships
+from backend.app.services.user_service import user_service
 
 router = APIRouter(prefix="/api/posts", tags=["posts"])
 
@@ -128,6 +130,75 @@ async def list_author_posts(
     posts = [p for p in posts if p is not None]
 
     return {"author_wallet": wallet_address.lower(), "count": len(posts), "posts": posts}
+
+@router.get("/feed/timeline", response_model=Dict)
+async def get_feed_timeline(
+    authorization: str | None = Header(default=None),
+):
+    """
+    Get personalized feed showing posts from users that the current user follows.
+    """
+    current_user = await get_current_user(authorization)
+    
+    try:
+        # Get list of users current user follows
+        following = await user_service.get_following(current_user.lower())
+        
+        if not following:
+            return {"count": 0, "posts": [], "message": "Follow users to see their posts in your feed"}
+        
+        # Fetch posts from all followed users
+        import asyncio
+        
+        async def fetch_user_posts(wallet_address: str):
+            try:
+                cids = await ceramic_service.get_author_posts(wallet_address.lower())
+                return cids if cids else []
+            except Exception:
+                return []
+        
+        # Get all CIDs from followed users
+        all_cids_lists = await asyncio.gather(*[fetch_user_posts(addr) for addr in following])
+        all_cids = [cid for cids in all_cids_lists for cid in cids]
+        
+        if not all_cids:
+            return {"count": 0, "posts": [], "message": "No posts from followed users yet"}
+        
+        # Fetch post details with metrics
+        async def fetch_post_with_metrics(cid: str):
+            try:
+                post_task = ipfs_service.get_json(cid)
+                likes_task = social_service.get_likes_count(cid)
+                comments_task = social_service.get_comments_count(cid)
+                liked_task = social_service.has_user_liked(cid, current_user)
+                
+                post, likes_count, comments_count, liked_by_user = await asyncio.gather(
+                    post_task, likes_task, comments_task, liked_task,
+                    return_exceptions=True
+                )
+                
+                if isinstance(post, Exception) or not post:
+                    return None
+                
+                if isinstance(post, dict):
+                    post["cid"] = cid
+                    post["likes_count"] = 0 if isinstance(likes_count, Exception) else likes_count
+                    post["comments_count"] = 0 if isinstance(comments_count, Exception) else comments_count
+                    post["liked_by_user"] = False if isinstance(liked_by_user, Exception) else liked_by_user
+                    return post
+                return None
+            except Exception:
+                return None
+        
+        posts = await asyncio.gather(*[fetch_post_with_metrics(cid) for cid in all_cids])
+        posts = [p for p in posts if p is not None]
+        
+        # Sort by created_at descending (newest first)
+        posts.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        
+        return {"count": len(posts), "posts": posts}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/inference", response_model=Dict)
 async def inference_stub(

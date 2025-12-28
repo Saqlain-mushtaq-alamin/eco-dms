@@ -90,3 +90,95 @@ export async function uploadImage(file: File): Promise<{ cid: string; url: strin
 
     return res.json()
 }
+
+export async function getAllUsers() {
+    const token = localStorage.getItem('auth_token')
+    if (!token) throw new Error('No authentication token')
+
+    const res = await fetch(`${API_BASE}/api/users/all`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    })
+
+    if (!res.ok) throw new Error(`Failed to fetch users: ${res.status}`)
+    return res.json()
+}
+
+export async function getUserProfile(walletAddress: string) {
+    const token = localStorage.getItem('auth_token')
+    if (!token) throw new Error('No authentication token')
+
+    const res = await fetch(`${API_BASE}/api/users/${walletAddress}`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    })
+
+    if (!res.ok) throw new Error(`Failed to fetch user profile: ${res.status}`)
+    return res.json()
+}
+
+export async function followUser(walletAddress: string) {
+    const token = localStorage.getItem('auth_token')
+    if (!token) throw new Error('No authentication token')
+
+    const res = await fetch(`${API_BASE}/api/users/follow/${walletAddress}`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    })
+
+    if (!res.ok) throw new Error(`Failed to follow user: ${res.status}`)
+    return res.json()
+}
+
+export async function unfollowUser(walletAddress: string) {
+    const token = localStorage.getItem('auth_token')
+    if (!token) throw new Error('No authentication token')
+
+    const res = await fetch(`${API_BASE}/api/users/follow/${walletAddress}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    })
+
+    if (!res.ok) throw new Error(`Failed to unfollow user: ${res.status}`)
+    return res.json()
+}
+
+export async function checkFollowStatus(walletAddress: string) {
+    const token = localStorage.getItem('auth_token')
+    if (!token) throw new Error('No authentication token')
+
+    const res = await fetch(`${API_BASE}/api/users/check-follow/${walletAddress}`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    })
+
+    if (!res.ok) throw new Error(`Failed to check follow status: ${res.status}`)
+    return res.json()
+}
+
+export async function getFeedTimeline() {
+    const token = localStorage.getItem('auth_token')
+    if (!token) throw new Error('No authentication token')
+
+    const res = await fetch(`${API_BASE}/api/posts/feed/timeline`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    })
+
+    if (!res.ok) throw new Error(`Failed to fetch feed: ${res.status}`)
+    return res.json()
+}

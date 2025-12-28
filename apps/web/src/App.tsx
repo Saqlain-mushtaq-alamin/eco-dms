@@ -5,6 +5,7 @@ import WalletConnect from './pages/WalletConnect'
 import { ProfileCreate } from './pages/ProfileCreate'
 import { Feed } from './pages/Feed'
 import UserProfile from './pages/MyProfile'
+import VisitProfile from './pages/VisitProfile'
 
 // ! there is a bug need to fix with the page layout when switching between views 
 // there i want when the app starts it show the signin page first  that if the user is not authenticated
@@ -12,11 +13,12 @@ import UserProfile from './pages/MyProfile'
 // if complete go to feed else go to create profile page
 
 
-type View = 'signin' | 'create-profile' | 'feed' | 'userprofile'
+type View = 'signin' | 'create-profile' | 'feed' | 'userprofile' | 'visitprofile'
 
 export default function App() {
     const [view, setView] = useState<View>('signin')
     const [address, setAddress] = useState<string>('')
+    const [visitingWallet, setVisitingWallet] = useState<string>('')
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
@@ -69,7 +71,13 @@ export default function App() {
 
             {view === 'feed' && address && (
                 <>
-                    <Feed address={address} />
+                    <Feed
+                        address={address}
+                        onVisitProfile={(walletAddress: string) => {
+                            setVisitingWallet(walletAddress)
+                            setView('visitprofile')
+                        }}
+                    />
 
                     <div className="flex gap-2 mt-4 flex-wrap">
                         <button
@@ -101,6 +109,14 @@ export default function App() {
             {view === 'userprofile' && address && (
                 <UserProfile
                     address={address}
+                    onBack={() => setView('feed')}
+                />
+            )}
+
+            {view === 'visitprofile' && address && visitingWallet && (
+                <VisitProfile
+                    walletAddress={visitingWallet}
+                    currentUserAddress={address}
                     onBack={() => setView('feed')}
                 />
             )}

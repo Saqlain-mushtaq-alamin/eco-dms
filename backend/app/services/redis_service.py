@@ -1,5 +1,6 @@
 import json
 from typing import Any, Optional
+from collections.abc import Awaitable
 import redis
 from backend.app.config import settings
 
@@ -78,5 +79,17 @@ class RedisService:
     async def set(self, key: str, value: str, ex: Optional[int] = None):
         """Generic async set method for any string value"""
         self.set_str(key, value, ex=ex)
+
+    async def get_keys(self, pattern: str) -> list[str]:
+        """Get all keys matching a pattern"""
+        try:
+            result = self.client.keys(pattern)
+            if isinstance(result, Awaitable):
+                keys = await result
+            else:
+                keys = result
+            return list(keys) if keys is not None else []
+        except Exception:
+            return []
 
 redis_service = RedisService()

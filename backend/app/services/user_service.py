@@ -142,5 +142,32 @@ class UserService:
         prof, _ = await self.get_or_create_profile(wallet_address)
         return prof.following
 
+    async def get_all_users(self) -> List[dict]:
+        """
+        Get all registered users by querying Redis for profile CIDs.
+        Returns list of user profiles with basic info.
+        """
+        users = []
+        # Get all user profile CID keys from Redis
+        pattern = "user:profile:cid:*"
+        keys = redis_service.get_keys(pattern)
+        
+        for key in keys:
+            cid = redis_service.get_str(key)
+            if cid:
+                data = ipfs_service.get_json(cid)
+                if data:
+                    # Return basic profile info
+                    users.append({
+                        "wallet_address": data.get("wallet_address"),
+                        "username": data.get("username", ""),
+                        "bio": data.get("bio", ""),
+                        "avatar_cid": data.get("avatar_cid", ""),
+                        "followers_count": len(data.get("followers", [])),
+                        "following_count": len(data.get("following", []))
+                    })
+        
+        return users
+
 
 user_service = UserService()
