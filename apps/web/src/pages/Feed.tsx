@@ -23,7 +23,7 @@ type Comment = {
     created_at: string
 }
 
-async function createPost(apiBase: string, token: string, authorWallet: string, content: string) {
+async function createPost(apiBase: string, token: string, authorWallet: string, content: string, mediaCids: string[] = []) {
     const res = await fetch(`${apiBase}/api/posts`, {
         method: 'POST',
         headers: {
@@ -33,7 +33,7 @@ async function createPost(apiBase: string, token: string, authorWallet: string, 
         body: JSON.stringify({
             author_wallet: authorWallet,
             content,
-            media_cids: [],
+            media_cids: mediaCids,
             tags: [],
         }),
     })
@@ -113,6 +113,9 @@ export function Feed({ address }: { address: string }) {
     const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set())
     const [comments, setComments] = useState<Record<string, Comment[]>>({})
     const [commentInputs, setCommentInputs] = useState<Record<string, string>>({})
+    const [selectedImages, setSelectedImages] = useState<File[]>([])
+    const [uploadingImages, setUploadingImages] = useState(false)
+    const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([])
 
     // Configure your API base URL
     const apiBase = import.meta.env.VITE_API_BASE ?? 'http://127.0.0.1:8000'
@@ -145,9 +148,43 @@ export function Feed({ address }: { address: string }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [address])
 
+    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || [])
+        if (files.length === 0) return
+
+        // Validate file types and sizes
+        const validFiles = files.filter(file => {
+            if (!file.type.startsWith('image/')) {
+                setError('Only image files are allowed')
+                return false
+            }
+            if (file.size > 10 * 1024 * 1024) {
+                setError('Image size must be less than 10MB')
+                return false
+            }
+            return true
+        })
+
+        setSelectedImages(prev => [...prev, ...validFiles])
+
+        // Create preview URLs
+        validFiles.forEach(file => {
+            const reader = new FileReader()
+            reader.onloadend = () => {
+                setImagePreviewUrls(prev => [...prev, reader.result as string])
+            }
+            reader.readAsDataURL(file)
+        })
+    }
+
+    const removeImage = (index: number) => {
+        setSelectedImages(prev => prev.filter((_, i) => i !== index))
+        setImagePreviewUrls(prev => prev.filter((_, i) => i !== index))
+    }
+
     const onSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!content.trim()) return
+        if (!content.trim() && selectedImages.length === 0) return
         const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') ?? '' : ''
         if (!token) {
             setError('Not authenticated')
@@ -156,15 +193,39 @@ export function Feed({ address }: { address: string }) {
         setLoading(true)
         setError(null)
         try {
-            const result = await createPost(apiBase, token, address, content.trim())
+            let mediaCids: string[] = []
+
+            // Upload images if any
+            if (selectedImages.length > 0) {
+                setUploadingImages(true)
+                const uploadPromises = selectedImages.map(async (file) => {
+                    const formData = new FormData()
+                    formData.append('file', file)
+                    const res = await fetch(`${apiBase}/api/posts/upload-image`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        body: formData
+                    })
+                    if (!res.ok) throw new Error('Image upload failed')
+                    const data = await res.json()
+                    return data.cid
+                })
+                mediaCids = await Promise.all(uploadPromises)
+                setUploadingImages(false)
+            }
+
+            const result = await createPost(apiBase, token, address, content.trim(), mediaCids)
             console.log('Post created successfully:', result)
             setContent('')
+            setSelectedImages([])
+            setImagePreviewUrls([])
             await load()
         } catch (e: any) {
             console.error('Create post error:', e)
             setError(e.message || 'Failed to create post')
         } finally {
             setLoading(false)
+            setUploadingImages(false)
         }
     }
 
@@ -246,13 +307,50 @@ export function Feed({ address }: { address: string }) {
                     className="w-full border rounded p-2"
                     rows={3}
                 />
-                <button
-                    type="submit"
-                    className="px-4 py-2 bg-green-600 text-white rounded disabled:opacity-50"
-                    disabled={loading}
-                >
-                    {loading ? 'Posting...' : 'Post'}
-                </button>
+
+                {/* Image Previews */}
+                {imagePreviewUrls.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                        {imagePreviewUrls.map((url, index) => (
+                            <div key={index} className="relative">
+                                <img src={url} alt="Preview" className="w-20 h-20 object-cover rounded border" />
+                                <button
+                                    type="button"
+                                    onClick={() => removeImage(index)}
+                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold hover:bg-red-600"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                <div className="flex gap-2 items-center">
+                    {/* Image Upload Button with Icon */}
+                    <label className="cursor-pointer px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                        </svg>
+                        <span>Add Image</span>
+                        <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={handleImageSelect}
+                            className="hidden"
+                            disabled={loading}
+                        />
+                    </label>
+
+                    <button
+                        type="submit"
+                        className="px-4 py-2 bg-green-600 text-white rounded disabled:opacity-50"
+                        disabled={loading || uploadingImages}
+                    >
+                        {uploadingImages ? 'Uploading Images...' : loading ? 'Posting...' : 'Post'}
+                    </button>
+                </div>
             </form>
 
             {error && <div className="text-red-600">{error}</div>}
@@ -274,6 +372,25 @@ export function Feed({ address }: { address: string }) {
                         {/* Post Content */}
                         <div className="mt-2 text-gray-900">{p.content}</div>
 
+                        {/* Post Images */}
+                        {p.media_cids?.length > 0 && (
+                            <div className="mt-3 grid grid-cols-2 gap-2">
+                                {p.media_cids.map((cid, idx) => (
+                                    <img
+                                        key={idx}
+                                        src={`https://${cid}.ipfs.nftstorage.link`}
+                                        alt="Post image"
+                                        className="w-full rounded border object-cover"
+                                        style={{ maxHeight: '300px' }}
+                                        onError={(e) => {
+                                            // Fallback to ipfs.io gateway
+                                            (e.target as HTMLImageElement).src = `https://ipfs.io/ipfs/${cid}`
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                        )}
+
                         {/* Tags */}
                         {p.tags?.length ? (
                             <div className="mt-2 flex gap-2">
@@ -291,8 +408,8 @@ export function Feed({ address }: { address: string }) {
                             <button
                                 onClick={() => handleLike(p.cid!, p.liked_by_user ?? false)}
                                 className={`flex items-center gap-1 px-3 py-1 rounded transition ${p.liked_by_user
-                                        ? 'bg-red-100 text-red-600 hover:bg-red-200'
-                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                    ? 'bg-red-100 text-red-600 hover:bg-red-200'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                     }`}
                                 disabled={!p.cid}
                             >

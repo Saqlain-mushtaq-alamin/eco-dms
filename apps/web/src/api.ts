@@ -67,3 +67,26 @@ export async function logout() {
     }
     localStorage.removeItem('auth_token')
 }
+
+export async function uploadImage(file: File): Promise<{ cid: string; url: string }> {
+    const token = localStorage.getItem('auth_token')
+    if (!token) throw new Error('No authentication token')
+
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const res = await fetch(`${API_BASE}/api/posts/upload-image`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        },
+        body: formData
+    })
+
+    if (!res.ok) {
+        const error = await res.text()
+        throw new Error(error || `Failed to upload image: ${res.status}`)
+    }
+
+    return res.json()
+}

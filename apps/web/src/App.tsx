@@ -4,7 +4,7 @@ import { getMe, logout } from './api'
 import WalletConnect from './pages/WalletConnect'
 import { ProfileCreate } from './pages/ProfileCreate'
 import { Feed } from './pages/Feed'
-import UserProfile from './pages/UserProfile'
+import UserProfile from './pages/MyProfile'
 
 // ! there is a bug need to fix with the page layout when switching between views 
 // there i want when the app starts it show the signin page first  that if the user is not authenticated
