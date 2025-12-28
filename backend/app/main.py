@@ -5,12 +5,12 @@ No database - everything stored in IPFS!
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from backend.app.auth_routes import router as auth_router
-from backend.app.auth_routes import siwe_router, siwe_alias_router
-from backend.app.user_routes import router as user_router
-from backend.app.config import settings
-from backend.app.services.ipfs_service import ipfs_service
-from backend.app.services.redis_service import redis_service
+from .auth_routes import router as auth_router
+from .auth_routes import siwe_router, siwe_alias_router
+from .user_routes import router as user_router
+from .config import settings
+from .services.ipfs_service import ipfs_service
+from .services.redis_service import redis_service
 from .posts_manage.post_routes import router as posts_router
 
 # Create FastAPI app

@@ -77,7 +77,7 @@ class UserService:
             if cid:
                 print(f"✅ Profile stored in IPFS: {cid}")
                 wallet_addr = data["wallet_address"].lower()
-                redis_service.set_str(self._cid_key(wallet_addr), cid, ex=24*3600)
+                redis_service.set_str(self._cid_key(wallet_addr), cid, ex=7*24*3600)  # 7 days cache
                 
                 # Add to persistent users registry (no expiration)
                 redis_service.sadd("users:registry", wallet_addr)
@@ -94,7 +94,9 @@ class UserService:
             cid = pinata_service.pin_json(data)
             if cid:
                 print(f"✅ Profile stored in Pinata: {cid}")
-                redis_service.set_str(self._cid_key(data["wallet_address"]), cid, ex=24*3600)
+                wallet_addr = data["wallet_address"].lower()
+                redis_service.set_str(self._cid_key(wallet_addr), cid, ex=7*24*3600)  # 7 days cache
+                redis_service.sadd("users:registry", wallet_addr)  # Add to registry
                 return cid
         except Exception as e:
             print(f"❌ Pinata pin_json failed: {e}")
@@ -161,13 +163,19 @@ class UserService:
         
         for wallet_addr in wallet_addresses:
             try:
-                # Get profile CID from cache or fetch from IPFS
+                # Get profile CID from cache
                 cid = redis_service.get_str(self._cid_key(wallet_addr))
                 
                 if not cid:
-                    # Try to get from ceramic service if not in cache
-                    print(f"DEBUG: Profile CID not in cache for {wallet_addr}, fetching...")
-                    continue
+                    # CID not in cache - try to re-fetch profile to get CID
+                    print(f"DEBUG: Profile CID not in cache for {wallet_addr}, re-fetching profile...")
+                    profile, new_cid = await self.get_or_create_profile(wallet_addr)
+                    if new_cid:
+                        cid = new_cid
+                        print(f"DEBUG: Re-cached profile CID for {wallet_addr}: {cid}")
+                    else:
+                        print(f"WARNING: Could not get profile for {wallet_addr}")
+                        continue
                     
                 data = ipfs_service.get_json(cid)
                 if data:
@@ -180,9 +188,13 @@ class UserService:
                         "followers_count": len(data.get("followers", [])),
                         "following_count": len(data.get("following", []))
                     })
-                    print(f"DEBUG: Added user {data.get('username')} to list")
+                    print(f"DEBUG: Added user {data.get('username') or 'Anonymous'} ({wallet_addr}) to list")
+                else:
+                    print(f"WARNING: Could not fetch data from IPFS for {wallet_addr} with CID {cid}")
             except Exception as e:
                 print(f"ERROR: Failed to get profile for {wallet_addr}: {e}")
+                import traceback
+                traceback.print_exc()
                 continue
         
         print(f"DEBUG: Returning {len(users)} users total")

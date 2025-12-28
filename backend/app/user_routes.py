@@ -78,6 +78,22 @@ async def update_my_profile(
         "message": "Profile updated successfully"
     }
 
+@router.get("/all", response_model=dict)
+async def get_all_users(
+    current_user: str = Depends(get_current_user)
+):
+    """
+    Get list of all registered users with their profiles.
+    """
+    cache_key = "users:all"
+    cached = redis_service.get_json(cache_key)
+    if cached:
+        return {"users": cached, "count": len(cached)}
+
+    users = await user_service.get_all_users()
+    redis_service.set_json(cache_key, users, ex=CACHE_TTL)
+    return {"users": users, "count": len(users)}
+
 @router.get("/{wallet_address}", response_model=UserProfile)
 async def get_user_profile(
     wallet_address: str,
@@ -176,22 +192,6 @@ async def get_following(
     following = await user_service.get_following(wallet_address.lower())
     redis_service.set_json(key, following, ex=CACHE_TTL)
     return {"wallet_address": wallet_address, "following": following, "count": len(following)}
-
-@router.get("/all", response_model=dict)
-async def get_all_users(
-    current_user: str = Depends(get_current_user)
-):
-    """
-    Get list of all registered users with their profiles.
-    """
-    cache_key = "users:all"
-    cached = redis_service.get_json(cache_key)
-    if cached:
-        return {"users": cached, "count": len(cached)}
-
-    users = await user_service.get_all_users()
-    redis_service.set_json(cache_key, users, ex=CACHE_TTL)
-    return {"users": users, "count": len(users)}
 
 @router.get("/check-follow/{wallet_address}", response_model=dict)
 async def check_follow_status(
