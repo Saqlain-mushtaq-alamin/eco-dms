@@ -76,7 +76,13 @@ class UserService:
             cid = ipfs_service.add_json(data)
             if cid:
                 print(f"✅ Profile stored in IPFS: {cid}")
-                redis_service.set_str(self._cid_key(data["wallet_address"]), cid, ex=24*3600)
+                wallet_addr = data["wallet_address"].lower()
+                redis_service.set_str(self._cid_key(wallet_addr), cid, ex=24*3600)
+                
+                # Add to persistent users registry (no expiration)
+                redis_service.sadd("users:registry", wallet_addr)
+                print(f"✅ Added {wallet_addr} to users registry")
+                
                 return cid
         except Exception as e:
             print(f"⚠️ IPFS add_json failed: {e}")
@@ -144,17 +150,25 @@ class UserService:
 
     async def get_all_users(self) -> List[dict]:
         """
-        Get all registered users by querying Redis for profile CIDs.
+        Get all registered users from the persistent users registry.
         Returns list of user profiles with basic info.
         """
         users = []
-        # Get all user profile CID keys from Redis
-        pattern = "user:profile:cid:*"
-        keys = redis_service.get_keys(pattern)
         
-        for key in keys:
-            cid = redis_service.get_str(key)
-            if cid:
+        # Get all wallet addresses from the persistent registry
+        wallet_addresses = redis_service.smembers("users:registry")
+        print(f"DEBUG: Found {len(wallet_addresses)} users in registry: {wallet_addresses}")
+        
+        for wallet_addr in wallet_addresses:
+            try:
+                # Get profile CID from cache or fetch from IPFS
+                cid = redis_service.get_str(self._cid_key(wallet_addr))
+                
+                if not cid:
+                    # Try to get from ceramic service if not in cache
+                    print(f"DEBUG: Profile CID not in cache for {wallet_addr}, fetching...")
+                    continue
+                    
                 data = ipfs_service.get_json(cid)
                 if data:
                     # Return basic profile info
@@ -166,7 +180,12 @@ class UserService:
                         "followers_count": len(data.get("followers", [])),
                         "following_count": len(data.get("following", []))
                     })
+                    print(f"DEBUG: Added user {data.get('username')} to list")
+            except Exception as e:
+                print(f"ERROR: Failed to get profile for {wallet_addr}: {e}")
+                continue
         
+        print(f"DEBUG: Returning {len(users)} users total")
         return users
 
 

@@ -68,8 +68,9 @@ async def update_my_profile(
     if not new_cid:
         raise HTTPException(status_code=500, detail="Failed to update profile")
 
-    # bust profile cache
+    # bust profile cache and users list cache
     redis_service.delete(f"profile:{wallet_address.lower()}")
+    redis_service.delete("users:all")
 
     return {
         "success": True,

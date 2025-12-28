@@ -1,5 +1,5 @@
 import json
-from typing import Any, Optional
+from typing import Any, Optional, cast, Set
 from collections.abc import Awaitable
 import redis
 from backend.app.config import settings
@@ -76,7 +76,7 @@ class RedisService:
         """Generic async get method for any string value"""
         return self.get_str(key)
 
-    async def set(self, key: str, value: str, ex: Optional[int] = None):
+    async def set(self, key: str, value: str, ex: Optional[int] = None) -> None:
         """Generic async set method for any string value"""
         self.set_str(key, value, ex=ex)
 
@@ -91,5 +91,21 @@ class RedisService:
             return list(keys) if keys is not None else []
         except Exception:
             return []
+
+    def sadd(self, key: str, *values: str) -> int:
+        """Add members to a set"""
+        try:
+            result = cast(int, self.client.sadd(key, *values))
+            return result if result is not None else 0
+        except Exception:
+            return 0
+
+    def smembers(self, key: str) -> Set[str]:
+        """Get all members of a set"""
+        try:
+            result = cast(Set[str], self.client.smembers(key))
+            return result if result else set()
+        except Exception:
+            return set()
 
 redis_service = RedisService()

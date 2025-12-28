@@ -201,13 +201,21 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
 
     const loadUsers = async () => {
         const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') ?? '' : ''
-        if (!token) return
+        if (!token) {
+            console.log('No token for loading users')
+            return
+        }
         try {
+            console.log('Fetching all users...')
             const data = await fetchAllUsers(apiBase, token)
+            console.log('All users response:', data)
             // Filter out current user
-            setUsers(data.users.filter((u: User) => u.wallet_address.toLowerCase() !== address.toLowerCase()))
+            const filteredUsers = data.users.filter((u: User) => u.wallet_address.toLowerCase() !== address.toLowerCase())
+            console.log('Filtered users (excluding self):', filteredUsers)
+            setUsers(filteredUsers)
         } catch (e: any) {
             console.error('Users load error:', e)
+            setError(`Failed to load users: ${e.message}`)
         }
     }
 
