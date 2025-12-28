@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header, UploadFile, File
 from datetime import datetime
 from typing import Dict, List
-from ..models import PostCreate, CommentCreate, LikeCreate
+from ..models import PostCreate, CommentCreate, LikeCreate, ImageUpload
 from ..auth_routes import get_current_user
 # Use posts IPFS service for pin/get
 from backend.app.posts_manage.ipfs_post_service import ipfs_service
@@ -11,6 +11,41 @@ from backend.app.services.ceramic_service import ceramic_service
 from backend.app.services.social_service import social_service
 
 router = APIRouter(prefix="/api/posts", tags=["posts"])
+
+@router.post("/upload-image", response_model=ImageUpload)
+async def upload_image(
+    file: UploadFile = File(...),
+    authorization: str | None = Header(default=None),
+):
+    """
+    Upload an image to IPFS and return its CID.
+    Supports common image formats: jpg, jpeg, png, gif, webp.
+    """
+    wallet_address = await get_current_user(authorization)
+    
+    # Validate file type
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+    
+    # Validate file size (10MB max)
+    content = await file.read()
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image size must be less than 10MB")
+    
+    try:
+        cid = await ipfs_service.pin_file(
+            file_content=content,
+            filename=file.filename or "image",
+            content_type=file.content_type
+        )
+        
+        # Generate public URL for the image
+        # Try NFT.storage gateway first, fallback to ipfs.io
+        url = f"https://{cid}.ipfs.nftstorage.link"
+        
+        return ImageUpload(cid=cid, url=url)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to upload image: {str(e)}")
 
 @router.post("", response_model=Dict)
 async def create_post(

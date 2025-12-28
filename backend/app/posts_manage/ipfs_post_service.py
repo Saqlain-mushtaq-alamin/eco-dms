@@ -98,5 +98,45 @@ class PostsIPFS:
             raise RuntimeError(f"Missing CID in IPFS /add response: {resp}")
         return cid
 
+    async def pin_file(self, file_content: bytes, filename: str, content_type: str) -> str:
+        """
+        Upload a file (e.g., image) to IPFS and return its CID.
+        """
+        if self.token:
+            return await self._pin_file_via_nft_storage(file_content, filename, content_type)
+        else:
+            return await self._pin_file_via_local_ipfs(file_content, filename, content_type)
+
+    async def _pin_file_via_nft_storage(self, file_content: bytes, filename: str, content_type: str) -> str:
+        """Upload file to nft.storage"""
+        async with httpx.AsyncClient(timeout=60) as client:
+            files = {"file": (filename, file_content, content_type)}
+            r = await client.post(
+                f"{NFT_STORAGE_BASE}/upload",
+                headers={"Authorization": f"Bearer {self.token}"},
+                files=files,
+            )
+        if r.status_code >= 300:
+            raise RuntimeError(f"nft.storage file upload failed: {r.status_code} {r.text}")
+        resp = r.json()
+        cid = resp.get("value", {}).get("cid") or resp.get("cid")
+        if not cid:
+            raise RuntimeError(f"Missing CID in nft.storage response: {resp}")
+        return cid
+
+    async def _pin_file_via_local_ipfs(self, file_content: bytes, filename: str, content_type: str) -> str:
+        """Upload file to local IPFS node"""
+        api_base = settings.IPFS_API_URL.rstrip("/")
+        files = {"file": (filename, file_content, content_type)}
+        async with httpx.AsyncClient(timeout=60) as client:
+            r = await client.post(f"{api_base}/add", params={"pin": "true"}, files=files)
+        if r.status_code >= 300:
+            raise RuntimeError(f"IPFS file /add failed: {r.status_code} {r.text}")
+        resp = r.json()
+        cid = resp.get("Hash")
+        if not cid:
+            raise RuntimeError(f"Missing CID in IPFS file /add response: {resp}")
+        return cid
+
 
 ipfs_service = PostsIPFS()

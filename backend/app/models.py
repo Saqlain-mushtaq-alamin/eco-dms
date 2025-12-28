@@ -89,10 +89,16 @@ class ProfileUpdateRequest(BaseModel):
     avatar_cid: Optional[str] = None
 
 #-------------------------this part is for posts models-------------------------#
+class ImageUpload(BaseModel):
+    """Response model for image upload"""
+    cid: str = Field(..., description="IPFS CID of uploaded image")
+    url: str = Field(..., description="Public URL to access the image")
+
+
 class PostCreate(BaseModel):
     author_wallet: str = Field(..., description="Author's wallet address")
     content: str = Field(..., description="Post text content")
-    media_cids: Optional[List[str]] = Field(default=None, description="Optional CID list for media")
+    media_cids: Optional[List[str]] = Field(default=None, description="Optional CID list for media/images")
     tags: Optional[List[str]] = None
 
 
