@@ -204,37 +204,68 @@ class UserService:
 
     async def get_all_users(self) -> List[dict]:
         """
-        Get all users from decentralized network.
+        Get all users from decentralized OrbitDB storage.
         
-        FULLY DECENTRALIZED: Query Ceramic Network for all user profiles.
-        No centralized user registry!
+        Since OrbitDB is P2P and decentralized, there's no central registry.
+        We discover users through:
+        1. Cached OrbitDB addresses (from previous interactions)
+        2. Users who have created profiles
+        3. P2P discovery (future enhancement)
         
-        For now using IPFS as fallback, but should query Ceramic ComposeDB.
+        For now, we iterate through cached OrbitDB addresses to find users.
         """
         users = []
         
-        # TODO: Query Ceramic ComposeDB for all UserProfile streams
-        # query = '''
-        #   query {
-        #     userProfileIndex(first: 1000) {
-        #       edges {
-        #         node {
-        #           author { id }
-        #           username
-        #           bio
-        #           avatarCID
-        #         }
-        #       }
-        #     }
-        #   }
-        # '''
-        
-        print(f"⚠️ get_all_users not fully decentralized yet - needs Ceramic ComposeDB query")
-        
-        # Fallback: use cache if available
-        # This is temporary and should be replaced with Ceramic query
-        
-        return users
+        try:
+            # Get all cached OrbitDB profile addresses from Redis
+            # Pattern: orbitdb:addr:*:profile
+            pattern = f"{self.orbit._db_cache_prefix}*:profile"
+            cached_keys = await redis_service.get_keys(pattern)
+            
+            print(f"🔍 Found {len(cached_keys)} cached OrbitDB profiles")
+            
+            for key in cached_keys:
+                try:
+                    # Extract wallet address from key
+                    # Key format: orbitdb:addr:0x123...:profile
+                    parts = key.split(":")
+                    if len(parts) >= 4:
+                        wallet_addr = parts[2]
+                        
+                        # Get profile data from OrbitDB
+                        profile_data = await self.orbit.get_profile_data(wallet_addr)
+                        
+                        if profile_data:
+                            users.append({
+                                "wallet_address": wallet_addr,
+                                "username": profile_data.get("username", ""),
+                                "bio": profile_data.get("bio", ""),
+                                "avatar_cid": profile_data.get("avatar_cid", ""),
+                                "followers_count": len(profile_data.get("followers", [])),
+                                "following_count": len(profile_data.get("following", []))
+                            })
+                        else:
+                            # Fallback to cache
+                            cached_profile = redis_service.get_json(self._cache_key(wallet_addr))
+                            if cached_profile:
+                                users.append({
+                                    "wallet_address": wallet_addr,
+                                    "username": cached_profile.get("username", ""),
+                                    "bio": cached_profile.get("bio", ""),
+                                    "avatar_cid": cached_profile.get("avatar_cid", ""),
+                                    "followers_count": len(cached_profile.get("followers", [])),
+                                    "following_count": len(cached_profile.get("following", []))
+                                })
+                except Exception as e:
+                    print(f"⚠️ Error loading user from {key}: {e}")
+                    continue
+            
+            print(f"✅ Loaded {len(users)} users from OrbitDB (decentralized)")
+            return users
+            
+        except Exception as e:
+            print(f"❌ Error in get_all_users: {e}")
+            return []
 
 
 user_service = UserService()

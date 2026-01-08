@@ -1,37 +1,32 @@
 """
-Decentralized Data Service using OrbitDB (Free, No Gas Fees!)
+Posts Index Service using OrbitDB (FREE, No Gas Fees!)
 
+This service manages the posts index for users using OrbitDB.
 OrbitDB is a serverless, peer-to-peer database built on IPFS.
-- No blockchain needed (no gas fees!)
-- Users own their data
-- Backend is just a gateway/helper
-- Fully decentralized
 
-Architecture:
-1. User authenticates with wallet (SIWE)
-2. Backend helps create user's OrbitDB databases
-3. Data stored on IPFS, indexed by OrbitDB
-4. Users can run their own IPFS nodes
-5. Backend helps pin and replicate data
+Why OrbitDB:
+- Free (no gas fees)
+- Decentralized (IPFS-based)
+- User-owned (each user has their own databases)
+- Simple (no blockchain complexity)
+
+Note: This file kept as 'ceramic_service.py' for backwards compatibility.
+Actual implementation uses OrbitDB.
 """
 from typing import List, Optional
 from backend.app.services.orbitdb_service import orbitdb_service
 
 
-class CeramicService:
+class PostsIndexService:
     """
-    Using OrbitDB for decentralized storage (Ceramic alternative).
-    
-    Why OrbitDB:
-    - Free (no gas fees)
-    - Decentralized (IPFS-based)
-    - User-owned (each user has their own databases)
-    - Simple (no complex setup like Ceramic)
+    Manages posts index using OrbitDB.
     
     Each user has:
-    - Profile database (KeyValue store)
-    - Posts database (Feed/Log)
-    - Social graph database (Documents)
+    - Posts database (Feed/Log) - append-only list of post CIDs
+    
+    FREE - no gas fees!
+    DECENTRALIZED - data on IPFS via OrbitDB
+    USER-OWNED - users control their data
     """
     
     def __init__(self):
@@ -41,15 +36,9 @@ class CeramicService:
         """
         Get list of post CIDs for an author from their OrbitDB feed.
         FULLY DECENTRALIZED - data on IPFS, no central database!
+        FREE - no gas fees!
         """
-        wallet = wallet_address.lower()
-        
-        try:
-            posts = await self.orbit.get_user_posts(wallet)
-            return posts
-        except Exception as e:
-            print(f"❌ Error fetching posts from OrbitDB: {e}")
-            return []
+        return await self.orbit.get_user_posts(wallet_address.lower())
 
     async def append_author_post(self, wallet_address: str, cid: str) -> bool:
         """
@@ -57,38 +46,17 @@ class CeramicService:
         The user OWNS this database - we're just helping them update it.
         FREE - no gas fees!
         """
-        wallet = wallet_address.lower()
-        
-        try:
-            # Ensure user has a posts database
-            db_address = await self.orbit.get_db_address(wallet, "posts")
-            if not db_address:
-                # Create posts database for user
-                db_address = await self.orbit.create_user_posts_db(wallet)
-                if not db_address:
-                    return False
-            
-            # Append post to feed
-            success = await self.orbit.append_post(wallet, cid)
-            
-            if success:
-                print(f"✅ Post added to OrbitDB for {wallet} (FREE, no gas!)")
-                return True
-            
-            return False
-        except Exception as e:
-            print(f"❌ Error updating posts in OrbitDB: {e}")
-            return False
+        return await self.orbit.append_post(wallet_address.lower(), cid)
     
+    # Legacy methods (not needed anymore)
     def set_index_cid(self, wallet_address: str, index_cid: str):
-        """Legacy method - not needed with OrbitDB."""
-        print(f"⚠️ set_index_cid is deprecated - using OrbitDB instead")
+        """Deprecated - OrbitDB handles this automatically."""
         pass
 
     def get_index_cid(self, wallet_address: str) -> Optional[str]:
-        """Legacy method - not needed with OrbitDB."""
-        print(f"⚠️ get_index_cid is deprecated - using OrbitDB instead")
+        """Deprecated - OrbitDB handles this automatically."""
         return None
 
 
-ceramic_service = CeramicService()
+# Export as ceramic_service for backwards compatibility
+ceramic_service = PostsIndexService()

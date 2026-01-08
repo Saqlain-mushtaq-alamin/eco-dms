@@ -39,16 +39,9 @@ class Settings(BaseSettings):
     RATE_LIMIT_MAX_NONCE: int = 20
     RATE_LIMIT_MAX_VERIFY: int = 60
 
-    # Ceramic
-    CERAMIC_API_URL: str = "http://localhost:7007"
-    # NOTE: We're using OrbitDB instead of Ceramic (simpler, free, no gas fees!)
-    # Ceramic config kept for backwards compatibility
-    # For development, you can use ComposeDB Cloud:
-    # CERAMIC_API_URL: str = "https://ceramic-clay.3boxlabs.com"
-    CERAMIC_POSTS_MODEL_STREAM: str = ""
-    
     # OrbitDB (via IPFS) - FREE, decentralized, no gas fees!
     # OrbitDB is built on IPFS, so just configure IPFS and OrbitDB works!
+    # No additional config needed - uses IPFS_API_URL
 
     model_config = SettingsConfigDict(
         env_file=".env",

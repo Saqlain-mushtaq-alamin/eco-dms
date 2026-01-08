@@ -5,8 +5,8 @@ from ..models import PostCreate, CommentCreate, LikeCreate, ImageUpload
 from ..auth_routes import get_current_user
 # Use posts IPFS service for pin/get
 from backend.app.posts_manage.ipfs_post_service import ipfs_service
-# Use Ceramic/IDX for decentralized CID indexing
-from backend.app.services.ceramic_service import ceramic_service
+# Use OrbitDB for decentralized CID indexing (FREE, no gas fees!)
+from backend.app.services.orbitdb_service import orbitdb_service
 # Use social service for likes and comments
 from backend.app.services.social_service import social_service
 # User service for follow relationships
@@ -71,7 +71,7 @@ async def create_post(
             "created_at": datetime.utcnow().isoformat(),
         })
 
-        ok = await ceramic_service.append_author_post(wallet_address.lower(), cid)
+        ok = await orbitdb_service.append_post(wallet_address.lower(), cid)
         if not ok:
             # We still return success for pinning; client can retry index update
             return {"success": True, "cid": cid, "indexed": False}
@@ -87,11 +87,11 @@ async def list_author_posts(
 ):
     current_user = await get_current_user(authorization)
     """
-    List posts for an author via Ceramic/IDX index; fetch content from IPFS.
+    List posts for an author via OrbitDB index; fetch content from IPFS.
     Optimized: Parallel fetching of posts and social metrics.
     """
     try:
-        cids: List[str] = await ceramic_service.get_author_posts(wallet_address.lower())
+        cids: List[str] = await orbitdb_service.get_user_posts(wallet_address.lower())
     except Exception:
         cids = []
 
@@ -155,7 +155,7 @@ async def get_feed_timeline(
         
         async def fetch_user_posts(wallet_address: str):
             try:
-                cids = await ceramic_service.get_author_posts(wallet_address.lower())
+                cids = await orbitdb_service.get_user_posts(wallet_address.lower())
                 return cids if cids else []
             except Exception:
                 return []
