@@ -41,10 +41,13 @@ class SocialService:
         
         # Try to fetch from IPFS post metadata
         post_data = await ipfs_service.get_json(post_cid)
-        if post_data and "author" in post_data:
-            author = post_data["author"].lower()
-            self._post_author_cache[post_cid] = author
-            return author
+        if post_data:
+            # Check for "author" field first (new posts), then "author_wallet" (old posts)
+            author = post_data.get("author") or post_data.get("author_wallet")
+            if author:
+                author = author.lower()
+                self._post_author_cache[post_cid] = author
+                return author
         
         return None
     
