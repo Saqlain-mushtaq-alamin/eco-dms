@@ -64,12 +64,16 @@ async def create_post(
         cid = await ipfs_service.pin_json({
             "type": "post",
             "version": 1,
+            "author": wallet_address.lower(),  # Add author field for social service
             "author_wallet": wallet_address.lower(),
             "content": payload.content,
             "media_cids": payload.media_cids or [],
             "tags": payload.tags or [],
             "created_at": datetime.utcnow().isoformat(),
         })
+
+        # Register post author with social service (needed for OrbitDB lookups)
+        social_service.set_post_author(cid, wallet_address.lower())
 
         ok = await orbitdb_service.append_post(wallet_address.lower(), cid)
         if not ok:

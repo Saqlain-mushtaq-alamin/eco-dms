@@ -237,6 +237,79 @@ class OrbitDBService:
         
         return []
     
+    async def create_social_interactions_db(self, post_author_wallet: str) -> Optional[str]:
+        """
+        Create a KeyValue store for social interactions (likes/comments indexes).
+        This stores the mapping of post_cid -> {likes_index_cid, comments_index_cid}
+        Fully decentralized - no Redis needed!
+        """
+        identity = self._wallet_to_identity(post_author_wallet)
+        db_name = f"{post_author_wallet.lower()}.social"
+        
+        initial_data = {
+            "type": "keyvalue",
+            "owner": identity,
+            "created_at": asyncio.get_event_loop().time(),
+            "data": {}  # Empty social interactions mapping
+        }
+        
+        from backend.app.posts_manage.ipfs_post_service import ipfs_service
+        cid = await ipfs_service.pin_json(initial_data)
+        
+        if cid:
+            orbit_address = f"/orbitdb/{cid}/{db_name}"
+            await self.set_db_address(post_author_wallet, "social", orbit_address)
+            print(f"✅ Created OrbitDB social interactions for {post_author_wallet}: {orbit_address}")
+            return orbit_address
+        
+        return None
+    
+    async def get_social_data(self, wallet: str) -> Optional[Dict]:
+        """Get social interactions data from user's OrbitDB."""
+        db_address = await self.get_db_address(wallet, "social")
+        
+        if not db_address:
+            return None
+        
+        parts = db_address.split("/")
+        if len(parts) >= 3:
+            cid = parts[2]
+            
+            from backend.app.posts_manage.ipfs_post_service import ipfs_service
+            data = await ipfs_service.get_json(cid)
+            
+            if data and "data" in data:
+                return data["data"]
+        
+        return None
+    
+    async def update_social_data(self, wallet: str, social_data: Dict) -> bool:
+        """
+        Update social interactions in user's OrbitDB.
+        social_data format: {post_cid: {"likes_index_cid": "...", "comments_index_cid": "..."}}
+        """
+        identity = self._wallet_to_identity(wallet)
+        
+        updated_data = {
+            "type": "keyvalue",
+            "owner": identity,
+            "updated_at": asyncio.get_event_loop().time(),
+            "data": social_data
+        }
+        
+        from backend.app.posts_manage.ipfs_post_service import ipfs_service
+        new_cid = await ipfs_service.pin_json(updated_data)
+        
+        if new_cid:
+            db_name = f"{wallet.lower()}.social"
+            new_address = f"/orbitdb/{new_cid}/{db_name}"
+            
+            await self.set_db_address(wallet, "social", new_address)
+            print(f"✅ Updated OrbitDB social data for {wallet}")
+            return True
+        
+        return False
+    
     async def replicate_database(self, orbit_address: str) -> bool:
         """
         Replicate/pin someone else's OrbitDB.

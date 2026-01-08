@@ -1,29 +1,128 @@
 """
 Social interactions service for decentralized social media.
-Handles likes, comments, and social graph operations using IPFS.
+Handles likes, comments, and social graph operations using IPFS + OrbitDB.
 All data is stored on IPFS - fully decentralized!
+Index CIDs stored in post author's OrbitDB (no centralized Redis!).
 """
 import json
 from typing import List, Dict, Optional
 from datetime import datetime
 from backend.app.posts_manage.ipfs_post_service import ipfs_service
+from backend.app.services.orbitdb_service import orbitdb_service
 
 
 class SocialService:
     """
-    Manages social interactions (likes, comments) on IPFS.
+    Manages social interactions (likes, comments) on IPFS + OrbitDB.
     
     Data Structure:
-    - Likes Index: {post_cid: [wallet1, wallet2, ...]}
-    - Comments Index: {post_cid: [comment_cid1, comment_cid2, ...]}
-    - User Likes: {wallet: [post_cid1, post_cid2, ...]}
+    - Likes Index: {post_cid: [wallet1, wallet2, ...]} → stored on IPFS
+    - Comments Index: {post_cid: [comment_cid1, comment_cid2, ...]} → stored on IPFS
+    - User Likes: {wallet: [post_cid1, post_cid2, ...]} → stored on IPFS
+    
+    Index CID mappings stored in post author's OrbitDB:
+    - post_author.social -> {post_cid: {\"likes_index_cid\": \"...\", \"comments_index_cid\": \"...\"}}
+    
+    Fully decentralized - users own their social interaction data!
     """
     
     def __init__(self):
-        # In-memory caches for IPFS index CIDs
-        self._likes_index_cache = {}  # {post_cid: index_cid}
-        self._comments_index_cache = {}  # {post_cid: index_cid}
-        self._user_likes_cache = {}  # {wallet: index_cid}
+        # Cache for post author mapping: {post_cid: author_wallet}
+        self._post_author_cache: Dict[str, str] = {}
+    
+    def set_post_author(self, post_cid: str, author_wallet: str):
+        """Register who authored a post (needed to know which OrbitDB to update)."""
+        self._post_author_cache[post_cid] = author_wallet.lower()
+    
+    async def _get_post_author(self, post_cid: str) -> Optional[str]:
+        """Get the author wallet for a post. Required to know which OrbitDB to query."""
+        if post_cid in self._post_author_cache:
+            return self._post_author_cache[post_cid]
+        
+        # Try to fetch from IPFS post metadata
+        post_data = await ipfs_service.get_json(post_cid)
+        if post_data and "author" in post_data:
+            author = post_data["author"].lower()
+            self._post_author_cache[post_cid] = author
+            return author
+        
+        return None
+    
+    async def _get_social_data_for_author(self, author_wallet: str) -> Dict:
+        """Get all social interactions data for a user's posts from their OrbitDB."""
+        social_data = await orbitdb_service.get_social_data(author_wallet)
+        if social_data is None:
+            # Create new social DB if doesn't exist
+            await orbitdb_service.create_social_interactions_db(author_wallet)
+            return {}
+        return social_data
+    
+    async def _update_social_data_for_author(self, author_wallet: str, social_data: Dict) -> bool:
+        """Update social interactions data in author's OrbitDB."""
+        return await orbitdb_service.update_social_data(author_wallet, social_data)
+    
+    async def _get_likes_index_cid(self, post_cid: str) -> Optional[str]:
+        """Get likes index CID from post author's OrbitDB."""
+        author = await self._get_post_author(post_cid)
+        if not author:
+            return None
+        
+        social_data = await self._get_social_data_for_author(author)
+        if post_cid in social_data and "likes_index_cid" in social_data[post_cid]:
+            return social_data[post_cid]["likes_index_cid"]
+        return None
+    
+    async def _set_likes_index_cid(self, post_cid: str, index_cid: str):
+        """Store likes index CID in post author's OrbitDB."""
+        author = await self._get_post_author(post_cid)
+        if not author:
+            print(f"⚠️ Cannot set likes index: unknown author for post {post_cid}")
+            return
+        
+        social_data = await self._get_social_data_for_author(author)
+        if post_cid not in social_data:
+            social_data[post_cid] = {}
+        social_data[post_cid]["likes_index_cid"] = index_cid
+        
+        await self._update_social_data_for_author(author, social_data)
+    
+    async def _get_comments_index_cid(self, post_cid: str) -> Optional[str]:
+        """Get comments index CID from post author's OrbitDB."""
+        author = await self._get_post_author(post_cid)
+        if not author:
+            return None
+        
+        social_data = await self._get_social_data_for_author(author)
+        if post_cid in social_data and "comments_index_cid" in social_data[post_cid]:
+            return social_data[post_cid]["comments_index_cid"]
+        return None
+    
+    async def _set_comments_index_cid(self, post_cid: str, index_cid: str):
+        """Store comments index CID in post author's OrbitDB."""
+        author = await self._get_post_author(post_cid)
+        if not author:
+            print(f"⚠️ Cannot set comments index: unknown author for post {post_cid}")
+            return
+        
+        social_data = await self._get_social_data_for_author(author)
+        if post_cid not in social_data:
+            social_data[post_cid] = {}
+        social_data[post_cid]["comments_index_cid"] = index_cid
+        
+        await self._update_social_data_for_author(author, social_data)
+    
+    async def _get_user_likes_index_cid(self, wallet: str) -> Optional[str]:
+        """Get user likes index CID from their own OrbitDB."""
+        social_data = await self._get_social_data_for_author(wallet)
+        if "user_likes_index" in social_data:
+            return social_data["user_likes_index"]
+        return None
+    
+    async def _set_user_likes_index_cid(self, wallet: str, index_cid: str):
+        """Store user likes index CID in their own OrbitDB."""
+        social_data = await self._get_social_data_for_author(wallet)
+        social_data["user_likes_index"] = index_cid
+        await self._update_social_data_for_author(wallet, social_data)
     
     # ==================== LIKES ====================
     
@@ -58,7 +157,7 @@ class SocialService:
             new_index_cid = await ipfs_service.pin_json(likes_data)
             
             if new_index_cid:
-                self._likes_index_cache[post_cid] = new_index_cid
+                await self._set_likes_index_cid(post_cid, new_index_cid)
                 
                 # Also update user's likes list
                 await self._add_to_user_likes(wallet, post_cid)
@@ -97,7 +196,7 @@ class SocialService:
             new_index_cid = await ipfs_service.pin_json(likes_data)
             
             if new_index_cid:
-                self._likes_index_cache[post_cid] = new_index_cid
+                await self._set_likes_index_cid(post_cid, new_index_cid)
                 await self._remove_from_user_likes(wallet, post_cid)
                 print(f"👎 Like removed: {wallet} → {post_cid}")
                 return True
@@ -111,7 +210,7 @@ class SocialService:
         """
         Get list of wallet addresses that liked this post.
         """
-        index_cid = self._likes_index_cache.get(post_cid)
+        index_cid = await self._get_likes_index_cid(post_cid)
         
         if not index_cid:
             return []
@@ -181,7 +280,7 @@ class SocialService:
             new_index_cid = await ipfs_service.pin_json(comments_index)
             
             if new_index_cid:
-                self._comments_index_cache[post_cid] = new_index_cid
+                await self._set_comments_index_cid(post_cid, new_index_cid)
                 print(f"💬 Comment added: {comment_cid} on post {post_cid}")
                 return comment_cid
             
@@ -194,7 +293,7 @@ class SocialService:
         """
         Get list of comment CIDs for a post.
         """
-        index_cid = self._comments_index_cache.get(post_cid)
+        index_cid = await self._get_comments_index_cid(post_cid)
         
         if not index_cid:
             return []
@@ -240,7 +339,7 @@ class SocialService:
         Add a post to user's liked posts list.
         """
         try:
-            index_cid = self._user_likes_cache.get(wallet)
+            index_cid = await self._get_user_likes_index_cid(wallet)
             
             if index_cid:
                 data = await ipfs_service.get_json(index_cid)
@@ -259,7 +358,7 @@ class SocialService:
             
             new_index_cid = await ipfs_service.pin_json(new_data)
             if new_index_cid:
-                self._user_likes_cache[wallet] = new_index_cid
+                await self._set_user_likes_index_cid(wallet, new_index_cid)
                 return True
             
             return False
@@ -272,7 +371,7 @@ class SocialService:
         Remove a post from user's liked posts list.
         """
         try:
-            index_cid = self._user_likes_cache.get(wallet)
+            index_cid = await self._get_user_likes_index_cid(wallet)
             
             if not index_cid:
                 return True
@@ -291,7 +390,7 @@ class SocialService:
             
             new_index_cid = await ipfs_service.pin_json(new_data)
             if new_index_cid:
-                self._user_likes_cache[wallet] = new_index_cid
+                await self._set_user_likes_index_cid(wallet, new_index_cid)
                 return True
             
             return False
@@ -299,13 +398,13 @@ class SocialService:
             print(f"Error updating user likes: {e}")
             return False
     
-    def set_likes_index_cid(self, post_cid: str, index_cid: str):
+    async def set_likes_index_cid(self, post_cid: str, index_cid: str):
         """Manually set likes index CID (for recovery/initialization)"""
-        self._likes_index_cache[post_cid] = index_cid
+        await self._set_likes_index_cid(post_cid, index_cid)
     
-    def set_comments_index_cid(self, post_cid: str, index_cid: str):
+    async def set_comments_index_cid(self, post_cid: str, index_cid: str):
         """Manually set comments index CID (for recovery/initialization)"""
-        self._comments_index_cache[post_cid] = index_cid
+        await self._set_comments_index_cid(post_cid, index_cid)
 
 
 social_service = SocialService()
