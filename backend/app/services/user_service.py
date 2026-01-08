@@ -1,10 +1,13 @@
 """
-User Service - manages user profiles using Ceramic (FULLY DECENTRALIZED).
-No centralized database - users own their data via Ceramic DID streams!
+User Service - manages user profiles using OrbitDB (FULLY DECENTRALIZED & FREE).
+
+No centralized database - users own their data via OrbitDB!
+No gas fees - OrbitDB is free to use!
 
 Architecture:
-- User profiles stored on Ceramic Network (decentralized)
-- User controls their data via their DID
+- User profiles stored on OrbitDB (decentralized P2P database)
+- Built on IPFS (no central server)
+- User controls their data via wallet signatures
 - Backend is just a gateway - doesn't permanently store data
 - Redis used ONLY for optional temporary caching (can be rebuilt)
 """
@@ -16,8 +19,8 @@ from backend.app.models import UserProfile
 from backend.app.services.ipfs_service import ipfs_service
 from backend.app.services.pinata_service import pinata_service
 from backend.app.services.redis_service import redis_service
+from backend.app.services.orbitdb_service import orbitdb_service
 from backend.app.config import settings
-import httpx
 
 # Fix: __file__ is automatically available, but make sure sys.path is set correctly
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -25,58 +28,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 class UserService:
     def __init__(self):
-        self.ceramic_url = settings.CERAMIC_API_URL
-        self.client = httpx.AsyncClient(timeout=30.0)
+        self.orbit = orbitdb_service
         
-    def _wallet_to_did(self, wallet_address: str) -> str:
-        """Convert Ethereum wallet to DID format."""
-        chain_id = settings.CHAIN_ID
-        return f"did:pkh:eip155:{chain_id}:{wallet_address.lower()}"
-    
     def _cache_key(self, addr: str) -> str:
         """Redis cache key for TEMPORARY caching only (optional performance optimization)."""
         return f"cache:profile:{addr.lower()}"
-    
-    async def _get_ceramic_profile(self, wallet_address: str) -> Optional[Dict]:
-        """Get user profile from Ceramic Network."""
-        did = self._wallet_to_did(wallet_address)
-        
-        try:
-            # Query Ceramic for user's profile stream
-            # This would use ComposeDB GraphQL or Ceramic HTTP API
-            # For now, simplified implementation
-            
-            # Check temporary cache first (optional)
-            cache_key = self._cache_key(wallet_address)
-            cached = redis_service.get_json(cache_key)
-            if cached:
-                return cached
-            
-            # TODO: Query Ceramic ComposeDB
-            # For now, return None (profile doesn't exist)
-            return None
-            
-        except Exception as e:
-            print(f"❌ Error fetching profile from Ceramic: {e}")
-            return None
-    
-    async def _save_ceramic_profile(self, wallet_address: str, profile_data: Dict) -> bool:
-        """Save user profile to Ceramic Network."""
-        did = self._wallet_to_did(wallet_address)
-        
-        try:
-            # Create or update Ceramic stream
-            # This would use Ceramic HTTP API or ComposeDB mutation
-            
-            # TODO: Implement Ceramic stream creation/update
-            # For now, we'll use IPFS as fallback
-            
-            print(f"⚠️ Ceramic profile save not fully implemented yet - using IPFS fallback")
-            return False
-            
-        except Exception as e:
-            print(f"❌ Error saving profile to Ceramic: {e}")
-            return False
 
     def _serialize_profile(self, profile: dict) -> dict:
         """Convert datetime objects to ISO strings for JSON serialization."""
@@ -95,18 +51,20 @@ class UserService:
 
     async def get_or_create_profile(self, wallet_address: str) -> tuple[UserProfile, Optional[str]]:
         """
-        Get user profile from Ceramic or create default one.
-        Returns (profile, cid_or_stream_id)
+        Get user profile from OrbitDB or create default one.
+        Returns (profile, orbit_db_address)
         
-        DECENTRALIZED: Profile stored on Ceramic, controlled by user's DID.
+        DECENTRALIZED & FREE: Profile stored on OrbitDB, controlled by user's wallet.
         """
         addr = wallet_address.lower()
         
-        # Try to get from Ceramic first
-        profile_data = await self._get_ceramic_profile(addr)
+        # Try to get from OrbitDB first
+        profile_data = await self.orbit.get_profile_data(addr)
         
         if profile_data:
-            return (UserProfile(**profile_data), profile_data.get("stream_id"))
+            profile = UserProfile(**profile_data)
+            orbit_addr = await self.orbit.get_db_address(addr, "profile")
+            return (profile, orbit_addr)
         
         # Create default minimal profile
         profile = UserProfile(
@@ -119,16 +77,16 @@ class UserService:
             documents_cid=""
         )
         
-        # Save to Ceramic (user owns this data)
-        new_cid = await self.save_profile(profile)
-        return (profile, new_cid)
+        # Save to OrbitDB (user owns this data)
+        orbit_addr = await self.save_profile(profile)
+        return (profile, orbit_addr)
 
     async def save_profile(self, profile: UserProfile) -> Optional[str]:
         """
-        Save profile to decentralized storage.
+        Save profile to OrbitDB (fully decentralized, free).
         
         Priority:
-        1. Ceramic Network (fully decentralized - user owns data)
+        1. OrbitDB (fully decentralized, free, user-owned)
         2. IPFS/Pinata (decentralized content storage)
         
         Redis used ONLY for temporary caching (30-day TTL).
@@ -143,33 +101,43 @@ class UserService:
         data = self._serialize_profile(data)
         wallet_addr = data["wallet_address"].lower()
         
-        # Try Ceramic first (fully decentralized)
-        ceramic_success = await self._save_ceramic_profile(wallet_addr, data)
-        if ceramic_success:
-            print(f"✅ Profile saved to Ceramic (decentralized)")
+        # Save to OrbitDB (free, decentralized, user-owned!)
+        success = await self.orbit.update_profile_data(wallet_addr, data)
+        
+        if success:
+            orbit_addr = await self.orbit.get_db_address(wallet_addr, "profile")
+            print(f"✅ Profile saved to OrbitDB (FREE, decentralized): {orbit_addr}")
+            
             # Optional cache for performance (30 days, can be rebuilt)
             redis_service.set_json(self._cache_key(wallet_addr), data, ex=30*24*3600)
-            return "ceramic_stream"
+            return orbit_addr
         
-        # Fallback to IPFS (still decentralized, just different tech)
-        print(f"⚠️ Ceramic not available, using IPFS fallback...")
+        # Fallback: OrbitDB might not be initialized yet, create it
+        orbit_addr = await self.orbit.create_user_profile_db(wallet_addr)
+        if orbit_addr:
+            # Now update with actual data
+            success = await self.orbit.update_profile_data(wallet_addr, data)
+            if success:
+                print(f"✅ Created OrbitDB and saved profile (FREE!)")
+                redis_service.set_json(self._cache_key(wallet_addr), data, ex=30*24*3600)
+                return orbit_addr
+        
+        # Final fallback to IPFS (still decentralized)
+        print(f"⚠️ OrbitDB not available, using IPFS fallback...")
         try:
             cid = ipfs_service.add_json(data)
             if cid:
                 print(f"✅ Profile stored in IPFS: {cid}")
-                # Optional cache (30 days, can be rebuilt from IPFS)
                 redis_service.set_json(self._cache_key(wallet_addr), data, ex=30*24*3600)
                 return cid
         except Exception as e:
             print(f"⚠️ IPFS add_json failed: {e}")
 
         # Pinata fallback
-        print("Falling back to Pinata...")
         try:
             cid = pinata_service.pin_json(data)
             if cid:
                 print(f"✅ Profile stored in Pinata: {cid}")
-                # Optional cache (30 days)
                 redis_service.set_json(self._cache_key(wallet_addr), data, ex=30*24*3600)
                 return cid
         except Exception as e:
@@ -179,12 +147,12 @@ class UserService:
 
     async def get_profile(self, wallet_address: str) -> Optional[UserProfile]:
         """
-        Get user profile from decentralized storage (Ceramic or IPFS).
+        Get user profile from decentralized storage (OrbitDB or IPFS).
         """
         addr = wallet_address.lower()
         
-        # Try Ceramic first
-        profile_data = await self._get_ceramic_profile(addr)
+        # Try OrbitDB first
+        profile_data = await self.orbit.get_profile_data(addr)
         if profile_data:
             return UserProfile(**profile_data)
         
