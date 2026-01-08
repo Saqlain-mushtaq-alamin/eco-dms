@@ -1,0 +1,99 @@
+# Docker Compose for ML Verification Service
+version: '3.8'
+
+services:
+  # Main backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - IPFS_API_URL=http://ipfs:5001
+      - IPFS_GATEWAY_URL=http://ipfs:8080
+      - REDIS_URL=redis://redis:6379/0
+      - VERIFIER_PRIVATE_KEY=${VERIFIER_PRIVATE_KEY}
+    depends_on:
+      - ipfs
+      - redis
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # ML Inference API
+  ml-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.ml
+    ports:
+      - "8001:8001"
+    environment:
+      - IPFS_API_URL=http://ipfs:5001
+      - IPFS_GATEWAY_URL=http://ipfs:8080
+      - REDIS_URL=redis://redis:6379/0
+      - VERIFIER_PRIVATE_KEY=${VERIFIER_PRIVATE_KEY}
+    depends_on:
+      - ipfs
+      - redis
+    volumes:
+      - ./backend:/app
+      - ./backend/ml/models:/app/ml/models # Mount models directory
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [ gpu ] # Enable GPU if available
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001
+
+  # Celery Worker for async verification
+  ml-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.ml
+    environment:
+      - IPFS_API_URL=http://ipfs:5001
+      - IPFS_GATEWAY_URL=http://ipfs:8080
+      - REDIS_URL=redis://redis:6379/0
+      - VERIFIER_PRIVATE_KEY=${VERIFIER_PRIVATE_KEY}
+    depends_on:
+      - redis
+      - ipfs
+    volumes:
+      - ./backend:/app
+      - ./backend/ml/models:/app/ml/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [ gpu ]
+    command: celery -A backend.ml.worker worker --loglevel=info --concurrency=2
+
+  # IPFS Node
+  ipfs:
+    image: ipfs/kubo:latest
+    ports:
+      - "5001:5001" # API
+      - "8080:8080" # Gateway
+      - "4001:4001" # Swarm
+    volumes:
+      - ipfs-data:/data/ipfs
+    environment:
+      - IPFS_PROFILE=server
+
+  # Redis (Cache + Celery Broker)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+
+volumes:
+  ipfs-data:
+  redis-data:

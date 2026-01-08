@@ -1,0 +1,2 @@
+# Keep models directory in git (but not the actual model files)
+# Add large model files to .gitignore

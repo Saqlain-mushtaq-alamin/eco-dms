@@ -1,1 +1,1 @@
-# Make 'app' a real package so relative imports work.
+"""App package for Eco-DMS backend."""

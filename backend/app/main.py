@@ -12,6 +12,7 @@ from .config import settings
 from .services.ipfs_service import ipfs_service
 from .services.redis_service import redis_service
 from .posts_manage.post_routes import router as posts_router
+from .verify_routes import router as verify_router
 
 # Create FastAPI app
 app = FastAPI(
@@ -38,6 +39,7 @@ app.include_router(user_router)  # /api/users/me (prefix already in router)
 app.include_router(siwe_router, prefix="/api/siwe")  # /api/siwe/nonce, /api/siwe/verify
 app.include_router(siwe_alias_router)  # Direct /api/siwe/... routes
 app.include_router(posts_router)  # Include posts router
+app.include_router(verify_router)  # ML verification routes
 
 
 @app.on_event("startup")

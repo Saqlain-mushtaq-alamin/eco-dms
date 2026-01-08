@@ -7,3 +7,15 @@ coverage/
 __pycache__/
 artifacts/
 cache/
+
+# ML Models (large files - do not commit)
+backend/ml/models/*.pt
+backend/ml/models/*.pth
+backend/ml/models/*.onnx
+backend/ml/models/*.weights
+backend/ml/models/*.h5
+backend/ml/models/*.pb
+
+# Keep the directory and README
+!backend/ml/models/README.md
+!backend/ml/models/.gitkeep

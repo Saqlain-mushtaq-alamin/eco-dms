@@ -1,1 +1,1 @@
-# make backend a package
+"""Backend package for Eco-DMS."""
