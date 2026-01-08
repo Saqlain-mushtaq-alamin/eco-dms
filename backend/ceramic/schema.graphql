@@ -1,6 +1,26 @@
+type UserProfile
+  @createModel(accountRelation: SINGLE, description: "User profile data controlled by DID")
+{
+  author: DID! @documentAccount
+  username: String @string(maxLength: 50)
+  bio: String @string(maxLength: 500)
+  avatarCID: String @string(maxLength: 200)
+  profileCID: String @string(maxLength: 200)
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
 type AuthorPosts
   @createModel(accountRelation: SINGLE, description: "Posts CIDs per author")
 {
   author: DID! @documentAccount
   cids: [String!]! @list(maxLength: 10000) @string(maxLength: 200)
+}
+
+type SocialGraph
+  @createModel(accountRelation: SINGLE, description: "Following/followers relationships")
+{
+  author: DID! @documentAccount
+  following: [String!]! @list(maxLength: 5000) @string(maxLength: 100)
+  followers: [String!]! @list(maxLength: 5000) @string(maxLength: 100)
 }

@@ -56,7 +56,10 @@ async def create_post(
 ):
     wallet_address = await get_current_user(authorization)
     if wallet_address.lower() != payload.author_wallet.lower():
-        raise HTTPException(status_code=403, detail="Author wallet must match authenticated user")
+        raise HTTPException(
+            status_code=403, 
+            detail=f"Author wallet mismatch: authenticated as {wallet_address.lower()}, but payload has {payload.author_wallet.lower()}"
+        )
     try:
         cid = await ipfs_service.pin_json({
             "type": "post",

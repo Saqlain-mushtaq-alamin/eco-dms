@@ -35,9 +35,9 @@ def refresh_profiles():
         
         if cid:
             print(f"  Found CID in cache: {cid}")
-            # Extend TTL to 7 days
-            redis_service.set_str(cid_key, cid, ex=7*24*3600)
-            print(f"  ✅ Extended cache TTL to 7 days")
+            # Set to never expire - persist forever
+            redis_service.set_str(cid_key, cid, ex=None)
+            print(f"  ✅ Set cache to never expire (persistent storage)")
             
             # Verify data is in IPFS
             data = ipfs_service.get_json(cid)
