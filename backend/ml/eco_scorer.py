@@ -229,14 +229,19 @@ class EcoScorer:
             return 0.0
         
         text_lower = text.lower()
-        matches = 0
         
-        for keyword in self.ECO_KEYWORDS:
-            if keyword.lower() in text_lower:
-                matches += 1
+        # Eco-positive keywords to search for
+        eco_keywords = [
+            'sustainable', 'eco', 'green', 'renewable', 'recycl', 'solar',
+            'wind', 'clean energy', 'environment', 'nature', 'organic',
+            'biodegradable', 'carbon neutral', 'zero waste', 'plant',
+            'tree', 'bicycle', 'electric', 'conservation', 'compost'
+        ]
         
-        # Normalize by number of keywords
-        score = min(1.0, matches / 5.0)  # Cap at 5 keyword matches
+        matches = sum(1 for keyword in eco_keywords if keyword in text_lower)
+        
+        # Normalize by number of keywords (cap at 5 matches = 100%)
+        score = min(1.0, matches / 5.0)
         return score
     
     def _generate_reasoning(

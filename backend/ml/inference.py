@@ -341,17 +341,23 @@ class EcoVerifier:
         """
         Get ImageNet class IDs related to eco-friendly concepts.
         These are rough mappings to nature/outdoor/sustainability themes.
+        
+        ImageNet 1000 classes include many nature-related categories:
+        - Plants/trees: 949-953, 971-985
+        - Outdoor scenes: 978-982 
+        - Animals: 0-397 (many birds, mammals)
+        - Natural objects: 900-920
         """
-        # ImageNet classes (examples - adjust based on your needs)
         eco_classes = [
-            # Nature/plants
-            949, 950, 951, 952, 953,  # Trees, plants
-            # Outdoor scenes
-            980, 981, 982,  # Beaches, mountains
-            # Animals
-            7, 8, 9, 10,  # Birds
-            # Green technology (approximate)
-            895, 896,  # Wind, solar (approximation)
+            # Plants and vegetation (949-970)
+            949, 950, 951, 952, 953, 954, 955, 956, 957, 958,
+            959, 960, 961, 962, 963, 964, 965, 966, 967, 968, 969, 970,
+            # Natural landscapes (971-985)
+            971, 972, 973, 974, 975, 976, 977, 978, 979, 980, 981, 982, 983, 984, 985,
+            # Birds (0-100)
+            *range(0, 100),
+            # Natural food items (900-920)
+            *range(900, 921),
         ]
         return eco_classes
     
