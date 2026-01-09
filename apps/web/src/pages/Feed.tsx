@@ -12,6 +12,28 @@ type Post = {
     likes_count?: number
     comments_count?: number
     liked_by_user?: boolean
+    verified?: boolean
+    eco_score?: number
+    signed_verdict_cid?: string
+    verifier_address?: string
+    verified_at?: string
+}
+
+type VerificationDetails = {
+    is_eco: boolean
+    confidence: number
+    breakdown: {
+        yolo_score: number
+        clip_score: number
+        efficientnet_score: number
+        text_score: number
+    }
+    detected_objects: string[]
+    reasoning: string
+    models_used: string[]
+    verifier_address: string
+    timestamp: string
+    signature: string
 }
 
 type Comment = {
@@ -149,6 +171,11 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
     const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set())
     const [comments, setComments] = useState<Record<string, Comment[]>>({})
     const [commentInputs, setCommentInputs] = useState<Record<string, string>>({})
+    const [verificationModal, setVerificationModal] = useState<{ isOpen: boolean; details: VerificationDetails | null; loading: boolean }>({
+        isOpen: false,
+        details: null,
+        loading: false
+    })
     const [selectedImages, setSelectedImages] = useState<File[]>([])
     const [uploadingImages, setUploadingImages] = useState(false)
     const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([])
@@ -378,7 +405,38 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
             console.error('Add comment error:', e)
         }
     }
+    const handleShowVerification = async (signedVerdictCid: string) => {
+        setVerificationModal({ isOpen: true, details: null, loading: true })
 
+        try {
+            // Fetch signed verdict from IPFS
+            const ipfsUrl = `https://ipfs.io/ipfs/${signedVerdictCid}`
+            const response = await fetch(ipfsUrl)
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch verification details')
+            }
+
+            const signedVerdict = await response.json()
+            setVerificationModal({
+                isOpen: true,
+                details: {
+                    ...signedVerdict.verdict,
+                    verifier_address: signedVerdict.verifier_address,
+                    timestamp: signedVerdict.timestamp,
+                    signature: signedVerdict.signature
+                },
+                loading: false
+            })
+        } catch (err) {
+            console.error('Error fetching verification:', err)
+            setVerificationModal({ isOpen: true, details: null, loading: false })
+        }
+    }
+
+    const closeVerificationModal = () => {
+        setVerificationModal({ isOpen: false, details: null, loading: false })
+    }
     return (
         <div className="mt-6 space-y-4">
             <h2 className="text-xl font-semibold">Social Feed</h2>
@@ -513,12 +571,72 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
                 {posts.map((p) => (
                     <div key={p.cid ?? p.created_at} className="border rounded-lg p-4 bg-white shadow-sm">
                         {/* Post Header */}
-                        <div className="text-sm text-gray-500 mb-2">
-                            <span className="font-medium text-gray-700">
-                                {p.author_wallet.substring(0, 6)}...{p.author_wallet.substring(38)}
-                            </span>
-                            {' · '}
-                            {new Date(p.created_at).toLocaleString()}
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="text-sm text-gray-500">
+                                <span className="font-medium text-gray-700">
+                                    {p.author_wallet.substring(0, 6)}...{p.author_wallet.substring(38)}
+                                </span>
+                                {' · '}
+                                {new Date(p.created_at).toLocaleString()}
+                            </div>
+                            {/* Eco Verification Badge */}
+                            {p.signed_verdict_cid && (
+                                <button
+                                    onClick={() => handleShowVerification(p.signed_verdict_cid!)}
+                                    className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium transition hover:shadow-md ${p.verified
+                                            ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                        }`}
+                                    title="Click to view verification details"
+                                >
+                                    {p.verified ? (
+                                        <>
+                                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                            </svg>
+                                            <span>ECO</span>
+                                            {p.eco_score && <span className="text-xs">({Math.round(p.eco_score * 100)}%)</span>}
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                            </svg>
+                                            <span>Not Eco</span>
+                                            {p.eco_score && <span className="text-xs">({Math.round(p.eco_score * 100)}%)</span>}
+                                        </>
+                                    )}
+                                </button>
+                            )}
+                            {/* Eco Verification Badge */}
+                            {p.signed_verdict_cid && (
+                                <button
+                                    onClick={() => handleShowVerification(p.signed_verdict_cid!)}
+                                    className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium transition hover:shadow-md ${p.verified
+                                            ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                        }`}
+                                    title="Click to view verification details"
+                                >
+                                    {p.verified ? (
+                                        <>
+                                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                            </svg>
+                                            <span>ECO</span>
+                                            {p.eco_score && <span className="text-xs">({Math.round(p.eco_score * 100)}%)</span>}
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                            </svg>
+                                            <span>Not Eco</span>
+                                            {p.eco_score && <span className="text-xs">({Math.round(p.eco_score * 100)}%)</span>}
+                                        </>
+                                    )}
+                                </button>
+                            )}
                         </div>
 
                         {/* Post Content */}
@@ -634,6 +752,146 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
                     </div>
                 ))}
             </div>
+
+            {/* Verification Details Modal */}
+            {verificationModal.isOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={closeVerificationModal}>
+                    <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                        {/* Modal Header */}
+                        <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+                            <h2 className="text-xl font-bold text-gray-900">🌍 Eco Verification Details</h2>
+                            <button
+                                onClick={closeVerificationModal}
+                                className="text-gray-400 hover:text-gray-600 transition"
+                            >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        {/* Modal Body */}
+                        <div className="p-6">
+                            {verificationModal.loading ? (
+                                <div className="flex items-center justify-center py-12">
+                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                                </div>
+                            ) : verificationModal.details ? (
+                                <div className="space-y-6">
+                                    {/* Verdict Summary */}
+                                    <div className={`p-4 rounded-lg border-2 ${verificationModal.details.is_eco
+                                            ? 'bg-green-50 border-green-300'
+                                            : 'bg-gray-50 border-gray-300'
+                                        }`}>
+                                        <div className="flex items-center gap-3 mb-2">
+                                            {verificationModal.details.is_eco ? (
+                                                <svg className="w-8 h-8 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                                </svg>
+                                            ) : (
+                                                <svg className="w-8 h-8 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                                </svg>
+                                            )}
+                                            <div>
+                                                <h3 className={`text-2xl font-bold ${verificationModal.details.is_eco ? 'text-green-700' : 'text-gray-700'
+                                                    }`}>
+                                                    {verificationModal.details.is_eco ? '✅ Eco-Friendly' : '❌ Not Eco-Friendly'}
+                                                </h3>
+                                                <p className="text-sm text-gray-600">
+                                                    Confidence: <span className="font-bold">{Math.round(verificationModal.details.confidence * 100)}%</span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <p className="text-sm text-gray-700 mt-2">{verificationModal.details.reasoning}</p>
+                                    </div>
+
+                                    {/* Detected Objects */}
+                                    {verificationModal.details.detected_objects.length > 0 && (
+                                        <div>
+                                            <h4 className="font-semibold text-gray-900 mb-2">🔍 Detected Eco Objects:</h4>
+                                            <div className="flex flex-wrap gap-2">
+                                                {verificationModal.details.detected_objects.map((obj, idx) => (
+                                                    <span key={idx} className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+                                                        {obj.replace(/_/g, ' ')}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Score Breakdown */}
+                                    <div>
+                                        <h4 className="font-semibold text-gray-900 mb-3">📊 Score Breakdown:</h4>
+                                        <div className="space-y-3">
+                                            {[
+                                                { name: 'Object Detection (YOLOv8)', score: verificationModal.details.breakdown.yolo_score, weight: '40%' },
+                                                { name: 'Image-Text Alignment (CLIP)', score: verificationModal.details.breakdown.clip_score, weight: '30%' },
+                                                { name: 'Visual Classification', score: verificationModal.details.breakdown.efficientnet_score, weight: '20%' },
+                                                { name: 'Text Content', score: verificationModal.details.breakdown.text_score, weight: '10%' }
+                                            ].map((item, idx) => (
+                                                <div key={idx}>
+                                                    <div className="flex justify-between text-sm mb-1">
+                                                        <span className="text-gray-700">{item.name} <span className="text-gray-500">({item.weight})</span></span>
+                                                        <span className="font-semibold">{Math.round(item.score * 100)}%</span>
+                                                    </div>
+                                                    <div className="w-full bg-gray-200 rounded-full h-2">
+                                                        <div
+                                                            className="bg-blue-600 h-2 rounded-full transition-all"
+                                                            style={{ width: `${item.score * 100}%` }}
+                                                        ></div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* ML Models Used */}
+                                    <div>
+                                        <h4 className="font-semibold text-gray-900 mb-2">🤖 ML Models Used:</h4>
+                                        <div className="flex flex-wrap gap-2">
+                                            {verificationModal.details.models_used.map((model, idx) => (
+                                                <span key={idx} className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm font-medium">
+                                                    {model}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Verifier Info */}
+                                    <div className="border-t pt-4">
+                                        <h4 className="font-semibold text-gray-900 mb-2">🔐 Verification Info:</h4>
+                                        <div className="text-sm space-y-1 text-gray-600">
+                                            <div className="flex gap-2">
+                                                <span className="font-medium">Verifier Address:</span>
+                                                <span className="font-mono text-xs break-all">{verificationModal.details.verifier_address}</span>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <span className="font-medium">Verified At:</span>
+                                                <span>{new Date(verificationModal.details.timestamp).toLocaleString()}</span>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <span className="font-medium">Signature:</span>
+                                                <span className="font-mono text-xs break-all">
+                                                    {verificationModal.details.signature.substring(0, 20)}...{verificationModal.details.signature.slice(-20)}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="mt-3 p-3 bg-blue-50 rounded text-xs text-gray-700">
+                                            <p><strong>✅ Cryptographically Verified:</strong> This verdict is signed and stored on IPFS. Anyone can verify its authenticity.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-center py-12">
+                                    <p className="text-red-600">Failed to load verification details</p>
+                                    <p className="text-sm text-gray-500 mt-2">The verification data may not be available on IPFS</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     )
 }

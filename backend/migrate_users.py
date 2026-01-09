@@ -10,14 +10,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.services.redis_service import redis_service
 from app.services.ipfs_service import ipfs_service
+import asyncio
 
-def migrate_users():
+async def migrate_users():
     """Scan Redis for existing profile CIDs and add them to the registry."""
     print("🔄 Starting user migration...")
     
     # Get all existing profile CID keys
     pattern = "user:profile:cid:*"
-    keys = redis_service.client.keys(pattern)
+    keys = list(await redis_service.client.keys(pattern))
     
     print(f"Found {len(keys)} profile keys")
     
@@ -40,4 +41,4 @@ def migrate_users():
     print(f"   Users: {registry}")
 
 if __name__ == "__main__":
-    migrate_users()
+    asyncio.run(migrate_users())
