@@ -16,7 +16,7 @@ class PostsIPFS:
         self.token = token or os.getenv("NFT_STORAGE_TOKEN")
         # Add simple in-memory cache for frequently accessed CIDs
         self._cache: Dict[str, Dict] = {}
-        self._cache_max_size = 100  # Limit cache size
+        self._cache_max_size = 500  # Increased cache size for better performance
 
     async def pin_json(self, data: Dict) -> str:
         payload = {**data}
@@ -47,8 +47,8 @@ class PostsIPFS:
 
         for url in gateways:
             try:
-                # Reduced timeout from 20 to 8 seconds for faster failure
-                async with httpx.AsyncClient(timeout=8) as client:
+                # Reduced timeout from 8 to 5 seconds for faster failure
+                async with httpx.AsyncClient(timeout=5) as client:
                     r = await client.get(url)
                 if r.status_code >= 300:
                     continue
@@ -57,8 +57,10 @@ class PostsIPFS:
                 
                 # Cache the result
                 if len(self._cache) >= self._cache_max_size:
-                    # Simple cache eviction: remove first item
-                    self._cache.pop(next(iter(self._cache)))
+                    # Simple cache eviction: remove oldest 20% of items
+                    items_to_remove = self._cache_max_size // 5
+                    for key in list(self._cache.keys())[:items_to_remove]:
+                        del self._cache[key]
                 self._cache[cid] = data
                 
                 return data

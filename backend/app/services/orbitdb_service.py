@@ -16,6 +16,7 @@ OrbitDB Types:
 import asyncio
 import json
 import subprocess
+import time
 from typing import Optional, List, Dict, Any
 from backend.app.config import settings
 from backend.app.services.redis_service import redis_service
@@ -42,6 +43,10 @@ class OrbitDBService:
         
         # Cache database addresses: {wallet: {"profile": "orbit_addr", "posts": "orbit_addr"}}
         self._db_cache_prefix = "orbitdb:addr:"
+        
+        # In-memory cache for posts (cleared after 60s)
+        self._posts_cache: Dict[str, tuple[float, List[str]]] = {}
+        self._cache_ttl = 60  # seconds
         
     def _cache_key(self, wallet: str, db_type: str) -> str:
         """Redis cache key for OrbitDB address."""
@@ -188,9 +193,26 @@ class OrbitDBService:
         """
         Append a post to user's feed.
         OrbitDB Feed is append-only, perfect for posts!
+        
+        OPTIMIZED: Uses cache to avoid fetching all posts every time.
         """
-        # Get current posts
-        posts = await self.get_user_posts(wallet)
+        import time
+        
+        # Check cache first
+        cache_key = wallet.lower()
+        current_time = time.time()
+        
+        if cache_key in self._posts_cache:
+            cached_time, cached_posts = self._posts_cache[cache_key]
+            # Use cache if less than TTL old
+            if current_time - cached_time < self._cache_ttl:
+                posts = cached_posts.copy()
+            else:
+                # Cache expired, fetch from IPFS
+                posts = await self._get_user_posts_no_cache(wallet)
+        else:
+            # Not in cache, fetch from IPFS
+            posts = await self._get_user_posts_no_cache(wallet)
         
         # Add new post at beginning (most recent first)
         posts.insert(0, post_cid)
@@ -200,7 +222,7 @@ class OrbitDBService:
         updated_data = {
             "type": "feed",
             "owner": identity,
-            "updated_at": asyncio.get_event_loop().time(),
+            "updated_at": current_time,
             "entries": posts
         }
         
@@ -212,13 +234,39 @@ class OrbitDBService:
             new_address = f"/orbitdb/{new_cid}/{db_name}"
             
             await self.set_db_address(wallet, "posts", new_address)
+            
+            # Update cache
+            self._posts_cache[cache_key] = (current_time, posts)
+            
             print(f"✅ Appended post to OrbitDB feed for {wallet}")
             return True
         
         return False
     
     async def get_user_posts(self, wallet: str) -> List[str]:
-        """Get list of post CIDs from user's OrbitDB feed."""
+        """Get list of post CIDs from user's OrbitDB feed (with caching)."""
+        import time
+        
+        cache_key = wallet.lower()
+        current_time = time.time()
+        
+        # Check cache first
+        if cache_key in self._posts_cache:
+            cached_time, cached_posts = self._posts_cache[cache_key]
+            # Return cache if less than TTL old
+            if current_time - cached_time < self._cache_ttl:
+                return cached_posts.copy()
+        
+        # Cache miss or expired - fetch from IPFS
+        posts = await self._get_user_posts_no_cache(wallet)
+        
+        # Update cache
+        self._posts_cache[cache_key] = (current_time, posts)
+        
+        return posts
+    
+    async def _get_user_posts_no_cache(self, wallet: str) -> List[str]:
+        """Internal method to fetch posts from IPFS without cache."""
         db_address = await self.get_db_address(wallet, "posts")
         
         if not db_address:

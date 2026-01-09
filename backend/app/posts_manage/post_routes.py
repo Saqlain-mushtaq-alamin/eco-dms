@@ -119,19 +119,28 @@ async def create_post(
 async def list_author_posts(
     wallet_address: str,
     authorization: str | None = Header(default=None),
+    limit: int = 20,  # Default 20 posts
+    offset: int = 0,
 ):
     current_user = await get_current_user(authorization)
     """
     List posts for an author via OrbitDB index; fetch content from IPFS.
-    Optimized: Parallel fetching of posts and social metrics.
+    Optimized: Parallel fetching of posts and social metrics + pagination.
     """
     try:
-        cids: List[str] = await orbitdb_service.get_user_posts(wallet_address.lower())
+        all_cids: List[str] = await orbitdb_service.get_user_posts(wallet_address.lower())
     except Exception:
-        cids = []
+        all_cids = []
 
+    if not all_cids:
+        return {"author_wallet": wallet_address.lower(), "count": 0, "total": 0, "posts": []}
+
+    # Apply pagination
+    total = len(all_cids)
+    cids = all_cids[offset:offset + limit]
+    
     if not cids:
-        return {"author_wallet": wallet_address.lower(), "count": 0, "posts": []}
+        return {"author_wallet": wallet_address.lower(), "count": 0, "total": total, "posts": []}
 
     # Fetch all posts in parallel (much faster!)
     import asyncio
@@ -144,20 +153,23 @@ async def list_author_posts(
             comments_task = social_service.get_comments_count(cid)
             liked_task = social_service.has_user_liked(cid, current_user)
             
-            post, likes_count, comments_count, liked_by_user = await asyncio.gather(
+            results = await asyncio.gather(
                 post_task, likes_task, comments_task, liked_task,
                 return_exceptions=True
             )
             
-            if isinstance(post, Exception) or not post:
+            post, likes_count, comments_count, liked_by_user = results
+            
+            # Filter out any exception types (including CancelledError)
+            if isinstance(post, (Exception, BaseException)) or not post:
                 return None
             
-            # Handle exceptions in results
+            # Handle exceptions in results - ensure we return valid types only
             if isinstance(post, dict):
                 post["cid"] = cid
-                post["likes_count"] = 0 if isinstance(likes_count, Exception) else likes_count
-                post["comments_count"] = 0 if isinstance(comments_count, Exception) else comments_count
-                post["liked_by_user"] = False if isinstance(liked_by_user, Exception) else liked_by_user
+                post["likes_count"] = 0 if isinstance(likes_count, (Exception, BaseException)) else (likes_count or 0)
+                post["comments_count"] = 0 if isinstance(comments_count, (Exception, BaseException)) else (comments_count or 0)
+                post["liked_by_user"] = False if isinstance(liked_by_user, (Exception, BaseException)) else bool(liked_by_user)
                 
                 # Fetch verification data if available
                 try:
@@ -179,14 +191,19 @@ async def list_author_posts(
                 
                 return post
             return None
-        except Exception:
+        except (Exception, asyncio.CancelledError):
             return None
     
     # Fetch all posts concurrently
     posts = await asyncio.gather(*[fetch_post_with_metrics(cid) for cid in cids])
     posts = [p for p in posts if p is not None]
 
-    return {"author_wallet": wallet_address.lower(), "count": len(posts), "posts": posts}
+    return {
+        "author_wallet": wallet_address.lower(), 
+        "count": len(posts), 
+        "total": total,
+        "posts": posts
+    }
 
 @router.get("/feed/timeline", response_model=Dict)
 async def get_feed_timeline(
@@ -229,19 +246,21 @@ async def get_feed_timeline(
                 comments_task = social_service.get_comments_count(cid)
                 liked_task = social_service.has_user_liked(cid, current_user)
                 
-                post, likes_count, comments_count, liked_by_user = await asyncio.gather(
+                results = await asyncio.gather(
                     post_task, likes_task, comments_task, liked_task,
                     return_exceptions=True
                 )
                 
-                if isinstance(post, Exception) or not post:
+                post, likes_count, comments_count, liked_by_user = results
+                
+                if isinstance(post, (Exception, BaseException)) or not post:
                     return None
                 
                 if isinstance(post, dict):
                     post["cid"] = cid
-                    post["likes_count"] = 0 if isinstance(likes_count, Exception) else likes_count
-                    post["comments_count"] = 0 if isinstance(comments_count, Exception) else comments_count
-                    post["liked_by_user"] = False if isinstance(liked_by_user, Exception) else liked_by_user
+                    post["likes_count"] = 0 if isinstance(likes_count, (Exception, BaseException)) else (likes_count or 0)
+                    post["comments_count"] = 0 if isinstance(comments_count, (Exception, BaseException)) else (comments_count or 0)
+                    post["liked_by_user"] = False if isinstance(liked_by_user, (Exception, BaseException)) else bool(liked_by_user)
                     
                     # Fetch verification data if available
                     try:
@@ -263,7 +282,7 @@ async def get_feed_timeline(
                     
                     return post
                 return None
-            except Exception:
+            except (Exception, asyncio.CancelledError):
                 return None
         
         posts = await asyncio.gather(*[fetch_post_with_metrics(cid) for cid in all_cids])
