@@ -98,14 +98,14 @@ def verify_eco_content(
         
         try:
             for gateway_url in gateways_to_try:
+                # Extract base URL if CID is already in the URL
+                if ipfs_cid in gateway_url:
+                    # Already a full URL, use directly
+                    gateway_base = gateway_url.rsplit('/ipfs/', 1)[0]
+                else:
+                    gateway_base = gateway_url
+                
                 try:
-                    # Extract base URL if CID is already in the URL
-                    if ipfs_cid in gateway_url:
-                        # Already a full URL, use directly
-                        gateway_base = gateway_url.rsplit('/ipfs/', 1)[0]
-                    else:
-                        gateway_base = gateway_url
-                    
                     verdict = loop.run_until_complete(
                         verifier.verify_from_ipfs(ipfs_cid, gateway_base, text_content)
                     )
@@ -162,7 +162,8 @@ def verify_eco_content(
             meta={'status': 'Storing verdict mapping...'}
         )
         
-        _store_verdict_mapping(ipfs_cid, signed_cid, verdict)
+        # Store verdict indexed by both media CID and post ID
+        _store_verdict_mapping(ipfs_cid, signed_cid, verdict, post_id)
         
         # Return result
         result = {
@@ -230,15 +231,21 @@ def _store_verdict_on_ipfs(signed_verdict: Dict) -> str:
     return cid
 
 
-def _store_verdict_mapping(post_cid: str, verdict_cid: Optional[str], verdict: Dict) -> None:
+def _store_verdict_mapping(
+    media_cid: str, 
+    verdict_cid: Optional[str], 
+    verdict: Dict,
+    post_id: Optional[str] = None
+) -> None:
     """
-    Store mapping of post CID to verdict CID in a JSON file.
+    Store mapping of media/post CID to verdict CID in a JSON file.
     This is a simple local storage for demo - in production, use Redis/DB.
     
     Args:
-        post_cid: Post IPFS CID
+        media_cid: Media/image IPFS CID
         verdict_cid: Signed verdict IPFS CID (None if IPFS storage failed)
         verdict: Verification result
+        post_id: Optional post CID (if provided, verdict will be indexed by both)
     """
     import os
     import json
@@ -261,13 +268,20 @@ def _store_verdict_mapping(post_cid: str, verdict_cid: Optional[str], verdict: D
         except Exception:
             pass
     
-    # Add new mapping
-    mappings[post_cid] = {
+    # Prepare verdict data
+    verdict_data = {
         'verdict_cid': verdict_cid,
         'eco': verdict.get('is_eco', verdict.get('eco', False)),  # Support both formats
         'confidence': verdict.get('confidence', 0.0),
         'verified_at': datetime.utcnow().isoformat(),
     }
+    
+    # Store by media CID (always)
+    mappings[media_cid] = verdict_data
+    
+    # Also store by post ID if provided (allows lookup by post CID)
+    if post_id:
+        mappings[post_id] = verdict_data
     
     # Save updated mappings
     with open(mapping_file, 'w') as f:

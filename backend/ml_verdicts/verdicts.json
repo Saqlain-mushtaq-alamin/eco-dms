@@ -1,4 +1,16 @@
 {
+  "QmNaDKfhn66vj5cgQ61SZFDwp8Kon5pHWTHD3VcMqnxjxe": {
+    "verdict_cid": "QmdBv5AzVYXRBxdw57c9zB7U61xJY3eKY8oNTQkW14a6te",
+    "eco": false,
+    "confidence": 0.244,
+    "verified_at": "2026-01-09T19:26:47.506335"
+  },
+  "QmPJ9BqzM2GjNaLsc8Cgk6XuGwXn6CFcxh1m6XeNJiih4m": {
+    "verdict_cid": "QmdBv5AzVYXRBxdw57c9zB7U61xJY3eKY8oNTQkW14a6te",
+    "eco": false,
+    "confidence": 0.244,
+    "verified_at": "2026-01-10T01:26:47.000000"
+  },
   "bafybeiusrtoehkhu3lmo4osbd27lrlaurugfp3lq4cfl6jhjqi7sibtt": {
     "verdict_cid": "bafybei_verdict_bviqra2myegovrb2qcfi",
     "eco": false,
@@ -65,10 +77,16 @@
     "confidence": 0.85,
     "verified_at": "2026-01-09T17:39:52.538068"
   },
-  "QmNaDKfhn66vj5cgQ61SZFDwp8Kon5pHWTHD3VcMqnxjxe": {
-    "verdict_cid": "QmdBv5AzVYXRBxdw57c9zB7U61xJY3eKY8oNTQkW14a6te",
+  "QmRyE6R9H7dHPTrsDtyj3CbzVQWi7xKpsGM1cFXPpCt468": {
+    "verdict_cid": "QmcsGpcYTTRu9sruHZ4JcRZzYyh1bNy2xxQdBLfgg5GcQJ",
     "eco": false,
-    "confidence": 0.244,
-    "verified_at": "2026-01-09T19:26:47.506335"
+    "confidence": 0.409,
+    "verified_at": "2026-01-09T19:34:38.600731"
+  },
+  "QmWnCqVQFjkRN3TYia9VPy4WmiDudhBrt9TyEBC8rn9mme": {
+    "verdict_cid": "QmcsGpcYTTRu9sruHZ4JcRZzYyh1bNy2xxQdBLfgg5GcQJ",
+    "eco": false,
+    "confidence": 0.409,
+    "verified_at": "2026-01-09T19:34:38.600731"
   }
 }
