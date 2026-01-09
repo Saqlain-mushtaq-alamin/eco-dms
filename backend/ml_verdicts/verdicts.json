@@ -64,5 +64,11 @@
     "eco": true,
     "confidence": 0.85,
     "verified_at": "2026-01-09T17:39:52.538068"
+  },
+  "QmNaDKfhn66vj5cgQ61SZFDwp8Kon5pHWTHD3VcMqnxjxe": {
+    "verdict_cid": "QmdBv5AzVYXRBxdw57c9zB7U61xJY3eKY8oNTQkW14a6te",
+    "eco": false,
+    "confidence": 0.244,
+    "verified_at": "2026-01-09T19:26:47.506335"
   }
 }

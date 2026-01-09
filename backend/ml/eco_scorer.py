@@ -36,13 +36,18 @@ class EcoScorer:
         'water_bottle': -0.2,  # Single-use plastic concern
     }
     
-    # Eco-related keywords for CLIP text alignment
+    # Eco-related prompts for CLIP text alignment (full sentences work better)
     ECO_KEYWORDS = [
-        'sustainability', 'renewable energy', 'solar power', 'wind energy',
-        'recycling', 'eco-friendly', 'green', 'environment', 'nature',
-        'conservation', 'clean energy', 'carbon neutral', 'zero waste',
-        'organic', 'biodegradable', 'electric vehicle', 'bicycle',
-        'public transport', 'tree planting', 'reforestation'
+        'a photo showing sustainable living and eco-friendly practices',
+        'renewable energy sources like solar panels and wind turbines',
+        'people using bicycles and public transportation',
+        'recycling bins and waste segregation for environmental protection',
+        'trees and nature conservation efforts',
+        'clean energy and carbon neutral technology',
+        'organic and biodegradable products for zero waste lifestyle',
+        'electric vehicles and green transportation',
+        'environmental activism and tree planting initiatives',
+        'sustainable agriculture and eco-friendly gardening'
     ]
     
     def __init__(self):

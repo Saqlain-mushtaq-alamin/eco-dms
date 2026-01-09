@@ -210,12 +210,26 @@ async def health_check():
     """
     try:
         verifier = get_verifier()
+        models = verifier._get_active_models()
+        
+        # Check Celery worker
+        worker_available = False
+        try:
+            from backend.ml.worker import celery_app
+            inspect = celery_app.control.inspect()
+            stats = inspect.stats()
+            worker_available = stats is not None and len(stats) > 0
+        except Exception:
+            pass
         
         return {
-            "status": "healthy",
-            "models_loaded": verifier._get_active_models(),
+            "status": "healthy" if models else "degraded",
+            "models_loaded": models,
+            "yolov8_loaded": "YOLOv8" in models,
+            "clip_loaded": "CLIP" in models,
+            "efficientnet_loaded": "EfficientNet" in models,
             "device": verifier.device,
-            "worker_available": True  # TODO: Actually check Celery worker
+            "worker_available": worker_available
         }
     
     except Exception as e:

@@ -30,10 +30,17 @@ celery_app.conf.update(
     task_track_started=True,
     task_time_limit=300,  # 5 minutes max per task
     result_expires=86400,  # Results expire after 24 hours
+    task_acks_late=True,  # Acknowledge task after completion
+    worker_prefetch_multiplier=1,  # Fetch one task at a time
+    result_backend_transport_options={
+        'retry_policy': {
+            'timeout': 5.0
+        }
+    },
 )
 
 
-@celery_app.task(name='verify_eco_content', bind=True)
+@celery_app.task(name='verify_eco_content', bind=True, throws=(Exception,))
 def verify_eco_content(
     self,
     ipfs_cid: str,
@@ -63,8 +70,14 @@ def verify_eco_content(
         # Get verifier instance
         verifier = get_verifier()
         
-        # Get IPFS gateway URL
-        ipfs_gateway = os.getenv('IPFS_GATEWAY_URL', 'http://localhost:8080')
+        # Get IPFS gateway URLs - try multiple gateways
+        primary_gateway = os.getenv('IPFS_GATEWAY_URL', 'http://localhost:8080')
+        # Fallback to public gateways if local fails
+        fallback_gateways = [
+            f"https://{ipfs_cid}.ipfs.nftstorage.link",
+            f"https://ipfs.io/ipfs/{ipfs_cid}",
+            f"https://dweb.link/ipfs/{ipfs_cid}",
+        ]
         
         # Perform verification
         self.update_state(
@@ -77,11 +90,39 @@ def verify_eco_content(
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
-        verdict = loop.run_until_complete(
-            verifier.verify_from_ipfs(ipfs_cid, ipfs_gateway, text_content)
-        )
+        verdict = None
+        last_error = None
         
-        loop.close()
+        # Try primary gateway first
+        gateways_to_try = [primary_gateway] + fallback_gateways
+        
+        try:
+            for gateway_url in gateways_to_try:
+                try:
+                    # Extract base URL if CID is already in the URL
+                    if ipfs_cid in gateway_url:
+                        # Already a full URL, use directly
+                        gateway_base = gateway_url.rsplit('/ipfs/', 1)[0]
+                    else:
+                        gateway_base = gateway_url
+                    
+                    verdict = loop.run_until_complete(
+                        verifier.verify_from_ipfs(ipfs_cid, gateway_base, text_content)
+                    )
+                    # Success! Break out of loop
+                    break
+                except httpx.HTTPStatusError as e:
+                    last_error = f"Gateway {gateway_base}: {e.response.status_code}"
+                    continue  # Try next gateway
+                except (httpx.ConnectError, httpx.TimeoutException) as e:
+                    last_error = f"Gateway {gateway_base}: {type(e).__name__}"
+                    continue  # Try next gateway
+            
+            if verdict is None:
+                # All gateways failed
+                raise Exception(f"Failed to fetch content from IPFS after trying {len(gateways_to_try)} gateways. Last error: {last_error}")
+        finally:
+            loop.close()
         
         # Add metadata
         verdict_with_metadata = {
@@ -108,7 +149,12 @@ def verify_eco_content(
             meta={'status': 'Storing signed verdict on IPFS...'}
         )
         
-        signed_cid = _store_verdict_on_ipfs(signed_verdict)
+        try:
+            signed_cid = _store_verdict_on_ipfs(signed_verdict)
+        except Exception as e:
+            # If storing on IPFS fails, log but continue (store locally only)
+            print(f"Warning: Failed to store verdict on IPFS: {e}")
+            signed_cid = None
         
         # Store mapping of post CID to verdict CID
         self.update_state(
@@ -130,21 +176,21 @@ def verify_eco_content(
         return result
     
     except Exception as e:
-        # Log error and return failure
+        # Create JSON-serializable error response
+        error_msg = str(e)
+        error_type = type(e).__name__
+        
         error_result = {
             'status': 'error',
-            'error': str(e),
+            'error': error_msg,
+            'error_type': error_type,
             'ipfs_cid': ipfs_cid,
             'post_id': post_id,
         }
         
-        # Still update state
-        self.update_state(
-            state='FAILURE',
-            meta=error_result
-        )
-        
-        return error_result
+        # Don't call update_state in exception handler - just raise
+        # Celery will handle state update automatically
+        raise Exception(f"{error_type}: {error_msg}")
 
 
 def _store_verdict_on_ipfs(signed_verdict: Dict) -> str:
@@ -184,14 +230,14 @@ def _store_verdict_on_ipfs(signed_verdict: Dict) -> str:
     return cid
 
 
-def _store_verdict_mapping(post_cid: str, verdict_cid: str, verdict: Dict) -> None:
+def _store_verdict_mapping(post_cid: str, verdict_cid: Optional[str], verdict: Dict) -> None:
     """
     Store mapping of post CID to verdict CID in a JSON file.
     This is a simple local storage for demo - in production, use Redis/DB.
     
     Args:
         post_cid: Post IPFS CID
-        verdict_cid: Signed verdict IPFS CID
+        verdict_cid: Signed verdict IPFS CID (None if IPFS storage failed)
         verdict: Verification result
     """
     import os
@@ -269,24 +315,59 @@ def get_verification_status(task_id: str) -> Dict:
     Returns:
         Task status and result (if completed)
     """
-    task = celery_app.AsyncResult(task_id)
-    
-    response = {
-        'task_id': task_id,
-        'state': task.state,
-        'ready': task.ready(),
-        'successful': task.successful() if task.ready() else None,
-    }
-    
-    if task.ready():
-        if task.successful():
-            response['result'] = task.result
+    try:
+        task = celery_app.AsyncResult(task_id)
+        
+        # Map Celery states to user-friendly status
+        state = task.state
+        if state == 'SUCCESS':
+            status = 'completed'
+        elif state == 'FAILURE':
+            status = 'failed'
+        elif state == 'PENDING':
+            status = 'pending'
+        elif state == 'STARTED' or state == 'PROCESSING':
+            status = 'processing'
         else:
-            response['error'] = str(task.info)
-    elif task.state == 'PROCESSING':
-        response['status'] = task.info.get('status', 'Processing...')
+            status = state.lower()
+        
+        response = {
+            'task_id': task_id,
+            'status': status,  # User-friendly status
+            'state': task.state,  # Raw Celery state
+            'ready': task.ready(),
+            'successful': task.successful() if task.ready() else None,
+        }
+        
+        if task.ready():
+            if task.successful():
+                response['result'] = task.result
+                response['status'] = 'completed'
+            else:
+                # Handle error info safely
+                error_info = task.info
+                if isinstance(error_info, Exception):
+                    response['error'] = str(error_info)
+                elif isinstance(error_info, dict):
+                    response['error'] = error_info.get('error', str(error_info))
+                else:
+                    response['error'] = str(error_info)
+                response['status'] = 'failed'
+        elif task.state == 'PROCESSING':
+            if isinstance(task.info, dict):
+                response['progress'] = task.info.get('status', 'Processing...')
+            else:
+                response['progress'] = 'Processing...'
+        
+        return response
     
-    return response
+    except Exception as e:
+        # Return error if task lookup fails
+        return {
+            'task_id': task_id,
+            'status': 'error',
+            'error': f'Failed to retrieve task status: {str(e)}'
+        }
 
 
 # For running worker: celery -A backend.ml.worker worker --loglevel=info
