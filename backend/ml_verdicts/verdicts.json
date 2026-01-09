@@ -78,15 +78,57 @@
     "verified_at": "2026-01-09T17:39:52.538068"
   },
   "QmRyE6R9H7dHPTrsDtyj3CbzVQWi7xKpsGM1cFXPpCt468": {
-    "verdict_cid": "QmcsGpcYTTRu9sruHZ4JcRZzYyh1bNy2xxQdBLfgg5GcQJ",
+    "verdict_cid": "QmPr7jfpRWPbYpiuJAxSjr5ywUCEdnFaZebxDk45kkMPSv",
     "eco": false,
-    "confidence": 0.409,
-    "verified_at": "2026-01-09T19:34:38.600731"
+    "confidence": 0.43,
+    "verified_at": "2026-01-09T20:05:33.379456"
   },
   "QmWnCqVQFjkRN3TYia9VPy4WmiDudhBrt9TyEBC8rn9mme": {
     "verdict_cid": "QmcsGpcYTTRu9sruHZ4JcRZzYyh1bNy2xxQdBLfgg5GcQJ",
     "eco": false,
     "confidence": 0.409,
     "verified_at": "2026-01-09T19:34:38.600731"
+  },
+  "QmaR3GLpniyVL9b6SgSqufUE8KmCTc1Hkr1dCaAV28XHsD": {
+    "verdict_cid": "QmPr7jfpRWPbYpiuJAxSjr5ywUCEdnFaZebxDk45kkMPSv",
+    "eco": false,
+    "confidence": 0.43,
+    "verified_at": "2026-01-09T20:05:33.379456"
+  },
+  "QmdXXWMwjhey2YMke9R3sV83fRnRpyTN7oeRsti158qK2N": {
+    "verdict_cid": "QmZ6V72C1m6y3AGzk4rmA9prZd12TEbUX4UKqLrBt5Man6",
+    "eco": false,
+    "confidence": 0.383,
+    "verified_at": "2026-01-09T20:07:08.517107"
+  },
+  "QmZUiCSyt7eBLGw4Mcn9v5zuLHLLRodwkGbss8n9bVJLyv": {
+    "verdict_cid": "QmZ6V72C1m6y3AGzk4rmA9prZd12TEbUX4UKqLrBt5Man6",
+    "eco": false,
+    "confidence": 0.383,
+    "verified_at": "2026-01-09T20:07:08.517107"
+  },
+  "QmThwZwoTvWZN4LqYEm7R1UTJuA9cdtuTf5pAcNkXsh6cD": {
+    "verdict_cid": "QmaFSpNi5ncoWfpaoGwTnvssQap7RmXZfUGUSTAjvDg7Dx",
+    "eco": false,
+    "confidence": 0.213,
+    "verified_at": "2026-01-09T20:10:29.624008"
+  },
+  "QmSa1yMCVR4c5LCxaqzWnagLfZ9kjTn7jqbmGm5b13zMJT": {
+    "verdict_cid": "QmaFSpNi5ncoWfpaoGwTnvssQap7RmXZfUGUSTAjvDg7Dx",
+    "eco": false,
+    "confidence": 0.213,
+    "verified_at": "2026-01-09T20:10:29.624008"
+  },
+  "QmS9S6qAq8GwPJFuhYsQQCBWcJUG5nnTmJneoGcZFy7Vk1": {
+    "verdict_cid": "QmUzUSxCSYuMtubUsjMJPaE48KxqjqQoU9XnmMbnE7mv62",
+    "eco": false,
+    "confidence": 0.076,
+    "verified_at": "2026-01-09T20:11:57.200886"
+  },
+  "QmZ83axNBLWo46J5GQPTkBGGyKFiWxwFeM7GUjAX1NsJF9": {
+    "verdict_cid": "QmUzUSxCSYuMtubUsjMJPaE48KxqjqQoU9XnmMbnE7mv62",
+    "eco": false,
+    "confidence": 0.076,
+    "verified_at": "2026-01-09T20:11:57.200886"
   }
 }
