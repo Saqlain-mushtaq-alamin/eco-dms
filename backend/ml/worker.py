@@ -110,6 +110,14 @@ def verify_eco_content(
         
         signed_cid = _store_verdict_on_ipfs(signed_verdict)
         
+        # Store mapping of post CID to verdict CID
+        self.update_state(
+            state='PROCESSING',
+            meta={'status': 'Storing verdict mapping...'}
+        )
+        
+        _store_verdict_mapping(ipfs_cid, signed_cid, verdict)
+        
         # Return result
         result = {
             'status': 'success',
@@ -174,6 +182,80 @@ def _store_verdict_on_ipfs(signed_verdict: Dict) -> str:
     )
     
     return cid
+
+
+def _store_verdict_mapping(post_cid: str, verdict_cid: str, verdict: Dict) -> None:
+    """
+    Store mapping of post CID to verdict CID in a JSON file.
+    This is a simple local storage for demo - in production, use Redis/DB.
+    
+    Args:
+        post_cid: Post IPFS CID
+        verdict_cid: Signed verdict IPFS CID
+        verdict: Verification result
+    """
+    import os
+    import json
+    from pathlib import Path
+    
+    # Use absolute path based on this file's location
+    base_dir = Path(__file__).parent.parent  # backend directory
+    storage_dir = Path(os.getenv('VERDICT_STORAGE_DIR', str(base_dir / 'ml_verdicts')))
+    storage_dir.mkdir(exist_ok=True)
+    
+    # Store mapping
+    mapping_file = storage_dir / 'verdicts.json'
+    
+    # Load existing mappings
+    mappings = {}
+    if mapping_file.exists():
+        try:
+            with open(mapping_file, 'r') as f:
+                mappings = json.load(f)
+        except Exception:
+            pass
+    
+    # Add new mapping
+    mappings[post_cid] = {
+        'verdict_cid': verdict_cid,
+        'eco': verdict.get('eco', False),
+        'confidence': verdict.get('confidence', 0.0),
+        'verified_at': datetime.utcnow().isoformat(),
+    }
+    
+    # Save updated mappings
+    with open(mapping_file, 'w') as f:
+        json.dump(mappings, f, indent=2)
+
+
+def get_verdict_for_post(post_cid: str) -> Optional[Dict]:
+    """
+    Get verdict for a post CID.
+    
+    Args:
+        post_cid: Post IPFS CID
+    
+    Returns:
+        Verdict data if available
+    """
+    import os
+    import json
+    from pathlib import Path
+    
+    # Use absolute path based on this file's location
+    base_dir = Path(__file__).parent.parent  # backend directory
+    storage_dir = Path(os.getenv('VERDICT_STORAGE_DIR', str(base_dir / 'ml_verdicts')))
+    mapping_file = storage_dir / 'verdicts.json'
+    
+    if not mapping_file.exists():
+        return None
+    
+    try:
+        with open(mapping_file, 'r') as f:
+            mappings = json.load(f)
+        return mappings.get(post_cid)
+    except Exception:
+        return None
 
 
 @celery_app.task(name='get_verification_status')

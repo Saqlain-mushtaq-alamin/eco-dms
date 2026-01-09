@@ -11,6 +11,14 @@ from backend.app.services.orbitdb_service import orbitdb_service
 from backend.app.services.social_service import social_service
 # User service for follow relationships
 from backend.app.services.user_service import user_service
+# ML verification (async Celery task)
+try:
+    from backend.ml.worker import verify_eco_content, get_verdict_for_post
+    ML_AVAILABLE = True
+except ImportError:
+    ML_AVAILABLE = False
+    verify_eco_content = None
+    get_verdict_for_post = None
 
 router = APIRouter(prefix="/api/posts", tags=["posts"])
 
@@ -76,6 +84,11 @@ async def create_post(
         social_service.set_post_author(cid, wallet_address.lower())
 
         ok = await orbitdb_service.append_post(wallet_address.lower(), cid)
+        
+        # Note: ML verification can be triggered via Celery worker if needed
+        # For now, verdicts are added manually or via background jobs
+        # This keeps the system decentralized - no required centralized ML service
+        
         if not ok:
             # We still return success for pinning; client can retry index update
             return {"success": True, "cid": cid, "indexed": False}
@@ -127,6 +140,25 @@ async def list_author_posts(
                 post["likes_count"] = 0 if isinstance(likes_count, Exception) else likes_count
                 post["comments_count"] = 0 if isinstance(comments_count, Exception) else comments_count
                 post["liked_by_user"] = False if isinstance(liked_by_user, Exception) else liked_by_user
+                
+                # Fetch verification data if available
+                try:
+                    if ML_AVAILABLE and get_verdict_for_post:
+                        verdict_data = get_verdict_for_post(cid)
+                        if verdict_data:
+                            post["verified"] = verdict_data.get("eco", False)
+                            post["eco_score"] = verdict_data.get("confidence", 0.0)
+                            post["signed_verdict_cid"] = verdict_data.get("verdict_cid")
+                        else:
+                            post["verified"] = False
+                            post["eco_score"] = 0.0
+                    else:
+                        post["verified"] = False
+                        post["eco_score"] = 0.0
+                except Exception:
+                    post["verified"] = False
+                    post["eco_score"] = 0.0
+                
                 return post
             return None
         except Exception:
@@ -192,6 +224,25 @@ async def get_feed_timeline(
                     post["likes_count"] = 0 if isinstance(likes_count, Exception) else likes_count
                     post["comments_count"] = 0 if isinstance(comments_count, Exception) else comments_count
                     post["liked_by_user"] = False if isinstance(liked_by_user, Exception) else liked_by_user
+                    
+                    # Fetch verification data if available
+                    try:
+                        if ML_AVAILABLE and get_verdict_for_post:
+                            verdict_data = get_verdict_for_post(cid)
+                            if verdict_data:
+                                post["verified"] = verdict_data.get("eco", False)
+                                post["eco_score"] = verdict_data.get("confidence", 0.0)
+                                post["signed_verdict_cid"] = verdict_data.get("verdict_cid")
+                            else:
+                                post["verified"] = False
+                                post["eco_score"] = 0.0
+                        else:
+                            post["verified"] = False
+                            post["eco_score"] = 0.0
+                    except Exception:
+                        post["verified"] = False
+                        post["eco_score"] = 0.0
+                    
                     return post
                 return None
             except Exception:

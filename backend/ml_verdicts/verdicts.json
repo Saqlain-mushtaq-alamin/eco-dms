@@ -1,0 +1,68 @@
+{
+  "bafybeiusrtoehkhu3lmo4osbd27lrlaurugfp3lq4cfl6jhjqi7sibtt": {
+    "verdict_cid": "bafybei_verdict_bviqra2myegovrb2qcfi",
+    "eco": false,
+    "confidence": 0.24,
+    "verified_at": "2026-01-09T17:03:00.726018"
+  },
+  "bafybeinh3y5eix2lmhuflko7jd46idpvqr6jbmkdjaakddnsbaklemth": {
+    "verdict_cid": "bafybei_verdict_5kdlla6lf3s4jaexjxph",
+    "eco": true,
+    "confidence": 0.88,
+    "verified_at": "2026-01-09T17:03:00.726018"
+  },
+  "bafybeia27e7ks2i4tooqtbnfvojfcvwu5w5dtpwqycbk56edtoobcbbb": {
+    "verdict_cid": "bafybei_verdict_bg5soh254nii6lidver3",
+    "eco": true,
+    "confidence": 0.81,
+    "verified_at": "2026-01-09T17:03:00.726018"
+  },
+  "bafybei2avcmxn6nmwjgmy4dwv6cgedghz7j245tewwyz3arqfwwsh4rt": {
+    "verdict_cid": "bafybei_verdict_psz2ix4rb7grr6pkorjp",
+    "eco": true,
+    "confidence": 0.74,
+    "verified_at": "2026-01-09T17:03:00.726018"
+  },
+  "bafybeiavqpnwd3hrz4atggrwkyj4pg2tywur2dxm6bgoa4gzbh2adwfd": {
+    "verdict_cid": "bafybei_verdict_do6exrvny4mrawlwf2vb",
+    "eco": true,
+    "confidence": 0.71,
+    "verified_at": "2026-01-09T17:03:00.726018"
+  },
+  "bafybeif5uk7ujsvyvpw4xo7tzcgotquvmqbfdenmcwuzxe45qzqmhigg": {
+    "verdict_cid": "bafybei_verdict_vp3luq3jesvgbmtns226",
+    "eco": false,
+    "confidence": 0.37,
+    "verified_at": "2026-01-09T17:03:00.726018"
+  },
+  "bafybeiyosvclitpuypveys4zun7wfrnn3oufgcfzmascefbqy7nqokzz": {
+    "verdict_cid": "bafybei_verdict_3lqek5rlulh7ce7msmq6",
+    "eco": true,
+    "confidence": 0.87,
+    "verified_at": "2026-01-09T17:03:00.726018"
+  },
+  "bafybeis2b5rmxgr2emmvxxzxglxh2f7i2oxg6mvou7ssxhtl3jv6ofqg": {
+    "verdict_cid": "bafybei_verdict_xhb7mqp35cxl6mz3degx",
+    "eco": true,
+    "confidence": 0.73,
+    "verified_at": "2026-01-09T17:03:00.726018"
+  },
+  "bafybeitdk7hdmm45yom4hfglvwsfqr73qm7mvz5pkn5spkp4g2rvspeu": {
+    "verdict_cid": "bafybei_verdict_qirlkwq7rryqjlwxnfsj",
+    "eco": true,
+    "confidence": 0.86,
+    "verified_at": "2026-01-09T17:03:00.726018"
+  },
+  "bafybeihuyayucenvgoo7gor43332v3euqmiqr4zjw7xl2l2kck6bvaqe": {
+    "verdict_cid": "bafybei_verdict_cs4cro7nwm64ve5go5io",
+    "eco": true,
+    "confidence": 0.89,
+    "verified_at": "2026-01-09T17:03:00.726018"
+  },
+  "QmQSJfE3rZAJb76HEbKwPEMkPH9cxkGtPQTxwShXCGkwTk": {
+    "verdict_cid": "bafybei_verdict_QmQSJfE3rZAJb76HEbKw",
+    "eco": true,
+    "confidence": 0.85,
+    "verified_at": "2026-01-09T17:39:52.538068"
+  }
+}
