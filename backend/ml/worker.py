@@ -218,7 +218,7 @@ def _store_verdict_mapping(post_cid: str, verdict_cid: str, verdict: Dict) -> No
     # Add new mapping
     mappings[post_cid] = {
         'verdict_cid': verdict_cid,
-        'eco': verdict.get('eco', False),
+        'eco': verdict.get('is_eco', verdict.get('eco', False)),  # Support both formats
         'confidence': verdict.get('confidence', 0.0),
         'verified_at': datetime.utcnow().isoformat(),
     }

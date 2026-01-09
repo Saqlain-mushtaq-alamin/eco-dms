@@ -85,9 +85,27 @@ async def create_post(
 
         ok = await orbitdb_service.append_post(wallet_address.lower(), cid)
         
-        # Note: ML verification can be triggered via Celery worker if needed
-        # For now, verdicts are added manually or via background jobs
-        # This keeps the system decentralized - no required centralized ML service
+        # Trigger ML verification for posts with images (async via Celery)
+        # This maintains decentralization - verification is optional and off-chain
+        if ML_AVAILABLE and verify_eco_content and payload.media_cids:
+            try:
+                # Trigger verification for each image CID
+                for media_cid in payload.media_cids:
+                    # Send to Celery worker queue
+                    from backend.ml.worker import celery_app
+                    celery_app.send_task(
+                        'verify_eco_content',
+                        kwargs={
+                            'ipfs_cid': media_cid,
+                            'text_content': payload.content,
+                            'post_id': cid,
+                            'author_wallet': wallet_address.lower()
+                        }
+                    )
+                print(f"Triggered ML verification for post {cid} with {len(payload.media_cids)} images")
+            except Exception as e:
+                print(f"Warning: Failed to trigger ML verification: {e}")
+                # Don't fail the post creation if ML verification fails
         
         if not ok:
             # We still return success for pinning; client can retry index update
