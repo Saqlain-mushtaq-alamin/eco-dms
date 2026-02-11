@@ -6,10 +6,12 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from pydantic import BaseModel, Field
 from typing import Optional, Dict
 import httpx
+from datetime import datetime, timedelta
 
 from ..ml.worker import get_verification_status, celery_app
 from ..ml.inference import get_verifier
 from ..ml.signer import VerdictSigner
+from .deps import get_current_user
 
 router = APIRouter(prefix="/api/verify", tags=["verification"])
 
@@ -239,6 +241,107 @@ async def health_check():
         }
 
 
+# In-memory storage for earnings tracking (replace with database in production)
+earnings_storage = {}
+
+
+@router.get("/earnings/{wallet_address}")
+async def get_earnings(wallet_address: str):
+    """
+    Get earnings statistics for a wallet address.
+    
+    Returns:
+    - lifetime_earned: Total ECO tokens earned (as string)
+    - today_earned: ECO tokens earned in last 24 hours
+    - total_claims: Number of successful claims
+    - last_claim_time: ISO timestamp of last claim
+    """
+    # Normalize wallet address
+    wallet_address = wallet_address.lower()
+    
+    # Get earnings from storage (or return defaults)
+    wallet_earnings = earnings_storage.get(wallet_address, {
+        "lifetime_earned": "0",
+        "total_claims": 0,
+        "claims": [],
+        "last_claim_time": None
+    })
+    
+    # Calculate today's earnings (last 24 hours)
+    now = datetime.utcnow()
+    today_start = now - timedelta(hours=24)
+    
+    today_claims = [
+        claim for claim in wallet_earnings.get("claims", [])
+        if datetime.fromisoformat(claim["timestamp"]) > today_start
+    ]
+    
+    today_earned = sum(float(claim["amount"]) for claim in today_claims)
+    
+    return {
+        "wallet_address": wallet_address,
+        "lifetime_earned": wallet_earnings.get("lifetime_earned", "0"),
+        "today_earned": str(today_earned),
+        "total_claims": wallet_earnings.get("total_claims", 0),
+        "last_claim_time": wallet_earnings.get("last_claim_time"),
+    }
+
+
+@router.post("/claim/record")
+async def record_claim(
+    wallet_address: str,
+    post_cid: str,
+    amount: str,
+    tx_hash: str
+):
+    """
+    Record a successful claim for earnings tracking.
+    
+    Called by frontend after successful blockchain transaction.
+    
+    Parameters:
+    - wallet_address: User's wallet address
+    - post_cid: IPFS CID of the verified post
+    - amount: Amount of ECO tokens claimed (e.g., "5")
+    - tx_hash: Blockchain transaction hash
+    """
+    # Normalize wallet address
+    wallet_address = wallet_address.lower()
+    
+    # Initialize if doesn't exist
+    if wallet_address not in earnings_storage:
+        earnings_storage[wallet_address] = {
+            "lifetime_earned": "0",
+            "total_claims": 0,
+            "claims": [],
+            "last_claim_time": None
+        }
+    
+    # Update earnings
+    current_lifetime = float(earnings_storage[wallet_address]["lifetime_earned"])
+    new_lifetime = current_lifetime + float(amount)
+    
+    earnings_storage[wallet_address]["lifetime_earned"] = str(new_lifetime)
+    earnings_storage[wallet_address]["total_claims"] += 1
+    earnings_storage[wallet_address]["last_claim_time"] = datetime.utcnow().isoformat()
+    
+    # Add to claims history
+    earnings_storage[wallet_address]["claims"].append({
+        "post_cid": post_cid,
+        "amount": amount,
+        "tx_hash": tx_hash,
+        "timestamp": datetime.utcnow().isoformat()
+    })
+    
+    return {
+        "success": True,
+        "wallet_address": wallet_address,
+        "lifetime_earned": str(new_lifetime),
+        "total_claims": earnings_storage[wallet_address]["total_claims"],
+        "tx_hash": tx_hash
+    }
+
+
 # Example usage in post creation flow:
 """
 1. User uploads image → Gets IPFS CID
@@ -248,4 +351,11 @@ async def health_check():
 5. When complete, get signed_verdict_cid
 6. Store signed_verdict_cid with post metadata on OrbitDB
 7. Anyone can verify by fetching verdict from IPFS and checking signature
+
+Earnings tracking flow:
+1. User claims reward on blockchain
+2. Transaction succeeds
+3. Frontend calls POST /api/verify/claim/record with tx details
+4. Backend updates earnings stats
+5. Dashboard fetches GET /api/verify/earnings/{wallet}
 """
