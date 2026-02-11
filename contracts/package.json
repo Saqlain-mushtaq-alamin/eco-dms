@@ -6,17 +6,27 @@
     "hardhat": "hardhat",
     "build": "hardhat compile",
     "test": "hardhat test",
-    "deploy:staging": "hardhat run scripts/deploy.ts --network polygonMumbai"
+    "test:verification": "hardhat test test/Verification.test.ts",
+    "test:coverage": "hardhat coverage",
+    "deploy:verification": "hardhat run scripts/deploy-verification.ts",
+    "deploy:verification:staging": "hardhat run scripts/deploy-verification.ts --network polygonMumbai",
+    "deploy:verification:sepolia": "hardhat run scripts/deploy-verification.ts --network sepolia",
+    "deploy:staging": "hardhat run scripts/deploy.ts --network polygonMumbai",
+    "admin": "hardhat run scripts/admin-tools.ts",
+    "clean": "hardhat clean",
+    "node": "hardhat node"
   },
   "devDependencies": {
     "hardhat": "2.22.7",
     "@nomicfoundation/hardhat-toolbox": "4.0.0",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.11",
     "typescript": "5.4.5",
     "ts-node": "10.9.2",
     "@types/node": "20.12.12",
     "dotenv": "16.4.5"
   },
   "dependencies": {
-    "ethers": "6.8.1"
+    "ethers": "6.8.1",
+    "@openzeppelin/contracts": "^5.0.2"
   }
 }
