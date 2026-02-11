@@ -1,0 +1,33 @@
+# Base requirements for running backend WITHOUT ML
+# Use this for testing with JSON verdicts
+
+# Core backend
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+pydantic==2.8.0
+pydantic-settings==2.1.0
+
+# Authentication
+pyjwt==2.8.0
+siwe==3.0.0
+web3==6.17.0
+eth-account==0.11.0
+
+# HTTP client
+httpx==0.25.1
+requests==2.31.0
+
+# Database/Storage
+redis==5.0.1
+# orbitdb-py==0.1.0  # OrbitDB Python bindings (not available on PyPI)
+
+# Environment
+python-dotenv==1.0.0
+
+# Async
+aiofiles==23.2.1
+
+# Development
+pytest==7.4.3
+pytest-asyncio==0.21.1

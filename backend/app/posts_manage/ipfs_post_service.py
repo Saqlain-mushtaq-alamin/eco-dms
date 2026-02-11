@@ -6,6 +6,7 @@ from datetime import datetime
 import httpx
 
 from backend.app.config import settings
+from backend.app.services.pinata_service import pinata_service
 
 NFT_STORAGE_BASE = "https://api.nft.storage"
 
@@ -40,8 +41,12 @@ class PostsIPFS:
             gateways.append(f"https://{cid}.ipfs.nftstorage.link")
         # Local IPFS HTTP API gateway (if configured)
         api_base = settings.IPFS_API_URL.rstrip("/")
-        # Try /cat on API
-        gateways.append(f"{api_base}/cat?arg={cid}")
+        # Try /cat on API only if IPFS is configured
+        if api_base:
+            gateways.append(f"{api_base}/cat?arg={cid}")
+        # Pinata gateway if configured
+        if settings.PINATA_JWT:
+            gateways.append(f"https://gateway.pinata.cloud/ipfs/{cid}")
         # Generic public gateway as last resort
         gateways.append(f"https://ipfs.io/ipfs/{cid}")
 
@@ -89,6 +94,22 @@ class PostsIPFS:
     async def _pin_via_local_ipfs(self, payload: Dict) -> str:
         # Use local IPFS HTTP API as a fallback
         api_base = settings.IPFS_API_URL.rstrip("/")
+        
+        # If IPFS_API_URL is not configured, try Pinata instead
+        if not api_base:
+            if settings.PINATA_JWT:
+                print("ℹ️ IPFS not configured, using Pinata instead")
+                cid = pinata_service.pin_json(payload)
+                if cid:
+                    return cid
+                raise RuntimeError("Pinata pin_json failed")
+            else:
+                raise RuntimeError(
+                    "Neither IPFS_API_URL nor PINATA_JWT is configured. "
+                    "Please set either IPFS_API_URL (e.g., 'http://127.0.0.1:5001/api/v0') "
+                    "or PINATA_JWT in your .env file."
+                )
+        
         files = {"file": ("post.json", json.dumps(payload), "application/json")}
         async with httpx.AsyncClient(timeout=30) as client:
             r = await client.post(f"{api_base}/add", params={"pin": "true"}, files=files)
@@ -129,6 +150,21 @@ class PostsIPFS:
     async def _pin_file_via_local_ipfs(self, file_content: bytes, filename: str, content_type: str) -> str:
         """Upload file to local IPFS node"""
         api_base = settings.IPFS_API_URL.rstrip("/")
+        
+        # If IPFS_API_URL is not configured, try Pinata instead
+        if not api_base:
+            if settings.PINATA_JWT:
+                print("ℹ️ IPFS not configured, using Pinata for file upload")
+                cid = pinata_service.pin_file_bytes(file_content, filename)
+                if cid:
+                    return cid
+                raise RuntimeError("Pinata file upload failed")
+            else:
+                raise RuntimeError(
+                    "Neither IPFS_API_URL nor PINATA_JWT is configured. "
+                    "Please set either IPFS_API_URL or PINATA_JWT in your .env file."
+                )
+        
         files = {"file": (filename, file_content, content_type)}
         async with httpx.AsyncClient(timeout=60) as client:
             r = await client.post(f"{api_base}/add", params={"pin": "true"}, files=files)
