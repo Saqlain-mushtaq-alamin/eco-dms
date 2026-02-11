@@ -240,8 +240,10 @@ describe("Verification System", function () {
                     const tx = await verification.verifyAndReward(verdict, signature);
                     const receipt = await tx.wait();
 
+                    expect(receipt).to.not.be.null;
+
                     // Check events were emitted
-                    const postVerifiedEvent = receipt.logs.find(
+                    const postVerifiedEvent = receipt!.logs.find(
                         (log: any) => {
                             try {
                                 const parsed = verification.interface.parseLog(log);
@@ -252,7 +254,7 @@ describe("Verification System", function () {
                         }
                     );
 
-                    const rewardMintedEvent = receipt.logs.find(
+                    const rewardMintedEvent = receipt!.logs.find(
                         (log: any) => {
                             try {
                                 const parsed = verification.interface.parseLog(log);

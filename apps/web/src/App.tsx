@@ -6,6 +6,7 @@ import { ProfileCreate } from './pages/ProfileCreate'
 import { Feed } from './pages/Feed'
 import UserProfile from './pages/MyProfile'
 import VisitProfile from './pages/VisitProfile'
+import { Dashboard } from './pages/Dashboard'
 
 // ! there is a bug need to fix with the page layout when switching between views 
 // there i want when the app starts it show the signin page first  that if the user is not authenticated
@@ -13,7 +14,7 @@ import VisitProfile from './pages/VisitProfile'
 // if complete go to feed else go to create profile page
 
 
-type View = 'signin' | 'create-profile' | 'feed' | 'userprofile' | 'visitprofile'
+type View = 'signin' | 'create-profile' | 'feed' | 'userprofile' | 'visitprofile' | 'dashboard'
 
 export default function App() {
     const [view, setView] = useState<View>('signin')
@@ -81,19 +82,25 @@ export default function App() {
 
                     <div className="flex gap-2 mt-4 flex-wrap">
                         <button
-                            className="border px-3 py-2 bg-blue-600 text-white"
+                            className="border px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                            onClick={() => setView('dashboard')}
+                        >
+                            🌱 Dashboard
+                        </button>
+                        <button
+                            className="border px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                             onClick={() => setView('userprofile')}
                         >
                             View Profile
                         </button>
                         <button
-                            className="border px-3 py-2 bg-blue-600 text-white"
+                            className="border px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                             onClick={() => setView('create-profile')}
                         >
                             Edit Profile
                         </button>
                         <button
-                            className="border px-3 py-2 bg-red-600 text-white"
+                            className="border px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700"
                             onClick={async () => {
                                 await logout()
                                 setView('signin')
@@ -117,6 +124,13 @@ export default function App() {
                 <VisitProfile
                     walletAddress={visitingWallet}
                     currentUserAddress={address}
+                    onBack={() => setView('feed')}
+                />
+            )}
+
+            {view === 'dashboard' && address && (
+                <Dashboard
+                    address={address}
                     onBack={() => setView('feed')}
                 />
             )}

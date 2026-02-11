@@ -18,6 +18,10 @@ dev: install
 	@start "" /B cmd /C "set PYTHONPATH=%CD%\backend&& .venv\Scripts\python -m uvicorn backend.app.main:app --reload --port 8000"
 	@echo Starting Hardhat...
 	@pushd contracts && start "" /B cmd /C "npx hardhat node --port 8545" && popd
+	@echo Waiting for Hardhat to start...
+	@timeout /t 5 /nobreak >nul
+	@echo Deploying contracts...
+	@pushd contracts && npx hardhat run scripts\auto-deploy.ts --network localhost && popd
 	@echo Starting Web...
 	@pushd apps\web && start "" /B cmd /C "pnpm dev" && popd
 	@echo All services started: Backend http://127.0.0.1:8000  Web http://localhost:5173  Hardhat http://127.0.0.1:8545  Redis redis://127.0.0.1:6379
@@ -35,6 +39,11 @@ web:
 # Contracts only
 contracts:
 	@pushd contracts && npx hardhat node --port 8545 && popd
+
+# Deploy contracts (to running local network)
+deploy-contracts:
+	@echo Deploying contracts to localhost...
+	@pushd contracts && npx hardhat run scripts\auto-deploy.ts --network localhost && popd
 
 # Run ML verification test
 test-ml:
