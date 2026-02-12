@@ -1,5 +1,5 @@
 import { useQuery } from '@apollo/client';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { GET_ECO_FEED, GET_USER_TIMELINE, GET_RECENT_POSTS } from '../graphql/queries';
 import { fetchFromIPFS } from '../config/apollo';
 
@@ -126,10 +126,10 @@ export function useRecentPosts(limit = 20) {
  * Call this for each post to get the actual content
  */
 export function usePostContent(posts: Post[]) {
-    const [postsWithContent, setPostsWithContent] = React.useState<Post[]>([]);
-    const [loadingContent, setLoadingContent] = React.useState(true);
+    const [postsWithContent, setPostsWithContent] = useState<Post[]>([]);
+    const [loadingContent, setLoadingContent] = useState(true);
 
-    React.useEffect(() => {
+    useEffect(() => {
         if (!posts.length) {
             setPostsWithContent([]);
             setLoadingContent(false);

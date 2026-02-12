@@ -1,6 +1,5 @@
 import React from 'react';
 import { useDashboard, formatECO } from '../hooks/useDashboardGraph';
-import { useAccount } from '../hooks/useAccount'; // Your existing wallet hook
 
 /**
  * EXAMPLE: Dashboard using The Graph
@@ -15,10 +14,12 @@ import { useAccount } from '../hooks/useAccount'; // Your existing wallet hook
  * - One GraphQL query
  * - Total: 1 request, ~100ms
  * - Data from blockchain (trustless)
+ * 
+ * @param walletAddress - The connected wallet address (pass from parent component)
  */
 
-export function DashboardExample() {
-    const { address } = useAccount(); // Your existing wallet connection
+export function DashboardExample({ walletAddress }: { walletAddress?: string }) {
+    const address = walletAddress || null;
     const { dashboardData, loading, error } = useDashboard(address);
 
     if (loading) {
