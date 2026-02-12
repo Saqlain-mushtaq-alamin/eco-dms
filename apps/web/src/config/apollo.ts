@@ -16,7 +16,7 @@ import { ApolloClient, InMemoryCache, HttpLink } from '@apollo/client';
  * - ML verification triggers
  */
 
-const GRAPH_URL = import.meta.env.VITE_GRAPH_URL || 'http://127.0.0.1:8000/subgraphs/name/eco-dms';
+const GRAPH_URL = import.meta.env.VITE_GRAPH_URL || 'http://127.0.0.1:8100/subgraphs/name/eco-dms';
 
 export const graphClient = new ApolloClient({
     link: new HttpLink({

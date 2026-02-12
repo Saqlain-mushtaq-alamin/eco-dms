@@ -76,8 +76,8 @@ graph-start:
 	@echo Waiting for services to be ready...
 	@timeout /t 10 /nobreak >nul
 	@echo Graph Node started!
-	@echo   GraphQL endpoint: http://127.0.0.1:8000/subgraphs/name/eco-dms
-	@echo   GraphQL Playground: http://127.0.0.1:8000/subgraphs/name/eco-dms/graphql
+	@echo   GraphQL endpoint: http://127.0.0.1:8100/subgraphs/name/eco-dms
+	@echo   GraphQL Playground: http://127.0.0.1:8100/subgraphs/name/eco-dms/graphql
 	@echo   Admin API: http://127.0.0.1:8020
 
 # Stop Graph Node stack
@@ -109,7 +109,7 @@ dev-full: install
 	@echo   Backend: http://127.0.0.1:8000
 	@echo   Web: http://localhost:5173
 	@echo   Hardhat: http://127.0.0.1:8545
-	@echo   GraphQL: http://127.0.0.1:8000/subgraphs/name/eco-dms/graphql
+	@echo   GraphQL: http://127.0.0.1:8100/subgraphs/name/eco-dms/graphql
 
 # Clean
 clean:
