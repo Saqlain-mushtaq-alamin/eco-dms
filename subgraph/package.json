@@ -6,6 +6,8 @@
         "graph:prepare": "node ./scripts/prepare.js",
         "graph:codegen": "graph codegen",
         "graph:build": "graph build",
+        "graph:deploy:local": "node ./scripts/deploy-local.js",
+        "graph:deploy": "pnpm graph:prepare && pnpm graph:codegen && pnpm graph:build && pnpm graph:deploy:local",
         "graph:test": "echo \"(add graph tests later)\""
     },
     "devDependencies": {

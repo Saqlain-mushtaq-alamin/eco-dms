@@ -2,22 +2,108 @@ specVersion: 0.0.5
 schema:
   file: ./schema.graphql
 dataSources:
+  # ==================
+  # REWARD TOKEN CONTRACT
+  # ==================
   - kind: ethereum/contract
-    name: ProfileRegistry
-    network: hardhat
+    name: RewardToken
+    network: hardhat # Change to 'mainnet', 'goerli', 'polygon', etc. for production
     source:
-      address: "0x0000000000000000000000000000000000000000" # replace after deploy
-      abi: ProfileRegistry
+      address: "0x5FbDB2315678afecb367f032d93F642f64180aa3" # Will be updated by deployment script
+      abi: RewardToken
+      startBlock: 0 # Set to deployment block for faster indexing
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
       language: wasm/assemblyscript
       entities:
-        - Profile
+        - User
+        - TokenTransfer
+      abis:
+        - name: RewardToken
+          file: ./abis/RewardToken.json
+      eventHandlers:
+        - event: Transfer(indexed address,indexed address,uint256)
+          handler: handleTokenTransfer
+        - event: MinterAdded(indexed address)
+          handler: handleMinterAdded
+        - event: MinterRemoved(indexed address)
+          handler: handleMinterRemoved
+      file: ./src/reward-token-mapping.ts
+
+  # ==================
+  # VERIFICATION CONTRACT
+  # ==================
+  - kind: ethereum/contract
+    name: Verification
+    network: hardhat # Change to 'mainnet', 'goerli', 'polygon', etc. for production
+    source:
+      address: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512" # Will be updated by deployment script
+      abi: Verification
+      startBlock: 0 # Set to deployment block for faster indexing
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - User
+        - Post
+        - Verification
+        - Reward
+        - GlobalStats
+      abis:
+        - name: Verification
+          file: ./abis/Verification.json
+        - name: RewardToken
+          file: ./abis/RewardToken.json
+      eventHandlers:
+        - event: PostVerified(indexed string,indexed address,bool,uint256,uint256,uint256)
+          handler: handlePostVerified
+        - event: RewardMinted(indexed address,indexed string,uint256,uint256)
+          handler: handleRewardMinted
+        - event: VerifierAdded(indexed address)
+          handler: handleVerifierAdded
+        - event: VerifierRemoved(indexed address)
+          handler: handleVerifierRemoved
+      file: ./src/verification-mapping.ts
+
+  # ==================
+  # PROFILE REGISTRY CONTRACT (Optional - if you want to keep handles)
+  # ==================
+  - kind: ethereum/contract
+    name: ProfileRegistry
+    network: hardhat
+    source:
+      address: "0x0000000000000000000000000000000000000000" # Replace after deploy
+      abi: ProfileRegistry
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - User
       abis:
         - name: ProfileRegistry
           file: ./abis/ProfileRegistry.json
       eventHandlers:
         - event: ProfileCreated(indexed address,string)
           handler: handleProfileCreated
-      file: ./src/mapping.ts
+      file: ./src/profile-mapping.ts
+
+# ==================
+# IPFS TEMPLATES (Optional - for fetching post content from IPFS)
+# ==================
+# templates:
+#   - kind: file/ipfs
+#     name: PostContent
+#     mapping:
+#       apiVersion: 0.0.7
+#       language: wasm/assemblyscript
+#       file: ./src/ipfs-mapping.ts
+#       handler: handlePostContent
+#       entities:
+#         - Post
+#       abis:
+#         - name: Verification
+#           file: ./abis/Verification.json

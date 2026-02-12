@@ -60,9 +60,56 @@ test:
 stop:
 	@echo Stopping services...
 	@docker stop eco-redis 2>nul || echo Redis not running
+	@docker stop graph-node graph-postgres graph-ipfs 2>nul || echo Graph services not running
 	@taskkill /F /FI "WINDOWTITLE eq Celery*" 2>nul || echo No Celery worker to stop
 	@taskkill /F /FI "WINDOWTITLE eq uvicorn*" 2>nul || echo No backend to stop
 	@echo Services stopped.
+
+# ==================
+# THE GRAPH COMMANDS
+# ==================
+
+# Start Graph Node stack (PostgreSQL + IPFS + Graph Node)
+graph-start:
+	@echo Starting The Graph Node stack...
+	@docker-compose -f infrastructure\docker-compose.graph.yml up -d
+	@echo Waiting for services to be ready...
+	@timeout /t 10 /nobreak >nul
+	@echo Graph Node started!
+	@echo   GraphQL endpoint: http://127.0.0.1:8000/subgraphs/name/eco-dms
+	@echo   GraphQL Playground: http://127.0.0.1:8000/subgraphs/name/eco-dms/graphql
+	@echo   Admin API: http://127.0.0.1:8020
+
+# Stop Graph Node stack
+graph-stop:
+	@echo Stopping The Graph Node stack...
+	@docker-compose -f infrastructure\docker-compose.graph.yml down
+	@echo Graph Node stopped.
+
+# View Graph Node logs
+graph-logs:
+	@docker-compose -f infrastructure\docker-compose.graph.yml logs -f graph-node
+
+# Build and deploy subgraph
+graph-deploy:
+	@echo Building and deploying subgraph...
+	@pushd subgraph && pnpm graph:deploy && popd
+	@echo Subgraph deployed!
+
+# Full dev environment with Graph Node
+dev-full: install
+	@echo Starting full development stack (Backend + Contracts + Web + Graph)...
+	@$(MAKE) graph-start
+	@$(MAKE) dev
+	@echo Waiting for contracts to deploy...
+	@timeout /t 8 /nobreak >nul
+	@echo Deploying subgraph...
+	@$(MAKE) graph-deploy
+	@echo Full stack ready!
+	@echo   Backend: http://127.0.0.1:8000
+	@echo   Web: http://localhost:5173
+	@echo   Hardhat: http://127.0.0.1:8545
+	@echo   GraphQL: http://127.0.0.1:8000/subgraphs/name/eco-dms/graphql
 
 # Clean
 clean:

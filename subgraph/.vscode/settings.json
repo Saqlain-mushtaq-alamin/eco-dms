@@ -1,0 +1,16 @@
+{
+    // Disable TypeScript validation for subgraph files
+    // The Graph uses AssemblyScript, not TypeScript
+    "typescript.validate.enable": false,
+    "javascript.validate.enable": false,
+    // Use The Graph's own validation
+    "files.associations": {
+        "*.ts": "typescript"
+    },
+    // Hide errors from these paths
+    "typescript.tsdk": "node_modules/typescript/lib",
+    // Recommended: Use Graph CLI for validation instead
+    "[typescript]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    }
+}

@@ -1,5 +1,194 @@
-type Profile @entity {
-  id: ID!
-  handle: String!
-  createdAt: BigInt!
+# ========================================
+# PHASE 5: COMPLETE SCHEMA FOR ECO-DMS
+# Gasless Social Media + On-Chain Rewards
+# ========================================
+
+# ==================
+# USER ENTITIES
+# ==================
+
+"""
+User profile - tracks social identity and on-chain rewards
+ID: Ethereum address (lowercase)
+"""
+type User @entity {
+  id: ID! # Ethereum address
+  handle: String # Optional profile handle from ProfileRegistry
+  createdAt: BigInt! # First interaction timestamp
+  
+  # Social stats (can be synced from backend/IPFS)
+  totalPosts: BigInt! # Total posts created
+  totalLikes: BigInt! # Total likes given
+  totalComments: BigInt! # Total comments made
+  
+  # On-chain reward stats
+  totalEcoVerifications: BigInt! # Number of eco-verified posts
+  totalEcoRewards: BigInt! # Total ECO tokens earned
+  lastRewardTime: BigInt # Last time user received reward
+  
+  # Relations
+  posts: [Post!]! @derivedFrom(field: "author")
+  verifications: [Verification!]! @derivedFrom(field: "wallet")
+  rewards: [Reward!]! @derivedFrom(field: "recipient")
+  tokenBalance: BigInt! # Current ECO token balance
+}
+
+# ==================
+# SOCIAL ENTITIES (Off-Chain Content + On-Chain References)
+# ==================
+
+"""
+Post - social media post with IPFS content
+ID: Post CID (IPFS content identifier)
+Content stored off-chain for gasless posting
+"""
+type Post @entity {
+  id: ID! # IPFS CID of the post
+  author: User! # Post creator (Ethereum address)
+  contentCID: String! # IPFS CID for content lookup
+  
+  # Metadata (fetched from IPFS or backend)
+  contentType: String # "text", "image", "video", etc.
+  timestamp: BigInt! # Post creation time
+  
+  # Social engagement (tracked off-chain, synced via backend)
+  totalLikes: BigInt! # Like count
+  totalComments: BigInt! # Comment count
+  totalShares: BigInt! # Share/repost count
+  
+  # Eco verification status (on-chain)
+  isEcoVerified: Boolean! # True if passed ML verification
+  ecoConfidence: BigInt # Confidence score (0-100)
+  verification: Verification # Link to verification event
+  
+  # Relations
+  edges: [Edge!]! @derivedFrom(field: "post")
+}
+
+"""
+Edge - represents social interactions (likes, comments, follows)
+ID: Composite of type + from + to/postCID
+Stored off-chain for gasless interactions
+"""
+type Edge @entity {
+  id: ID! # Format: "LIKE-{userAddress}-{postCID}" or "FOLLOW-{fromAddress}-{toAddress}"
+  edgeType: EdgeType! # LIKE, COMMENT, FOLLOW, SHARE
+  
+  from: User! # User performing the action
+  to: User # Target user (for FOLLOW)
+  post: Post # Target post (for LIKE, COMMENT, SHARE)
+  
+  contentCID: String # IPFS CID for comment content
+  timestamp: BigInt! # Interaction timestamp
+}
+
+"""
+Edge types for social interactions
+"""
+enum EdgeType {
+  LIKE
+  COMMENT
+  FOLLOW
+  SHARE
+}
+
+# ==================
+# ON-CHAIN VERIFICATION & REWARD ENTITIES
+# ==================
+
+"""
+Verification event - ML verdict recorded on-chain
+ID: Transaction hash + log index
+"""
+type Verification @entity {
+  id: ID! # txHash-logIndex
+  postCid: String! # IPFS CID of verified post
+  wallet: User! # User receiving verification
+  post: Post # Link to Post entity
+  
+  isEco: Boolean! # Eco-friendly verdict
+  confidence: BigInt! # Confidence score (0-100)
+  timestamp: BigInt! # Verification timestamp
+  nonce: BigInt! # Unique nonce for replay protection
+  
+  # Transaction details
+  transactionHash: Bytes! # Transaction hash
+  blockNumber: BigInt! # Block number
+  blockTimestamp: BigInt! # Block timestamp
+  
+  # Link to reward if minted
+  reward: Reward @derivedFrom(field: "verification")
+}
+
+"""
+Reward event - ECO tokens minted for verified eco-friendly posts
+ID: Transaction hash + log index
+"""
+type Reward @entity {
+  id: ID! # txHash-logIndex
+  recipient: User! # User receiving reward
+  postCid: String! # Post that earned reward
+  post: Post # Link to Post entity
+  amount: BigInt! # ECO tokens minted (5 * 10^18)
+  
+  timestamp: BigInt! # Reward timestamp
+  
+  # Transaction details
+  transactionHash: Bytes! # Transaction hash
+  blockNumber: BigInt! # Block number
+  blockTimestamp: BigInt! # Block timestamp
+  
+  # Link to verification
+  verification: Verification # Related verification event
+}
+
+# ==================
+# TOKEN ENTITIES
+# ==================
+
+"""
+Token transfer event - tracks ECO token movements
+ID: Transaction hash + log index
+"""
+type TokenTransfer @entity {
+  id: ID! # txHash-logIndex
+  from: Bytes! # Sender address (0x0 for mints)
+  to: Bytes! # Recipient address (0x0 for burns)
+  value: BigInt! # Amount transferred
+  
+  timestamp: BigInt! # Transfer timestamp
+  transactionHash: Bytes! # Transaction hash
+  blockNumber: BigInt! # Block number
+}
+
+# ==================
+# GLOBAL STATS
+# ==================
+
+"""
+Global statistics - aggregated platform metrics
+ID: "global"
+"""
+type GlobalStats @entity {
+  id: ID! # Always "global"
+  
+  # User stats
+  totalUsers: BigInt! # Total unique users
+  
+  # Social stats
+  totalPosts: BigInt! # Total posts created
+  totalLikes: BigInt! # Total likes
+  totalComments: BigInt! # Total comments
+  totalFollows: BigInt! # Total follow relationships
+  
+  # Eco verification stats
+  totalVerifications: BigInt! # Total verifications performed
+  totalEcoVerifiedPosts: BigInt! # Posts verified as eco-friendly
+  
+  # Reward stats
+  totalRewardsMinted: BigInt! # Total ECO tokens minted
+  totalRewardRecipients: BigInt! # Unique users who received rewards
+  
+  # Last updated
+  lastUpdatedTimestamp: BigInt! # Last stats update
 }

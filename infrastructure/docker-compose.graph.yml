@@ -1,0 +1,126 @@
+version: '3.8'
+
+# ==========================================
+# THE GRAPH NODE - LOCAL DEVELOPMENT SETUP
+# ==========================================
+# This docker-compose file runs a complete Graph Node stack locally:
+# - PostgreSQL (database for subgraph data)
+# - IPFS (decentralized storage)
+# - Graph Node (indexes blockchain events)
+#
+# Usage:
+#   docker-compose -f docker-compose.graph.yml up -d
+#   → Starts all services in background
+#
+#   docker-compose -f docker-compose.graph.yml logs -f graph-node
+#   → View Graph Node logs
+#
+#   docker-compose -f docker-compose.graph.yml down
+#   → Stop all services
+# ==========================================
+
+services:
+  # ==================
+  # POSTGRESQL DATABASE
+  # ==================
+  postgres:
+    image: postgres:14
+    container_name: graph-postgres
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: graph-node
+      POSTGRES_PASSWORD: let-me-in
+      POSTGRES_DB: graph-node
+    volumes:
+      - graph-postgres-data:/var/lib/postgresql/data
+    networks:
+      - graph-network
+    healthcheck:
+      test: [ 'CMD-SHELL', 'pg_isready -U graph-node' ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==================
+  # IPFS NODE
+  # ==================
+  ipfs:
+    image: ipfs/kubo:latest
+    container_name: graph-ipfs
+    ports:
+      - '5001:5001' # API
+      - '8080:8080' # Gateway
+    volumes:
+      - graph-ipfs-data:/data/ipfs
+    networks:
+      - graph-network
+    healthcheck:
+      test: [ 'CMD-SHELL', 'ipfs id' ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==================
+  # GRAPH NODE
+  # ==================
+  graph-node:
+    image: graphprotocol/graph-node:latest
+    container_name: graph-node
+    ports:
+      - '8000:8000' # GraphQL HTTP
+      - '8001:8001' # GraphQL WebSocket
+      - '8020:8020' # JSON-RPC admin
+      - '8030:8030' # Prometheus metrics
+      - '8040:8040' # Graph Node management
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ipfs:
+        condition: service_healthy
+    environment:
+      # PostgreSQL connection
+      postgres_host: postgres
+      postgres_user: graph-node
+      postgres_pass: let-me-in
+      postgres_db: graph-node
+
+      # IPFS connection
+      ipfs: 'ipfs:5001'
+
+      # Ethereum connection (Hardhat local node)
+      # NOTE: Use host.docker.internal to reach host machine
+      ethereum: 'hardhat:http://host.docker.internal:8545'
+
+      # Graph Node settings
+      GRAPH_LOG: info
+      GRAPH_ALLOW_NON_DETERMINISTIC_IPFS: 'true'
+      ETHEREUM_REORG_THRESHOLD: 1
+      ETHEREUM_ANCESTOR_COUNT: 1
+
+    volumes:
+      - graph-node-data:/data
+    networks:
+      - graph-network
+    extra_hosts:
+      # Allow container to access host machine (for Hardhat)
+      - 'host.docker.internal:host-gateway'
+    restart: unless-stopped
+
+# ==================
+# NETWORKS
+# ==================
+networks:
+  graph-network:
+    driver: bridge
+
+# ==================
+# VOLUMES
+# ==================
+volumes:
+  graph-postgres-data:
+    driver: local
+  graph-ipfs-data:
+    driver: local
+  graph-node-data:
+    driver: local
