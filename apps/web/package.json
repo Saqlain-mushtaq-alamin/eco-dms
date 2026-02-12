@@ -10,8 +10,10 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@apollo/client": "^3.8.8",
     "@walletconnect/ethereum-provider": "^2.11.2",
     "ethers": "^6.8.1",
+    "graphql": "^16.8.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.22.3"
