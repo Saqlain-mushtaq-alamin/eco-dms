@@ -2,20 +2,21 @@ import React from 'react';
 import { useEcoFeed } from '../hooks/useFeed';
 import { fetchFromIPFS } from '../config/apollo';
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000';
+
 /**
- * Feed Component using The Graph
+ * Feed Component using The Graph + Backend API
  * 
- * OLD FLOW (Backend API):
- * Frontend → GET /api/posts/feed/timeline → Backend DB → Response
+ * WRITE OPERATIONS (Backend API):
+ * Frontend → POST /api/posts → Backend → IPFS → OrbitDB
  * 
- * NEW FLOW (The Graph + IPFS):
+ * READ OPERATIONS (The Graph + IPFS):
  * Frontend → GraphQL → The Graph → Blockchain events
  * Frontend → Fetch IPFS → Get content
  * 
  * Benefits:
- * - 5-10x faster (cached by The Graph)
- * - Scalable (no backend database load)
- * - Trustless (data from blockchain)
+ * - Write: Fast, authenticated via backend
+ * - Read: 5-10x faster (cached by The Graph), trustless
  */
 
 interface PostWithContent {
@@ -39,12 +40,101 @@ interface PostWithContent {
 }
 
 export function Feed({ address, onVisitProfile }: { address: string; onVisitProfile: (walletAddress: string) => void }) {
+    // Post creation state
+    const [newPostText, setNewPostText] = React.useState('');
+    const [selectedImage, setSelectedImage] = React.useState<File | null>(null);
+    const [imagePreview, setImagePreview] = React.useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
+
     // Step 1: Query The Graph for post metadata
-    const { posts, loading, loadMore, hasMore } = useEcoFeed(20);
+    const { posts, loading, loadMore, hasMore, refetch } = useEcoFeed(20);
 
     // Step 2: Fetch content from IPFS for each post
     const [postsWithContent, setPostsWithContent] = React.useState<PostWithContent[]>([]);
     const [loadingContent, setLoadingContent] = React.useState(true);
+
+    // Handle image selection
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setSelectedImage(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImagePreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    // Submit new post
+    const handleSubmitPost = async () => {
+        if (!newPostText.trim() && !selectedImage) {
+            alert('Please add some text or an image');
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            let mediaCids: string[] = [];
+
+            // Upload image if selected
+            if (selectedImage) {
+                const formData = new FormData();
+                formData.append('file', selectedImage);
+
+                const uploadRes = await fetch(`${BACKEND_URL}/api/posts/upload-image`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+                    },
+                    body: formData,
+                });
+
+                if (!uploadRes.ok) {
+                    throw new Error('Failed to upload image');
+                }
+
+                const { cid } = await uploadRes.json();
+                mediaCids = [cid];
+            }
+
+            // Create post
+            const postRes = await fetch(`${BACKEND_URL}/api/posts`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+                },
+                body: JSON.stringify({
+                    author_wallet: address,
+                    content: newPostText,
+                    media_cids: mediaCids,
+                    tags: [],
+                }),
+            });
+
+            if (!postRes.ok) {
+                throw new Error('Failed to create post');
+            }
+
+            // Clear form
+            setNewPostText('');
+            setSelectedImage(null);
+            setImagePreview(null);
+
+            // Refresh feed after a short delay (wait for blockchain indexing)
+            setTimeout(() => {
+                refetch();
+            }, 3000);
+
+            alert('✅ Post created! It will appear in the feed shortly.');
+        } catch (error: any) {
+            console.error('Post creation error:', error);
+            alert(`Failed to create post: ${error.message}`);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     React.useEffect(() => {
         if (!posts.length) {
@@ -94,6 +184,80 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
             <p className="text-sm text-gray-600 mb-6">
                 📊 The Graph • 📁 IPFS • ⛓️ Blockchain Verified
             </p>
+
+            {/* Create Post Form */}
+            <div className="bg-white border rounded-lg p-6 shadow-sm mb-6">
+                <h2 className="text-lg font-semibold mb-4">Create Post</h2>
+
+                {/* Text Area */}
+                <textarea
+                    value={newPostText}
+                    onChange={(e) => setNewPostText(e.target.value)}
+                    placeholder="Share your eco-friendly activities... 🌍"
+                    className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 resize-none"
+                    rows={4}
+                    disabled={isSubmitting}
+                />
+
+                {/* Image Preview */}
+                {imagePreview && (
+                    <div className="mt-3 relative">
+                        <img
+                            src={imagePreview}
+                            alt="Preview"
+                            className="max-h-64 rounded-lg border"
+                        />
+                        <button
+                            onClick={() => {
+                                setSelectedImage(null);
+                                setImagePreview(null);
+                            }}
+                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600"
+                            disabled={isSubmitting}
+                        >
+                            ✕
+                        </button>
+                    </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex gap-3 mt-4">
+                    {/* Upload Image Button */}
+                    <label className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 border-2 border-green-600 text-green-600 rounded-lg hover:bg-green-50 transition cursor-pointer ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span className="font-medium">Upload Image</span>
+                        <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageChange}
+                            className="hidden"
+                            disabled={isSubmitting}
+                        />
+                    </label>
+
+                    {/* Submit Button */}
+                    <button
+                        onClick={handleSubmitPost}
+                        disabled={isSubmitting || (!newPostText.trim() && !selectedImage)}
+                        className="flex-1 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                    >
+                        {isSubmitting ? (
+                            <span className="flex items-center justify-center gap-2">
+                                <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+                                Posting...
+                            </span>
+                        ) : (
+                            '📝 Post'
+                        )}
+                    </button>
+                </div>
+
+                <p className="text-xs text-gray-500 mt-3">
+                    💡 Posts with eco-friendly images will be verified by our ML model
+                </p>
+            </div>
 
             <div className="space-y-6">
                 {loadingContent && postsWithContent.length === 0 ? (

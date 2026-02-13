@@ -124,50 +124,42 @@ export function Dashboard({ address, onBack }: DashboardProps) {
                             {address.slice(0, 6)}...{address.slice(-4)}
                         </p>
                     </div>
-                    <button
-                        onClick={addTokenToWallet}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium"
-                    >
-                        Add {REWARD_TOKEN_SYMBOL} to Wallet
-                    </button>
+                    <div className="text-right">
+                        <p className="text-xs text-gray-500">Reading from</p>
+                        <p className="text-sm font-medium text-green-600">📊 The Graph</p>
+                    </div>
                 </div>
 
                 {/* Stats Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                    {/* ECO Balance */}
-                    <div className="bg-white rounded-lg shadow-sm p-6 border border-green-100">
-                        <div className="flex items-center justify-between mb-2">
-                            <p className="text-sm text-gray-600">ECO Balance</p>
-                            <span className="text-2xl">🌿</span>
+                    {/* ECO Balance - Prominent Card */}
+                    <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-lg p-6 border-0 text-white md:col-span-2">
+                        <div className="flex items-center justify-between mb-3">
+                            <p className="text-sm font-medium opacity-90">🌱 ECO Balance</p>
+                            <button
+                                onClick={addTokenToWallet}
+                                className="px-3 py-1 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full text-xs font-medium transition backdrop-blur-sm"
+                                title="Add ECO token to your wallet"
+                            >
+                                + Add to Wallet
+                            </button>
                         </div>
-                        <p className="text-3xl font-bold text-green-600">
+                        <p className="text-5xl font-bold mb-4">
                             {formatECO(user.tokenBalance)}
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">Your current balance</p>
-                    </div>
-
-                    {/* Lifetime Earned */}
-                    <div className="bg-white rounded-lg shadow-sm p-6 border border-blue-100">
-                        <div className="flex items-center justify-between mb-2">
-                            <p className="text-sm text-gray-600">Lifetime Earned</p>
-                            <span className="text-2xl">💰</span>
+                        <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white border-opacity-20">
+                            <div>
+                                <p className="text-xs opacity-80">Lifetime Earned</p>
+                                <p className="text-xl font-bold">{formatECO(user.totalEcoRewards)}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs opacity-80">Today Earned</p>
+                                <p className="text-xl font-bold">{formatECO(user.todayRewards || '0')}</p>
+                            </div>
                         </div>
-                        <p className="text-3xl font-bold text-blue-600">
-                            {formatECO(user.totalEcoRewards)}
+                        <p className="text-xs opacity-75 mt-3">
+                            Token: {CONTRACTS.rewardToken.address.slice(0, 10)}...{CONTRACTS.rewardToken.address.slice(-8)}
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">Total rewards received</p>
-                    </div>
-
-                    {/* Today Earned */}
-                    <div className="bg-white rounded-lg shadow-sm p-6 border border-purple-100">
-                        <div className="flex items-center justify-between mb-2">
-                            <p className="text-sm text-gray-600">Today Earned</p>
-                            <span className="text-2xl">⚡</span>
-                        </div>
-                        <p className="text-3xl font-bold text-purple-600">
-                            {formatECO(user.todayRewards)}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">Last 24 hours</p>
                     </div>
 
                     {/* Verifications */}
@@ -180,6 +172,18 @@ export function Dashboard({ address, onBack }: DashboardProps) {
                             {user.totalEcoVerifications}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">Posts verified</p>
+                    </div>
+
+                    {/* Total Posts */}
+                    <div className="bg-white rounded-lg shadow-sm p-6 border border-blue-100">
+                        <div className="flex items-center justify-between mb-2">
+                            <p className="text-sm text-gray-600">Total Posts</p>
+                            <span className="text-2xl">📝</span>
+                        </div>
+                        <p className="text-3xl font-bold text-blue-600">
+                            {user.totalPosts || 0}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">All time posts</p>
                     </div>
                 </div>
 

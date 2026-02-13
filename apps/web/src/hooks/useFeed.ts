@@ -38,7 +38,7 @@ export interface Post {
  * Replaces: GET /api/posts/feed/timeline?eco=true
  */
 export function useEcoFeed(limit = 20) {
-    const { data, loading, error, fetchMore } = useQuery(GET_ECO_FEED, {
+    const { data, loading, error, fetchMore, refetch } = useQuery(GET_ECO_FEED, {
         variables: { first: limit, skip: 0 },
     });
 
@@ -58,6 +58,7 @@ export function useEcoFeed(limit = 20) {
         error,
         loadMore,
         hasMore: posts.length % limit === 0,
+        refetch,
     };
 }
 
