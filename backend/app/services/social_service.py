@@ -4,6 +4,7 @@ Handles likes, comments, and social graph operations using IPFS + OrbitDB.
 All data is stored on IPFS - fully decentralized!
 Index CIDs stored in post author's OrbitDB (no centralized Redis!).
 """
+import asyncio
 import json
 from typing import List, Dict, Optional
 from datetime import datetime
@@ -29,6 +30,12 @@ class SocialService:
     def __init__(self):
         # Cache for post author mapping: {post_cid: author_wallet}
         self._post_author_cache: Dict[str, str] = {}
+        # Locks to prevent duplicate OrbitDB creation during concurrent requests
+        self._creation_locks: Dict[str, asyncio.Lock] = {}
+        # Request-level cache for social data to avoid redundant fetches
+        # Format: {author_wallet: (timestamp, social_data)}
+        self._social_data_cache: Dict[str, tuple[float, Dict]] = {}
+        self._social_cache_ttl = 5.0  # Cache for 5 seconds during requests
     
     def set_post_author(self, post_cid: str, author_wallet: str):
         """Register who authored a post (needed to know which OrbitDB to update)."""
@@ -53,11 +60,35 @@ class SocialService:
     
     async def _get_social_data_for_author(self, author_wallet: str) -> Dict:
         """Get all social interactions data for a user's posts from their OrbitDB."""
+        import time
+        
+        # Check request-level cache first
+        current_time = time.time()
+        if author_wallet in self._social_data_cache:
+            cached_time, cached_data = self._social_data_cache[author_wallet]
+            if current_time - cached_time < self._social_cache_ttl:
+                return cached_data.copy()
+        
         social_data = await orbitdb_service.get_social_data(author_wallet)
         if social_data is None:
-            # Create new social DB if doesn't exist
-            await orbitdb_service.create_social_interactions_db(author_wallet)
-            return {}
+            # Create new social DB if doesn't exist - use lock to prevent race conditions
+            # Get or create lock for this wallet
+            if author_wallet not in self._creation_locks:
+                self._creation_locks[author_wallet] = asyncio.Lock()
+            
+            async with self._creation_locks[author_wallet]:
+                # Double-check after acquiring lock (another task might have created it)
+                social_data = await orbitdb_service.get_social_data(author_wallet)
+                if social_data is None:
+                    await orbitdb_service.create_social_interactions_db(author_wallet)
+                    social_data = {}
+                
+                # Cache the result
+                self._social_data_cache[author_wallet] = (current_time, social_data)
+                return social_data
+        
+        # Cache the result
+        self._social_data_cache[author_wallet] = (current_time, social_data)
         return social_data
     
     async def _update_social_data_for_author(self, author_wallet: str, social_data: Dict) -> bool:

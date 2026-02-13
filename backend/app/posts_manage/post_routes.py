@@ -208,6 +208,7 @@ async def list_author_posts(
 @router.get("/feed/timeline", response_model=Dict)
 async def get_feed_timeline(
     authorization: str | None = Header(default=None),
+    limit: int = 50,  # Limit number of posts to improve performance
 ):
     """
     Get personalized feed showing posts from users that the current user follows.
@@ -238,23 +239,33 @@ async def get_feed_timeline(
         if not all_cids:
             return {"count": 0, "posts": [], "message": "No posts from followed users yet"}
         
+        # Limit the number of posts to fetch (most recent only)
+        # Note: Posts are already sorted by time in OrbitDB feeds
+        all_cids = all_cids[:limit]
+        
         # Fetch post details with metrics
         async def fetch_post_with_metrics(cid: str):
             try:
-                post_task = ipfs_service.get_json(cid)
-                likes_task = social_service.get_likes_count(cid)
-                comments_task = social_service.get_comments_count(cid)
-                liked_task = social_service.has_user_liked(cid, current_user)
-                
-                results = await asyncio.gather(
-                    post_task, likes_task, comments_task, liked_task,
-                    return_exceptions=True
-                )
-                
-                post, likes_count, comments_count, liked_by_user = results
+                # Fetch post first to get author
+                post = await ipfs_service.get_json(cid)
                 
                 if isinstance(post, (Exception, BaseException)) or not post:
                     return None
+                
+                # Register post author to avoid IPFS fetch in social service
+                author = post.get("author") or post.get("author_wallet")
+                if author:
+                    social_service.set_post_author(cid, author)
+                
+                # Now fetch metrics in parallel
+                results = await asyncio.gather(
+                    social_service.get_likes_count(cid),
+                    social_service.get_comments_count(cid),
+                    social_service.has_user_liked(cid, current_user),
+                    return_exceptions=True
+                )
+                
+                likes_count, comments_count, liked_by_user = results
                 
                 if isinstance(post, dict):
                     post["cid"] = cid
