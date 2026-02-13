@@ -46,6 +46,11 @@ async function main() {
 VITE_REWARD_TOKEN_ADDRESS=${rewardTokenAddress}
 VITE_VERIFICATION_ADDRESS=${verificationAddress}
 VITE_CHAIN_ID=31337
+
+# API endpoints
+VITE_BACKEND_URL=http://127.0.0.1:8000
+VITE_GRAPH_URL=http://127.0.0.1:8100/subgraphs/name/eco-dms
+VITE_IPFS_GATEWAY=https://ipfs.io/ipfs/
 `;
 
     try {
