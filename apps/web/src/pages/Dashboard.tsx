@@ -1,6 +1,6 @@
 import React from 'react'
-import { useTokenBalance } from '../hooks/useTokenBalance'
-import { useEarnings } from '../hooks/useEarnings'
+import { useTokenBalanceFromGraph } from '../hooks/useTokenBalanceFromGraph'
+import { useEarningsFromGraph } from '../hooks/useEarningsFromGraph'
 import { REWARD_TOKEN_SYMBOL, REWARD_TOKEN_ICON, REWARD_TOKEN_DECIMALS, CONTRACTS } from '../config/contracts'
 
 interface DashboardProps {
@@ -9,8 +9,8 @@ interface DashboardProps {
 }
 
 export function Dashboard({ address, onBack }: DashboardProps) {
-    const { balance, loading: balanceLoading, error: balanceError, refresh } = useTokenBalance(address)
-    const { lifetimeEarned, todayEarned, totalClaims, loading: earningsLoading } = useEarnings(address)
+    const { balance, loading: balanceLoading, error: balanceError, refresh } = useTokenBalanceFromGraph(address)
+    const { lifetimeEarned, todayEarned, totalClaims, loading: earningsLoading } = useEarningsFromGraph(address)
 
     const addTokenToWallet = async () => {
         try {
