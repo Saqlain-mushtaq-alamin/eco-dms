@@ -5,6 +5,7 @@ packages:
   - contracts
   - subgraph
   - shared
+  - packages/*
 
 ignoredBuiltDependencies:
   - '@reown/appkit'

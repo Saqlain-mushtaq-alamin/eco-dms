@@ -1,0 +1,24 @@
+{
+    "name": "@eco-dms/hooks",
+    "version": "0.1.0",
+    "private": true,
+    "main": "./src/index.ts",
+    "types": "./src/index.ts",
+    "exports": {
+        ".": "./src/index.ts"
+    },
+    "scripts": {
+        "lint": "eslint src",
+        "type-check": "tsc --noEmit"
+    },
+    "dependencies": {
+        "react": "^18.2.0"
+    },
+    "devDependencies": {
+        "@types/react": "^18.2.21",
+        "typescript": "^5.4.5"
+    },
+    "peerDependencies": {
+        "react": "^18.2.0"
+    }
+}

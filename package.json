@@ -4,12 +4,18 @@
   "version": "0.1.0",
   "scripts": {
     "dev:web": "pnpm --filter eco-dms-web dev",
+    "dev:mobile": "pnpm --filter eco-dms-mobile start",
     "dev:backend": "uvicorn app.main:app --reload --port 8000",
     "dev:contracts": "pnpm --filter eco-dms-contracts hardhat node",
+    "build:web": "pnpm --filter eco-dms-web build",
+    "build:mobile": "pnpm --filter eco-dms-mobile android && pnpm --filter eco-dms-mobile ios",
     "test:web": "pnpm --filter eco-dms-web test",
     "test:contracts": "pnpm --filter eco-dms-contracts test",
     "test:subgraph": "pnpm --filter eco-dms-subgraph graph:test",
-    "lint:web": "pnpm --filter eco-dms-web eslint src --max-warnings=0"
+    "lint": "pnpm -r lint",
+    "type-check": "pnpm -r type-check",
+    "clean": "pnpm -r exec rm -rf node_modules dist .next .expo",
+    "install:all": "pnpm install"
   },
   "devDependencies": {
     "concurrently": "^9.0.1"

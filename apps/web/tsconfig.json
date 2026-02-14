@@ -7,15 +7,38 @@
     ],
     "jsx": "react-jsx",
     "module": "ESNext",
-    "moduleResolution": "Node",
+    "moduleResolution": "bundler",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "types": [
       "vite/client"
-    ]
+    ],
+    "paths": {
+      "@eco-dms/ui": [
+        "../../packages/ui/src"
+      ],
+      "@eco-dms/hooks": [
+        "../../packages/hooks/src"
+      ],
+      "@eco-dms/services": [
+        "../../packages/services/src"
+      ]
+    },
+    "baseUrl": "."
   },
   "include": [
     "src"
+  ],
+  "references": [
+    {
+      "path": "../../packages/ui"
+    },
+    {
+      "path": "../../packages/hooks"
+    },
+    {
+      "path": "../../packages/services"
+    }
   ]
 }

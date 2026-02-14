@@ -1,0 +1,14 @@
+// Shared UI Components for React Native + Web
+export { Button } from './components/Button';
+export { Input } from './components/Input';
+export { Card } from './components/Card';
+export { Avatar } from './components/Avatar';
+export { WalletConnectButton } from './components/WalletConnectButton';
+export { ProfileCard } from './components/ProfileCard';
+export { PostCard } from './components/PostCard';
+export { LoadingSpinner } from './components/LoadingSpinner';
+export { Modal } from './components/Modal';
+
+// Theme
+export { theme, ThemeProvider, useTheme } from './theme';
+export type { Theme } from './theme';
