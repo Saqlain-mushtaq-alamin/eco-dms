@@ -16,6 +16,8 @@ Successfully integrated shared packages (`@eco-dms/ui`, `@eco-dms/hooks`, `@eco-
 
 #### Mobile App (`apps/mobile`)
 - ✅ Updated `package.json` to include shared packages
+- ✅ **Upgraded to Expo SDK 54.0.0** (from SDK 50) to match Expo Go
+- ✅ Updated React to 18.3.1 and React Native to 0.76.5
 - ✅ Fully implemented `Feed.tsx` with `PostCard`, `Card`, `Input`, `Button` from `@eco-dms/ui`
 - ✅ Fully implemented `ProfileCreate.tsx` with shared components
 - ✅ Uses `credentials: 'include'` for cookie-based auth (React Native compatible)
@@ -89,6 +91,13 @@ const wcProvider = await EthereumProvider.init({
 ```
 
 **⚠️ TODO**: Replace `'YOUR_WALLETCONNECT_PROJECT_ID'` with your actual WalletConnect project ID from https://cloud.walletconnect.com/
+
+### Expo SDK Version
+The mobile app has been upgraded to **Expo SDK 54.0.0** to match the latest Expo Go app. This includes:
+- React 18.3.1
+- React Native 0.76.5
+
+This ensures compatibility with the Expo Go app installed on your device.
 
 ## Running the Apps
 

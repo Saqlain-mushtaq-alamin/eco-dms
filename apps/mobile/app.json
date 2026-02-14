@@ -3,7 +3,7 @@
     "name": "Eco DMS Mobile",
     "slug": "eco-dms-mobile",
     "version": "0.1.0",
-    "sdkVersion": "50.0.0",
+    "sdkVersion": "54.0.0",
     "platforms": [
       "ios",
       "android"
