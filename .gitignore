@@ -19,3 +19,6 @@ backend/ml/models/*.pb
 # Keep the directory and README
 !backend/ml/models/README.md
 !backend/ml/models/.gitkeep
+node_modules
+node_modules
+node_modules
