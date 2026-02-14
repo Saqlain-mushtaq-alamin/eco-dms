@@ -10,11 +10,14 @@
     "test": "echo \"(add jest or detox later)\""
   },
   "dependencies": {
+    "@eco-dms/hooks": "workspace:*",
+    "@eco-dms/services": "workspace:*",
+    "@eco-dms/ui": "workspace:*",
+    "@walletconnect/react-native-dapp": "^1.8.0",
+    "ethers": "^6.8.1",
     "expo": "^50.0.0",
     "react": "^18.2.0",
-    "react-native": "0.73.0",
-    "@walletconnect/react-native-dapp": "^1.8.0",
-    "ethers": "^6.8.1"
+    "react-native": "0.73.0"
   },
   "devDependencies": {
     "typescript": "^5.4.5"

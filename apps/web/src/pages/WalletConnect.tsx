@@ -1,42 +1,76 @@
 import React, { useState } from 'react'
+import { Button, Card } from '@eco-dms/ui'
 import { getNonce, prepareMessage, verifySignature } from '../api'
+import EthereumProvider from '@walletconnect/ethereum-provider'
 
 export default function WalletConnect({ onConnected }: { onConnected: (address: string) => void }) {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
+    const [provider, setProvider] = useState<any>(null)
 
-    const handleConnect = async () => {
+    const connectMetaMask = async () => {
+        if (!(window as any).ethereum) {
+            throw new Error('MetaMask not installed')
+        }
+        const accounts = await (window as any).ethereum.request({
+            method: 'eth_requestAccounts'
+        })
+        return { address: accounts[0], provider: (window as any).ethereum }
+    }
+
+    const connectWalletConnect = async () => {
+        const wcProvider = await EthereumProvider.init({
+            projectId: 'YOUR_WALLETCONNECT_PROJECT_ID', // Replace with your project ID
+            chains: [1], // Ethereum mainnet
+            showQrModal: true,
+        })
+
+        await wcProvider.enable()
+        const accounts = wcProvider.accounts
+        setProvider(wcProvider)
+        return { address: accounts[0], provider: wcProvider }
+    }
+
+    const handleConnect = async (method: 'metamask' | 'walletconnect') => {
         setLoading(true)
         setError('')
 
         try {
-            // Get wallet address from MetaMask
-            const accounts = await (window as any).ethereum.request({
-                method: 'eth_requestAccounts'
-            })
-            const address = accounts[0]
+            // Connect wallet
+            const { address, provider: walletProvider } = method === 'metamask'
+                ? await connectMetaMask()
+                : await connectWalletConnect()
+
             console.log('Connected:', address)
 
-            // Get nonce
+            // Get nonce from backend
             const { nonce } = await getNonce()
             console.log('Got nonce:', nonce)
 
-            // Prepare message
+            // Prepare SIWE message
             const { message } = await prepareMessage(address, 1, nonce)
             console.log('Got message to sign')
 
             // Sign message
-            const signature = await (window as any).ethereum.request({
-                method: 'personal_sign',
-                params: [message, address]
-            })
+            let signature: string
+            if (method === 'metamask') {
+                signature = await walletProvider.request({
+                    method: 'personal_sign',
+                    params: [message, address]
+                })
+            } else {
+                signature = await walletProvider.request({
+                    method: 'personal_sign',
+                    params: [message, address]
+                })
+            }
             console.log('Got signature')
 
-            // Verify signature
+            // Verify signature on backend
             const result = await verifySignature(message, signature)
             console.log('Signature verified:', result)
 
-            // Call onConnected callback
+            // Success - call callback
             onConnected(address)
         } catch (err: any) {
             console.error('Connect error:', err)
@@ -47,16 +81,24 @@ export default function WalletConnect({ onConnected }: { onConnected: (address: 
     }
 
     return (
-        <div className="mt-6 space-y-4">
-            <h2 className="text-xl font-semibold">Sign In with Ethereum</h2>
-            {error && <div className="text-red-600">{error}</div>}
-            <button
-                onClick={handleConnect}
-                disabled={loading}
-                className="border px-4 py-2 bg-blue-600 text-white disabled:opacity-50 w-full"
-            >
-                {loading ? 'Connecting...' : 'Connect Wallet'}
-            </button>
-        </div>
+        <Card padding="lg" style={{ marginTop: 24 }}>
+            <h2 style={{ fontSize: 20, fontWeight: '600', marginBottom: 16 }}>Sign In with Ethereum</h2>
+            {error && <div style={{ color: '#ef4444', marginBottom: 16 }}>{error}</div>}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <Button
+                    title={loading ? 'Connecting...' : 'Connect with MetaMask'}
+                    onPress={() => handleConnect('metamask')}
+                    variant="primary"
+                    disabled={loading}
+                />
+                <Button
+                    title={loading ? 'Connecting...' : 'Connect with WalletConnect'}
+                    onPress={() => handleConnect('walletconnect')}
+                    variant="secondary"
+                    disabled={loading}
+                />
+            </div>
+        </Card>
     )
 }
