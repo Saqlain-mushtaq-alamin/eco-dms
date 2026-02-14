@@ -2,7 +2,7 @@
   "name": "eco-dms-mobile",
   "version": "0.1.0",
   "private": true,
-  "main": "src/App.tsx",
+  "main": "index.js",
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
@@ -16,6 +16,7 @@
     "@walletconnect/react-native-dapp": "^1.8.0",
     "ethers": "^6.8.1",
     "expo": "~54.0.0",
+    "expo-status-bar": "^3.0.9",
     "react": "18.3.1",
     "react-native": "0.76.5"
   },
