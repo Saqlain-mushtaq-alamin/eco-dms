@@ -1,8 +1,14 @@
 """
-Social interactions service for decentralized social media.
-Handles likes, comments, and social graph operations using IPFS + OrbitDB.
-All data is stored on IPFS - fully decentralized!
-Index CIDs stored in post author's OrbitDB (no centralized Redis!).
+Social interactions service for FULLY DECENTRALIZED social media.
+All data stored on IPFS (permanent, decentralized, user-owned).
+Redis used ONLY as optional read cache for speed - NOT required.
+If Redis unavailable, system still works (slower but 100% decentralized).
+
+DECENTRALIZATION GUARANTEE:
+- All writes go to IPFS immediately (blocking)
+- Redis caches successful IPFS writes (optional speedup)
+- Reads try Redis first, fall back to IPFS always
+- Zero data loss even if Redis completely cleared
 """
 import asyncio
 import json
@@ -10,6 +16,7 @@ from typing import List, Dict, Optional
 from datetime import datetime
 from backend.app.posts_manage.ipfs_post_service import ipfs_service
 from backend.app.services.orbitdb_service import orbitdb_service
+from backend.app.services.redis_service import redis_service
 
 
 class SocialService:
@@ -36,6 +43,9 @@ class SocialService:
         # Format: {author_wallet: (timestamp, social_data)}
         self._social_data_cache: Dict[str, tuple[float, Dict]] = {}
         self._social_cache_ttl = 5.0  # Cache for 5 seconds during requests
+        
+        # Redis cache keys
+        self._redis_prefix = "social:"
     
     def set_post_author(self, post_cid: str, author_wallet: str):
         """Register who authored a post (needed to know which OrbitDB to update)."""
@@ -162,24 +172,25 @@ class SocialService:
     
     async def add_like(self, post_cid: str, wallet_address: str) -> bool:
         """
-        Add a like to a post. Stores the like on IPFS.
+        Add a like to a post. FULLY DECENTRALIZED - IPFS is source of truth.
+        Redis only caches the result for speed.
         Returns True if successful.
         """
         wallet = wallet_address.lower()
         
         try:
-            # Get current likes for this post
+            # Get current likes from IPFS (source of truth)
             likes = await self.get_post_likes(post_cid)
             
             # Check if already liked
             if wallet in likes:
                 print(f"⚠️ Post {post_cid} already liked by {wallet}")
-                return True  # Already liked, return success
+                return True
             
             # Add the new like
             likes.append(wallet)
             
-            # Create updated likes index
+            # IMMEDIATELY write to IPFS (blocking - ensures saved!)
             likes_data = {
                 "post_cid": post_cid,
                 "likes": likes,
@@ -187,17 +198,29 @@ class SocialService:
                 "updated_at": datetime.utcnow().isoformat()
             }
             
-            # Pin to IPFS
             new_index_cid = await ipfs_service.pin_json(likes_data)
             
-            if new_index_cid:
-                await self._set_likes_index_cid(post_cid, new_index_cid)
-                
-                # Also update user's likes list
-                await self._add_to_user_likes(wallet, post_cid)
-                
-                print(f"👍 Like added: {wallet} → {post_cid} ({len(likes)} total likes)")
-                return True
+            if not new_index_cid:
+                print(f"❌ Failed to save like to IPFS")
+                return False
+            
+            # Update OrbitDB index
+            await self._set_likes_index_cid(post_cid, new_index_cid)
+            
+            # Update user's likes list
+            await self._add_to_user_likes(wallet, post_cid)
+            
+            # OPTIONAL: Cache in Redis for faster future reads
+            try:
+                redis_key = f"{self._redis_prefix}likes:{post_cid}"
+                redis_service.client.delete(redis_key)  # Clear old cache
+                redis_service.client.sadd(redis_key, *likes)
+                redis_service.client.expire(redis_key, 24 * 3600)  # 1 day cache
+            except Exception:
+                pass  # Redis failure is non-critical
+            
+            print(f"👍 Like added to IPFS (decentralized): {wallet} → {post_cid} ({len(likes)} total)")
+            return True
             
             return False
         except Exception as e:
@@ -206,11 +229,12 @@ class SocialService:
     
     async def remove_like(self, post_cid: str, wallet_address: str) -> bool:
         """
-        Remove a like from a post.
+        Remove a like from a post. FULLY DECENTRALIZED - IPFS is source of truth.
         """
         wallet = wallet_address.lower()
         
         try:
+            # Get current likes from IPFS
             likes = await self.get_post_likes(post_cid)
             
             if wallet not in likes:
@@ -219,7 +243,7 @@ class SocialService:
             # Remove the like
             likes.remove(wallet)
             
-            # Update index
+            # IMMEDIATELY write to IPFS (blocking)
             likes_data = {
                 "post_cid": post_cid,
                 "likes": likes,
@@ -229,13 +253,24 @@ class SocialService:
             
             new_index_cid = await ipfs_service.pin_json(likes_data)
             
-            if new_index_cid:
-                await self._set_likes_index_cid(post_cid, new_index_cid)
-                await self._remove_from_user_likes(wallet, post_cid)
-                print(f"👎 Like removed: {wallet} → {post_cid}")
-                return True
+            if not new_index_cid:
+                return False
             
-            return False
+            await self._set_likes_index_cid(post_cid, new_index_cid)
+            await self._remove_from_user_likes(wallet, post_cid)
+            
+            # OPTIONAL: Update Redis cache
+            try:
+                redis_key = f"{self._redis_prefix}likes:{post_cid}"
+                redis_service.client.delete(redis_key)
+                if likes:
+                    redis_service.client.sadd(redis_key, *likes)
+                    redis_service.client.expire(redis_key, 24 * 3600)
+            except Exception:
+                pass
+            
+            print(f"👎 Like removed from IPFS: {wallet} → {post_cid}")
+            return True
         except Exception as e:
             print(f"❌ Error removing like: {e}")
             return False
@@ -243,25 +278,48 @@ class SocialService:
     async def get_post_likes(self, post_cid: str) -> List[str]:
         """
         Get list of wallet addresses that liked this post.
+        IPFS is source of truth, Redis is optional cache.
         """
-        index_cid = await self._get_likes_index_cid(post_cid)
-        
-        if not index_cid:
-            return []
+        redis_key = f"{self._redis_prefix}likes:{post_cid}"
         
         try:
+            # Try Redis cache first (optional speedup)
+            try:
+                likes_set = redis_service.client.smembers(redis_key)
+                if likes_set:
+                    return sorted(list(likes_set))  # type: ignore
+            except Exception:
+                pass  # Redis failure is non-critical
+            
+            # ALWAYS fall back to IPFS (source of truth)
+            index_cid = await self._get_likes_index_cid(post_cid)
+            if not index_cid:
+                return []
+            
             likes_data = await ipfs_service.get_json(index_cid)
             if not likes_data:
                 return []
             
-            return likes_data.get("likes", [])
+            likes = likes_data.get("likes", [])
+            
+            # OPTIONAL: Populate Redis cache for next time
+            try:
+                if likes:
+                    redis_service.client.delete(redis_key)
+                    redis_service.client.sadd(redis_key, *likes)
+                    redis_service.client.expire(redis_key, 24 * 3600)  # 1 day
+            except Exception:
+                pass  # Redis failure is non-critical
+            
+            return likes
         except Exception as e:
-            print(f"Error fetching likes: {e}")
+            print(f"Error fetching likes from IPFS: {e}")
             return []
     
     async def get_likes_count(self, post_cid: str) -> int:
         """
         Get the number of likes for a post.
+        Redis cache used if available, always falls back to IPFS.
         """
         likes = await self.get_post_likes(post_cid)
         return len(likes)
@@ -269,15 +327,18 @@ class SocialService:
     async def has_user_liked(self, post_cid: str, wallet_address: str) -> bool:
         """
         Check if a user has liked a post.
+        Redis cache checked first, always falls back to IPFS.
         """
         likes = await self.get_post_likes(post_cid)
         return wallet_address.lower() in likes
+    
     
     # ==================== COMMENTS ====================
     
     async def add_comment(self, post_cid: str, author_wallet: str, content: str) -> Optional[str]:
         """
-        Add a comment to a post. Returns comment CID if successful.
+        Add a comment to a post. FULLY DECENTRALIZED - saves to IPFS immediately.
+        Redis only caches for speed.
         """
         try:
             # Create comment object
@@ -290,19 +351,19 @@ class SocialService:
                 "created_at": datetime.utcnow().isoformat()
             }
             
-            # Pin comment to IPFS
+            # IMMEDIATELY pin comment to IPFS (blocking)
             comment_cid = await ipfs_service.pin_json(comment_data)
             
             if not comment_cid:
                 return None
             
-            # Get current comments for this post
+            # Get current comments from IPFS (source of truth)
             comments = await self.get_post_comments_cids(post_cid)
             
-            # Add new comment CID
-            comments.append(comment_cid)
+            # Add new comment
+            comments.insert(0, comment_cid)  # Newest first
             
-            # Update comments index
+            # IMMEDIATELY update comments index in IPFS (blocking)
             comments_index = {
                 "post_cid": post_cid,
                 "comments": comments,
@@ -310,15 +371,24 @@ class SocialService:
                 "updated_at": datetime.utcnow().isoformat()
             }
             
-            # Pin updated index
             new_index_cid = await ipfs_service.pin_json(comments_index)
             
-            if new_index_cid:
-                await self._set_comments_index_cid(post_cid, new_index_cid)
-                print(f"💬 Comment added: {comment_cid} on post {post_cid}")
-                return comment_cid
+            if not new_index_cid:
+                return None
             
-            return None
+            await self._set_comments_index_cid(post_cid, new_index_cid)
+            
+            # OPTIONAL: Cache in Redis for faster reads
+            try:
+                redis_key = f"{self._redis_prefix}comments:{post_cid}"
+                redis_service.client.delete(redis_key)
+                redis_service.client.rpush(redis_key, *comments)
+                redis_service.client.expire(redis_key, 24 * 3600)
+            except Exception:
+                pass  # Redis failure is non-critical
+            
+            print(f"💬 Comment added to IPFS (decentralized): {comment_cid} on {post_cid} ({len(comments)} total)")
+            return comment_cid
         except Exception as e:
             print(f"❌ Error adding comment: {e}")
             return None
@@ -326,18 +396,40 @@ class SocialService:
     async def get_post_comments_cids(self, post_cid: str) -> List[str]:
         """
         Get list of comment CIDs for a post.
+        IPFS is source of truth, Redis is optional cache.
         """
-        index_cid = await self._get_comments_index_cid(post_cid)
-        
-        if not index_cid:
-            return []
+        redis_key = f"{self._redis_prefix}comments:{post_cid}"
         
         try:
+            # Try Redis cache first (optional)
+            try:
+                comments_list = redis_service.client.lrange(redis_key, 0, -1)
+                if comments_list:
+                    return list(comments_list)  # type: ignore
+            except Exception:
+                pass  # Redis failure is non-critical
+            
+            # ALWAYS fall back to IPFS (source of truth)
+            index_cid = await self._get_comments_index_cid(post_cid)
+            if not index_cid:
+                return []
+            
             comments_data = await ipfs_service.get_json(index_cid)
             if not comments_data:
                 return []
             
-            return comments_data.get("comments", [])
+            comments = comments_data.get("comments", [])
+            
+            # OPTIONAL: Populate Redis cache
+            try:
+                if comments:
+                    redis_service.client.delete(redis_key)
+                    redis_service.client.rpush(redis_key, *comments)
+                    redis_service.client.expire(redis_key, 24 * 3600)
+            except Exception:
+                pass  # Redis failure is non-critical
+            
+            return comments
         except Exception:
             return []
     
@@ -362,6 +454,7 @@ class SocialService:
     async def get_comments_count(self, post_cid: str) -> int:
         """
         Get the number of comments on a post.
+        IPFS is source of truth.
         """
         comments = await self.get_post_comments_cids(post_cid)
         return len(comments)

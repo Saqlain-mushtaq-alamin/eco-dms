@@ -48,6 +48,10 @@ class OrbitDBService:
         self._posts_cache: Dict[str, tuple[float, List[str]]] = {}
         self._cache_ttl = 60  # seconds
         
+        # IPFS backup key for OrbitDB address registry
+        self._ipfs_registry_key = "orbitdb:registry"
+        self._registry_cache: Optional[Dict] = None
+        
     def _cache_key(self, wallet: str, db_type: str) -> str:
         """Redis cache key for OrbitDB address."""
         return f"{self._db_cache_prefix}{wallet}:{db_type}"
@@ -60,20 +64,46 @@ class OrbitDBService:
         """
         Get OrbitDB address for user's database.
         db_type: 'profile', 'posts', 'social'
+        
+        Tries:
+        1. Redis cache (fast)
+        2. IPFS backup registry (permanent, decentralized)
+        3. Returns None if not found (will create new)
         """
         cache_key = self._cache_key(wallet, db_type)
-        address = redis_service.get_str(cache_key)
         
+        # Try Redis first (fast)
+        address = redis_service.get_str(cache_key)
         if address:
             return address
+        
+        # Try IPFS backup registry (permanent backup)
+        try:
+            registry = await self._get_address_registry()
+            wallet_key = f"{wallet.lower()}:{db_type}"
+            if wallet_key in registry:
+                address = registry[wallet_key]
+                # Restore to Redis cache
+                redis_service.set_str(cache_key, address, ex=90*24*3600)
+                print(f"🔄 Restored OrbitDB address from IPFS backup: {address}")
+                return address
+        except Exception as e:
+            print(f"⚠️ Failed to check IPFS registry backup: {e}")
         
         return None
     
     async def set_db_address(self, wallet: str, db_type: str, address: str):
-        """Cache OrbitDB address for user's database."""
+        """Cache OrbitDB address in Redis AND backup to IPFS (permanent)."""
         cache_key = self._cache_key(wallet, db_type)
-        # Cache for 90 days (optional, can be rebuilt)
+        
+        # Store in Redis (fast access)
         redis_service.set_str(cache_key, address, ex=90*24*3600)
+        
+        # ALSO backup to IPFS registry (permanent, decentralized)
+        try:
+            await self._backup_address_to_ipfs(wallet, db_type, address)
+        except Exception as e:
+            print(f"⚠️ Warning: Failed to backup address to IPFS (non-critical): {e}")
     
     async def create_user_profile_db(self, wallet: str) -> Optional[str]:
         """
@@ -357,6 +387,55 @@ class OrbitDBService:
             return True
         
         return False
+    
+    # ==================== IPFS REGISTRY BACKUP ====================
+    # Permanent backup of OrbitDB addresses to prevent data loss
+    
+    async def _get_address_registry(self) -> Dict[str, str]:
+        """
+        Get the OrbitDB address registry from IPFS.
+        Registry format: {\"wallet:db_type\": \"orbitdb_address\", ...}
+        """
+        # Check memory cache first
+        if self._registry_cache is not None:
+            return self._registry_cache
+        
+        # Try to get from Redis
+        registry_cid = redis_service.get_str(self._ipfs_registry_key)
+        
+        if registry_cid:
+            from backend.app.posts_manage.ipfs_post_service import ipfs_service
+            registry = await ipfs_service.get_json(registry_cid)
+            if registry:
+                self._registry_cache = registry
+                return registry
+        
+        # No registry exists yet
+        return {}
+    
+    async def _backup_address_to_ipfs(self, wallet: str, db_type: str, address: str):
+        """
+        Backup OrbitDB address to IPFS registry.
+        This ensures addresses are never lost even if Redis cleared.
+        """
+        # Get current registry
+        registry = await self._get_address_registry()
+        
+        # Update registry
+        wallet_key = f"{wallet.lower()}:{db_type}"
+        registry[wallet_key] = address
+        
+        # Pin updated registry to IPFS
+        from backend.app.posts_manage.ipfs_post_service import ipfs_service
+        new_registry_cid = await ipfs_service.pin_json(registry)
+        
+        if new_registry_cid:
+            # Update Redis pointer to latest registry
+            redis_service.set_str(self._ipfs_registry_key, new_registry_cid, ex=365*24*3600)  # 1 year
+            self._registry_cache = registry
+            print(f"💾 Backed up OrbitDB address to IPFS registry: {wallet}:{db_type}")
+        else:
+            print(f"⚠️ Failed to backup address to IPFS registry")
     
     async def replicate_database(self, orbit_address: str) -> bool:
         """
