@@ -11,14 +11,12 @@
         "lint": "eslint src",
         "type-check": "tsc --noEmit"
     },
-    "dependencies": {
-        "react": "^18.2.0"
-    },
+    "dependencies": {},
     "devDependencies": {
         "@types/react": "^18.2.21",
         "typescript": "^5.4.5"
     },
     "peerDependencies": {
-        "react": "^18.2.0"
+        "react": ">=18.2.0"
     }
 }

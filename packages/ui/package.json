@@ -12,8 +12,6 @@
         "type-check": "tsc --noEmit"
     },
     "dependencies": {
-        "react": "18.3.1",
-        "react-native": "0.76.5",
         "react-native-web": "^0.19.10"
     },
     "devDependencies": {
@@ -21,7 +19,7 @@
         "typescript": "^5.4.5"
     },
     "peerDependencies": {
-        "react": "^18.2.0",
+        "react": ">=18.2.0",
         "react-native": ">=0.70.0"
     }
 }
