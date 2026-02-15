@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { getMe } from '../api'
+import { Button, Card, Input, ProfileCard, LoadingSpinner } from '@eco-dms/ui'
 
 type Profile = {
     wallet_address: string
@@ -66,37 +67,57 @@ export default function UserProfile({ address, onBack }: UserProfileProps) {
     }
 
     if (!address) return <div className="p-6">Please sign in to view your profile.</div>
-    if (loading) return <div className="p-6">Loading...</div>
+    if (loading) return <div className="p-6"><LoadingSpinner /></div>
     if (error) return <div className="p-6 text-red-600">{error}</div>
     if (!profile) return <div className="p-6">No profile data found.</div>
 
     return (
         <div className="p-6 space-y-4">
             <h2 className="text-2xl font-semibold">My Profile</h2>
+            <ProfileCard
+                address={profile.wallet_address || address}
+                username={profile.username}
+                bio={profile.bio}
+                avatarUri={profile.avatar_cid ? `https://${profile.avatar_cid}.ipfs.nftstorage.link` : undefined}
+                ecoScore={Number(profile.eco_score || 0)}
+                verifiedActions={Number(profile.verified_actions || 0)}
+            />
             {!editing ? (
                 <>
-                    {Object.entries(profile).map(([key, value]) => (
-                        <div key={key} className="py-2">
-                            <strong className="capitalize">{key.replace(/_/g, ' ')}:</strong>
-                            {' '}
-                            {Array.isArray(value) ? value.join(', ') || '-' : String(value) || '-'}
-                        </div>
-                    ))}
-                    <button className="px-3 py-2 rounded bg-blue-600 text-white" onClick={() => setEditing(true)}>
-                        Edit Profile
-                    </button>
-                    <button className="px-3 py-2 rounded bg-gray-400 text-white mt-2" onClick={onBack}>
-                        Back to Feed
-                    </button>
+                    <Card>
+                        {Object.entries(profile).map(([key, value]) => (
+                            <div key={key} className="py-2">
+                                <strong className="capitalize">{key.replace(/_/g, ' ')}:</strong>
+                                {' '}
+                                {Array.isArray(value) ? value.join(', ') || '-' : String(value) || '-'}
+                            </div>
+                        ))}
+                    </Card>
+                    <div className="flex gap-2">
+                        <Button title="Edit Profile" onPress={() => setEditing(true)} />
+                        <Button title="Back to Feed" onPress={onBack} variant="secondary" />
+                    </div>
                 </>
             ) : (
                 <>
-                    <input className="border px-2 py-1 w-full" placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} />
-                    <textarea className="border px-2 py-1 w-full" placeholder="Bio" value={bio} onChange={e => setBio(e.target.value)} rows={4} />
+                    <Input
+                        label="Username"
+                        value={username}
+                        onChangeText={setUsername}
+                        placeholder="Username"
+                    />
+                    <Input
+                        label="Bio"
+                        value={bio}
+                        onChangeText={setBio}
+                        placeholder="Bio"
+                        multiline
+                        numberOfLines={4}
+                    />
                     <div className="flex gap-2">
-                        <button className="px-3 py-2 rounded bg-green-600 text-white" onClick={save}>Save</button>
-                        <button className="px-3 py-2 rounded bg-gray-300" onClick={() => setEditing(false)}>Cancel</button>
-                        <button className="px-3 py-2 rounded bg-gray-400 text-white" onClick={onBack}>Back to Feed</button>
+                        <Button title="Save" onPress={save} />
+                        <Button title="Cancel" onPress={() => setEditing(false)} variant="outline" />
+                        <Button title="Back to Feed" onPress={onBack} variant="secondary" />
                     </div>
                 </>
             )}

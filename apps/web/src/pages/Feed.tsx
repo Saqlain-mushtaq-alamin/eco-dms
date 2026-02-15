@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { Button, Card, Input, LoadingSpinner } from '@eco-dms/ui'
 
 type Post = {
     cid?: string
@@ -155,11 +156,32 @@ async function fetchAllUsers(apiBase: string, token: string) {
 
 type User = {
     wallet_address: string
-    username: string
-    bio: string
-    avatar_cid: string
+    username?: string
+    bio?: string
+    avatar_cid?: string
+    name?: string
+    about?: string
     followers_count: number
     following_count: number
+}
+
+function resolveIpfsUrl(value?: string): string | undefined {
+    if (!value) return undefined
+    if (value.startsWith('http://') || value.startsWith('https://')) return value
+    if (value.startsWith('ipfs://')) {
+        const cid = value.replace('ipfs://', '')
+        return `https://ipfs.io/ipfs/${cid}`
+    }
+    const clean = value.replace('ipfs/', '').replace('/ipfs/', '')
+    return `https://ipfs.io/ipfs/${clean}`
+}
+
+function getUserDisplayName(user: User): string {
+    return user.username?.trim() || user.name?.trim() || 'Anonymous'
+}
+
+function getUserBio(user: User): string {
+    return user.bio?.trim() || user.about?.trim() || ''
 }
 
 export function Feed({ address, onVisitProfile }: { address: string; onVisitProfile: (walletAddress: string) => void }) {
@@ -443,62 +465,65 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
             <p className="text-sm text-gray-600">Signed in as {address.substring(0, 6)}...{address.substring(38)}</p>
 
             {/* Create Post Form */}
-            <form onSubmit={onSubmit} className="space-y-2 bg-white p-4 rounded-lg shadow">
-                <textarea
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    placeholder="What's on your mind?"
-                    className="w-full border rounded p-2"
-                    rows={3}
-                />
+            <Card>
+                <form onSubmit={onSubmit} className="space-y-2">
+                    <Input
+                        value={content}
+                        onChangeText={setContent}
+                        placeholder="What's on your mind?"
+                        multiline
+                        numberOfLines={3}
+                    />
 
-                {/* Image Previews */}
-                {imagePreviewUrls.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                        {imagePreviewUrls.map((url, index) => (
-                            <div key={index} className="relative">
-                                <img src={url} alt="Preview" className="w-20 h-20 object-cover rounded border" />
-                                <button
-                                    type="button"
-                                    onClick={() => removeImage(index)}
-                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold hover:bg-red-600"
-                                >
-                                    ×
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                )}
+                    {/* Image Previews */}
+                    {imagePreviewUrls.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                            {imagePreviewUrls.map((url, index) => (
+                                <div key={index} className="relative">
+                                    <img src={url} alt="Preview" className="w-20 h-20 object-cover rounded border" />
+                                    <button
+                                        type="button"
+                                        onClick={() => removeImage(index)}
+                                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold hover:bg-red-600"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
 
-                <div className="flex gap-2 items-center">
-                    {/* Image Upload Button with Icon */}
-                    <label className="cursor-pointer px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-                        </svg>
-                        <span>Add Image</span>
-                        <input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            onChange={handleImageSelect}
-                            className="hidden"
-                            disabled={loading}
+                    <div className="flex gap-2 items-center">
+                        {/* Image Upload Button with Icon */}
+                        <label className="cursor-pointer px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                            </svg>
+                            <span>Add Image</span>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                onChange={handleImageSelect}
+                                className="hidden"
+                                disabled={loading}
+                            />
+                        </label>
+
+                        <Button
+                            title={uploadingImages ? 'Uploading Images...' : loading ? 'Posting...' : 'Post'}
+                            onPress={() => {
+                                const event = { preventDefault: () => { } } as React.FormEvent
+                                onSubmit(event)
+                            }}
+                            disabled={loading || uploadingImages}
                         />
-                    </label>
-
-                    <button
-                        type="submit"
-                        className="px-4 py-2 bg-green-600 text-white rounded disabled:opacity-50"
-                        disabled={loading || uploadingImages}
-                    >
-                        {uploadingImages ? 'Uploading Images...' : loading ? 'Posting...' : 'Post'}
-                    </button>
-                </div>
-            </form>
+                    </div>
+                </form>
+            </Card>
 
             {/* Discover Users Section */}
-            <div className="bg-white p-4 rounded-lg shadow">
+            <Card>
                 <h3 className="text-lg font-semibold mb-3">Discover People</h3>
                 {users.length === 0 ? (
                     <p className="text-gray-500 text-sm">No other users yet</p>
@@ -508,38 +533,41 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
                             <div
                                 key={user.wallet_address}
                                 onClick={() => onVisitProfile(user.wallet_address)}
-                                className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 cursor-pointer transition"
+                                className="cursor-pointer rounded-lg border bg-white p-3 hover:bg-gray-50"
                             >
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold">
-                                    {user.avatar_cid ? (
-                                        <img
-                                            src={`https://${user.avatar_cid}.ipfs.nftstorage.link`}
-                                            alt="Avatar"
-                                            className="w-10 h-10 rounded-full object-cover"
-                                            onError={(e) => {
-                                                (e.target as HTMLImageElement).style.display = 'none'
-                                            }}
-                                        />
-                                    ) : (
-                                        user.username?.charAt(0).toUpperCase() || user.wallet_address.charAt(2).toUpperCase()
-                                    )}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="font-medium text-gray-900 truncate">
-                                        {user.username || 'Anonymous'}
-                                    </p>
-                                    <p className="text-xs text-gray-500 font-mono">
-                                        {user.wallet_address.substring(0, 6)}...{user.wallet_address.substring(38)}
-                                    </p>
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                    {user.followers_count} followers
+                                <div className="flex items-center gap-3">
+                                    <div className="h-12 w-12 overflow-hidden rounded-full bg-gray-200">
+                                        {resolveIpfsUrl(user.avatar_cid) ? (
+                                            <img
+                                                src={resolveIpfsUrl(user.avatar_cid)}
+                                                alt="Avatar"
+                                                className="h-12 w-12 object-cover"
+                                                onError={(e) => {
+                                                    (e.target as HTMLImageElement).style.display = 'none'
+                                                }}
+                                            />
+                                        ) : (
+                                            <div className="flex h-12 w-12 items-center justify-center text-sm font-bold text-gray-700">
+                                                {(getUserDisplayName(user).charAt(0) || user.wallet_address.charAt(2)).toUpperCase()}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate font-semibold text-gray-900">{getUserDisplayName(user)}</p>
+                                        <p className="font-mono text-xs text-gray-500">
+                                            {user.wallet_address.substring(0, 6)}...{user.wallet_address.substring(38)}
+                                        </p>
+                                        {getUserBio(user) && (
+                                            <p className="mt-1 truncate text-sm text-gray-600">{getUserBio(user)}</p>
+                                        )}
+                                    </div>
+                                    <div className="text-xs text-gray-500">{user.followers_count || 0} followers</div>
                                 </div>
                             </div>
                         ))}
                     </div>
                 )}
-            </div>
+            </Card>
 
             {/* Feed Toggle Tabs */}
             <div className="flex gap-2 border-b">
@@ -564,7 +592,7 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
             </div>
 
             {error && <div className="text-red-600">{error}</div>}
-            {loading && !error && <div>Loading...</div>}
+            {loading && !error && <div><LoadingSpinner /></div>}
 
             <div className="space-y-4">
                 {posts.length === 0 && !loading && <p>No posts yet.</p>}
@@ -619,13 +647,16 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
                                 {p.media_cids.map((cid, idx) => (
                                     <img
                                         key={idx}
-                                        src={`https://${cid}.ipfs.nftstorage.link`}
+                                        src={resolveIpfsUrl(cid)}
                                         alt="Post image"
                                         className="w-full rounded border object-cover"
                                         style={{ maxHeight: '300px' }}
                                         onError={(e) => {
-                                            // Fallback to ipfs.io gateway
-                                            (e.target as HTMLImageElement).src = `https://ipfs.io/ipfs/${cid}`
+                                            const fallback = `https://gateway.pinata.cloud/ipfs/${cid.replace('ipfs://', '')}`
+                                            const img = e.target as HTMLImageElement
+                                            if (!img.src.includes('gateway.pinata.cloud')) {
+                                                img.src = fallback
+                                            }
                                         }}
                                     />
                                 ))}
