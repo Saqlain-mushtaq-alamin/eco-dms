@@ -1,50 +1,69 @@
-# Welcome to your Expo app 👋
+# Eco DMS Mobile App 🌱
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Cross-platform mobile app for Eco DMS built with React Native and Expo.
 
-## Get started
+## Features
 
-1. Install dependencies
+✅ **Same Backend as Web**
+- REST API integration (`http://127.0.0.1:8000`)
+- GraphQL via The Graph
+- SIWE authentication (placeholder)
+- Identical API calls and data structures
 
-   ```bash
-   npm install
-   ```
+✅ **Screens**
+- **SignIn**: Wallet connection
+- **CreateProfile**: Create/edit profile
+- **Feed**: View posts with pull-to-refresh
+- **Profile**: View your profile and posts
+- **Dashboard**: Stats and activity
+- **VisitProfile**: View other users
 
-2. Start the app
+✅ **Cross-Platform**
+- iOS & Android support via Expo
 
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Quick Start
 
 ```bash
-npm run reset-project
+cd apps/mobile
+pnpm install
+pnpm start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Scan QR code with Expo Go app (iOS) or camera (Android).
 
-## Learn more
+## Configuration
 
-To learn more about developing your project with Expo, look at the following resources:
+For physical device testing, update API URLs to your computer's local IP:
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+**src/config/api.ts** and **src/config/apollo.ts**:
+```typescript
+const API_BASE = 'http://192.168.1.XXX:8000';  // Replace with your IP
+const GRAPH_URL = 'http://192.168.1.XXX:8100/subgraphs/name/eco-dms';
+```
 
-## Join the community
+Find your IP: `ipconfig` (Windows) or `ifconfig` (Mac/Linux)
 
-Join our community of developers creating universal apps.
+## Current Status
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+✅ Navigation, screens, API integration complete
+⚠️ WalletConnect integration needed for authentication
+⚠️ Image picker/camera not yet implemented
+
+**For full features, use the web version at http://localhost:5173**
+
+## Architecture
+
+```
+src/
+├── config/       # API & GraphQL setup
+├── navigation/   # React Navigation
+├── screens/      # All app screens
+├── types/        # TypeScript types
+└── app.tsx       # Root component
+```
+
+## Learn More
+
+- [Expo documentation](https://docs.expo.dev/)
+- [React Navigation](https://reactnavigation.org/)
+- Main project README for backend/web setup
