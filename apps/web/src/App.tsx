@@ -38,9 +38,21 @@ export default function App() {
         )
     }
 
+    // DEBUG: Simple render test
+    console.log('App rendering, view:', view)
+
     return (
-        <div className="max-w-xl mx-auto p-6">
-            <h1 className="text-2xl font-bold mb-4">Eco DMS Web SIWE</h1>
+        <div className="max-w-xl mx-auto p-6" style={{ minHeight: '100vh', backgroundColor: '#f7f9fc' }}>
+            <h1 className="text-2xl font-bold mb-4" style={{ color: '#000', fontSize: '24px', fontWeight: 'bold', marginBottom: '16px' }}>
+                Eco DMS Web SIWE
+            </h1>
+
+            {/* DEBUG: Show current state */}
+            <div style={{ padding: '12px', backgroundColor: '#e0f2fe', border: '2px solid #0ea5e9', borderRadius: '8px', marginBottom: '20px' }}>
+                <p style={{ margin: 0, fontSize: '14px' }}>
+                    <strong>Debug Info:</strong> View={view}, Address={address || 'none'}, Loading={loading ? 'true' : 'false'}
+                </p>
+            </div>
 
             {view === 'signin' && (
                 <WalletConnect
