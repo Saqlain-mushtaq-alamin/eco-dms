@@ -16,7 +16,7 @@ export function useAuthSync() {
                 console.log('Logout detected in another tab, redirecting to signin...')
                 navigate('/signin', { replace: true })
             }
-            
+
             // If auth_token was added, reload the page to update auth state
             if (e.key === 'auth_token' && e.oldValue === null && e.newValue !== null) {
                 console.log('Login detected in another tab, reloading...')

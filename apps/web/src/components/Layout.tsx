@@ -19,7 +19,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         <Link to="/" className="text-2xl font-bold text-green-600 hover:text-green-700">
                             🌱 Eco DMS
                         </Link>
-                        
+
                         {isAuthenticated && (
                             <div className="flex gap-3">
                                 <Link
@@ -51,7 +51,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     </div>
                 </div>
             </nav>
-            
+
             <main className="max-w-6xl mx-auto px-6 py-8">
                 {children}
             </main>

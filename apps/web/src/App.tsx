@@ -17,55 +17,55 @@ function AppRoutes() {
 
     return (
         <Routes>
-                    {/* Public route */}
-                    <Route path="/signin" element={<SignInRoute />} />
+            {/* Public route */}
+            <Route path="/signin" element={<SignInRoute />} />
 
-                    {/* Protected routes */}
-                    <Route
-                        path="/profile/create"
-                        element={
-                            <ProtectedRoute>
-                                <CreateProfileRoute />
-                            </ProtectedRoute>
-                        }
-                    />
-                    <Route
-                        path="/feed"
-                        element={
-                            <ProtectedRoute>
-                                <FeedRoute />
-                            </ProtectedRoute>
-                        }
-                    />
-                    <Route
-                        path="/profile"
-                        element={
-                            <ProtectedRoute>
-                                <ProfileRoute />
-                            </ProtectedRoute>
-                        }
-                    />
-                    <Route
-                        path="/profile/:address"
-                        element={
-                            <ProtectedRoute>
-                                <VisitProfileRoute />
-                            </ProtectedRoute>
-                        }
-                    />
-                    <Route
-                        path="/dashboard"
-                        element={
-                            <ProtectedRoute>
-                                <DashboardRoute />
-                            </ProtectedRoute>
-                        }
-                    />
+            {/* Protected routes */}
+            <Route
+                path="/profile/create"
+                element={
+                    <ProtectedRoute>
+                        <CreateProfileRoute />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/feed"
+                element={
+                    <ProtectedRoute>
+                        <FeedRoute />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/profile"
+                element={
+                    <ProtectedRoute>
+                        <ProfileRoute />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/profile/:address"
+                element={
+                    <ProtectedRoute>
+                        <VisitProfileRoute />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/dashboard"
+                element={
+                    <ProtectedRoute>
+                        <DashboardRoute />
+                    </ProtectedRoute>
+                }
+            />
 
-                    {/* Default redirect */}
-                    <Route path="/" element={<Navigate to="/feed" replace />} />
-                    <Route path="*" element={<Navigate to="/feed" replace />} />
-                </Routes>
+            {/* Default redirect */}
+            <Route path="/" element={<Navigate to="/feed" replace />} />
+            <Route path="*" element={<Navigate to="/feed" replace />} />
+        </Routes>
     )
 }
 
