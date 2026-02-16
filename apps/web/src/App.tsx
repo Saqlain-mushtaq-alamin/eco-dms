@@ -1,174 +1,82 @@
 // filepath: d:\canvas\eco-dms\eco-dms\apps\web\src\App.tsx
-import React, { useEffect, useState } from 'react'
-import { getMe, logout } from './api'
-import WalletConnect from './pages/WalletConnect'
-import { ProfileCreate } from './pages/ProfileCreate'
-import { Feed } from './pages/Feed'
-import UserProfile from './pages/MyProfile'
-import VisitProfile from './pages/VisitProfile'
-import { Dashboard } from './pages/Dashboard'
+import React from 'react'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { Layout } from './components/Layout'
+import { ProtectedRoute } from './components/ProtectedRoute'
+import { SignInRoute } from './routes/SignInRoute'
+import { CreateProfileRoute } from './routes/CreateProfileRoute'
+import { FeedRoute } from './routes/FeedRoute'
+import { ProfileRoute } from './routes/ProfileRoute'
+import { VisitProfileRoute } from './routes/VisitProfileRoute'
+import { DashboardRoute } from './routes/DashboardRoute'
+import { useAuthSync } from './hooks/useAuthSync'
 
-// ! there is a bug need to fix with the page layout when switching between views 
-// there i want when the app starts it show the signin page first  that if the user is not authenticated
-// and if the user is authenticated it should check if the profile is complete or not 
-// if complete go to feed else go to create profile page
-
-
-type View = 'signin' | 'create-profile' | 'feed' | 'userprofile' | 'visitprofile' | 'dashboard'
-
-export default function App() {
-    const [view, setView] = useState<View>('signin')
-    const [address, setAddress] = useState<string>('')
-    const [visitingWallet, setVisitingWallet] = useState<string>('')
-    const [loading, setLoading] = useState(true)
-
-    useEffect(() => {
-        // Always start on sign-in
-        // For clean dev runs, uncomment the next line to clear any stored session:
-        // localStorage.removeItem('auth_token')
-        setView('signin')
-        setLoading(false)
-    }, [])
-
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-screen">
-                <p>Loading...</p>
-            </div>
-        )
-    }
-
-    // DEBUG: Simple render test
-    console.log('App rendering, view:', view)
+function AppRoutes() {
+    // Sync auth state across all tabs
+    useAuthSync()
 
     return (
-        <div className="max-w-xl mx-auto p-6" style={{ minHeight: '100vh', backgroundColor: '#f7f9fc' }}>
-            <h1 className="text-2xl font-bold mb-4" style={{ color: '#000', fontSize: '24px', fontWeight: 'bold', marginBottom: '16px' }}>
-                Eco DMS Web SIWE
-            </h1>
+        <Routes>
+                    {/* Public route */}
+                    <Route path="/signin" element={<SignInRoute />} />
 
-            {/* DEBUG: Show current state */}
-            <div style={{ padding: '12px', backgroundColor: '#e0f2fe', border: '2px solid #0ea5e9', borderRadius: '8px', marginBottom: '20px' }}>
-                <p style={{ margin: 0, fontSize: '14px' }}>
-                    <strong>Debug Info:</strong> View={view}, Address={address || 'none'}, Loading={loading ? 'true' : 'false'}
-                </p>
-            </div>
-
-            {view === 'signin' && (
-                <WalletConnect
-                    onConnected={async (connectedAddress: string) => {
-                        setAddress(connectedAddress)
-                        try {
-                            const profile = await getMe()
-                            // If profile exists (has username), go to feed, otherwise to create-profile
-                            if (profile?.username && profile.username.trim()) {
-                                setView('feed')
-                            } else {
-                                setView('create-profile')
-                            }
-                        } catch (err) {
-                            // If getMe fails (e.g., no token yet), default to create-profile
-                            console.log('getMe after connect failed:', err)
-                            setView('create-profile')
+                    {/* Protected routes */}
+                    <Route
+                        path="/profile/create"
+                        element={
+                            <ProtectedRoute>
+                                <CreateProfileRoute />
+                            </ProtectedRoute>
                         }
-                    }}
-                />
-            )}
-
-            {view === 'create-profile' && address && (
-                <ProfileCreate
-                    address={address}
-                    onDone={() => setView('feed')}
-                />
-            )}
-
-            {view === 'feed' && address && (
-                <>
-                    <Feed
-                        address={address}
-                        onVisitProfile={(walletAddress: string) => {
-                            setVisitingWallet(walletAddress)
-                            setView('visitprofile')
-                        }}
+                    />
+                    <Route
+                        path="/feed"
+                        element={
+                            <ProtectedRoute>
+                                <FeedRoute />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/profile"
+                        element={
+                            <ProtectedRoute>
+                                <ProfileRoute />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/profile/:address"
+                        element={
+                            <ProtectedRoute>
+                                <VisitProfileRoute />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/dashboard"
+                        element={
+                            <ProtectedRoute>
+                                <DashboardRoute />
+                            </ProtectedRoute>
+                        }
                     />
 
-                    <div className="flex gap-2 mt-4 flex-wrap">
-                        <button
-                            className="border px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                            onClick={() => setView('dashboard')}
-                        >
-                            🌱 Dashboard
-                        </button>
-                        <button
-                            className="border px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                            onClick={() => setView('userprofile')}
-                        >
-                            View Profile
-                        </button>
-                        <button
-                            className="border px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                            onClick={() => setView('create-profile')}
-                        >
-                            Edit Profile
-                        </button>
-                        <button
-                            className="border px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-                            onClick={async () => {
-                                await logout()
-                                setView('signin')
-                                setAddress('')
-                            }}
-                        >
-                            Logout
-                        </button>
-                    </div>
-                </>
-            )}
-
-            {view === 'userprofile' && address && (
-                <UserProfile
-                    address={address}
-                    onBack={() => setView('feed')}
-                />
-            )}
-
-            {view === 'visitprofile' && address && visitingWallet && (
-                <VisitProfile
-                    walletAddress={visitingWallet}
-                    currentUserAddress={address}
-                    onBack={() => setView('feed')}
-                />
-            )}
-
-            {view === 'dashboard' && address && (
-                <Dashboard
-                    address={address}
-                    onBack={() => setView('feed')}
-                />
-            )}
-        </div>
+                    {/* Default redirect */}
+                    <Route path="/" element={<Navigate to="/feed" replace />} />
+                    <Route path="*" element={<Navigate to="/feed" replace />} />
+                </Routes>
     )
 }
 
-// In WalletConnect.tsx
-export async function verifySignature(message: string, signature: string) {
-    const r = await fetch(`/api/siwe/verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ message, signature })
-    })
-    if (!r.ok) throw new Error('verify failed')
-
-    const data = await r.json()
-
-    // Store the JWT token
-    if (data.token) {
-        localStorage.setItem('auth_token', data.token)
-        console.log('Token stored')
-    }
-
-    return data
+export default function App() {
+    return (
+        <BrowserRouter>
+            <Layout>
+                <AppRoutes />
+            </Layout>
+        </BrowserRouter>
+    )
 }
 
 
