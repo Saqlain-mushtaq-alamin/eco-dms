@@ -27,7 +27,7 @@ export default function ProfileScreen({ navigation }: Props) {
         try {
             const profileData = await getMe();
             setProfile(profileData);
-            
+
             if (profileData?.wallet_address) {
                 const postsData = await fetchPosts(profileData.wallet_address);
                 setPosts(postsData.posts || []);
@@ -70,7 +70,7 @@ export default function ProfileScreen({ navigation }: Props) {
                         {profile?.bio && (
                             <Text style={styles.bio}>{profile.bio}</Text>
                         )}
-                        
+
                         <TouchableOpacity
                             style={styles.editButton}
                             onPress={() => navigation.navigate('CreateProfile')}
@@ -81,7 +81,7 @@ export default function ProfileScreen({ navigation }: Props) {
 
                     <View style={styles.postsSection}>
                         <Text style={styles.sectionTitle}>My Posts ({posts.length})</Text>
-                        
+
                         {posts.length === 0 ? (
                             <Text style={styles.emptyText}>No posts yet</Text>
                         ) : (

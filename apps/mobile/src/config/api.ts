@@ -155,7 +155,7 @@ export async function toggleLike(postCid: string, isLiked: boolean) {
 
 export async function uploadImage(imageUri: string) {
     const token = await getAuthToken();
-    
+
     // Create form data
     const formData = new FormData();
     formData.append('file', {
@@ -171,12 +171,12 @@ export async function uploadImage(imageUri: string) {
         },
         body: formData,
     });
-    
+
     if (!res.ok) {
         const err = await res.text();
         throw new Error(err || 'Upload failed');
     }
-    
+
     return res.json();
 }
 

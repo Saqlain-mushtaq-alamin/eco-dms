@@ -40,7 +40,7 @@ export default function DashboardScreen({ navigation }: Props) {
             }
         >
             <Text style={styles.title}>🌱 Eco Dashboard</Text>
-            
+
             {loading ? (
                 <Text style={styles.loadingText}>Loading...</Text>
             ) : (

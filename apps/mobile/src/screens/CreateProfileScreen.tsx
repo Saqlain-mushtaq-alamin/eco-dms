@@ -62,7 +62,7 @@ export default function CreateProfileScreen({ navigation }: Props) {
         <ScrollView style={styles.container}>
             <View style={styles.content}>
                 <Text style={styles.title}>Create Your Profile</Text>
-                
+
                 {address && (
                     <View style={styles.addressContainer}>
                         <Text style={styles.addressLabel}>Wallet Address:</Text>

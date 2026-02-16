@@ -22,7 +22,7 @@ export default function FeedScreen({ navigation }: Props) {
 
     useEffect(() => {
         loadData();
-        
+
         // Auth check - redirect if not authenticated
         const unsubscribe = navigation.addListener('focus', () => {
             checkAuth();
@@ -115,7 +115,7 @@ export default function FeedScreen({ navigation }: Props) {
                 }
             >
                 <Text style={styles.title}>Feed</Text>
-                
+
                 {loading ? (
                     <Text style={styles.loadingText}>Loading...</Text>
                 ) : posts.length === 0 ? (
