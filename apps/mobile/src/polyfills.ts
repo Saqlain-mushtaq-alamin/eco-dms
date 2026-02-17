@@ -15,10 +15,7 @@ global.process = process;
 // 4. Expo crypto for getRandomValues
 import * as Crypto from 'expo-crypto';
 
-// 5. WalletConnect polyfills (must come after the above)
-import '@walletconnect/react-native-compat';
-
-// 6. Additional crypto polyfills if needed
+// 5. Crypto polyfill
 if (typeof global.crypto === 'undefined') {
     global.crypto = {
         getRandomValues: (buffer: any) => {
@@ -30,3 +27,6 @@ if (typeof global.crypto === 'undefined') {
         },
     } as any;
 }
+
+// Note: WalletConnect polyfills are loaded by @walletconnect/modal-react-native
+// when the modal is actually initialized, so we don't need to import them here
