@@ -1,5 +1,6 @@
 node_modules/
 backend/.venv/
+.venv/
 .env
 *.log
 dist/
