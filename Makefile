@@ -5,10 +5,10 @@ SHELL := cmd.exe
 PY_ENV=.venv
 PYTHON=py -3.11
 
-# Install dependencies (base only, no ML)
+# Install dependencies (full requirements including celery)
 install:
 	@if not exist "$(PY_ENV)" ($(PYTHON) -m venv "$(PY_ENV)")
-	@"$(PY_ENV)\Scripts\pip" install -r backend\requirements-base.txt 2>nul || echo Dependencies already installed
+	@"$(PY_ENV)\Scripts\pip" install -r backend\requirements.txt 2>nul || echo Dependencies already installed
 
 # Dev setup: start backend, contracts, and web (NO ML/Celery)
 dev: install

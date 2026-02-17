@@ -24,13 +24,15 @@
     "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",
     "@nomicfoundation/hardhat-ethers": "^3.1.2",
     "@nomicfoundation/hardhat-toolbox": "^4.0.0",
-    "hardhat": "^3.0.15"
+    "hardhat": "2.26.2",
+    "keccak": "^3.0.4"
   },
   "pnpm": {
     "overrides": {
       "react": "18.3.1",
       "react-dom": "18.3.1",
-      "react-native": "0.81.5"
+      "react-native": "0.81.5",
+      "keccak": "3.0.4"
     }
   }
 }
