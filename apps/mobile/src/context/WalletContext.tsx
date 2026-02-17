@@ -19,8 +19,8 @@ type WalletContextType = {
     isConnected: boolean;
     address: string | undefined;
     provider: any;
-    open: () => Promise<void>;
-    close: () => Promise<void>;
+    open: () => void;
+    close: () => void;
 };
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
