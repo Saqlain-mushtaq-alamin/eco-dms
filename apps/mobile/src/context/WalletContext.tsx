@@ -2,7 +2,7 @@ import React, { createContext, useContext, ReactNode } from 'react';
 import { WalletConnectModal, useWalletConnectModal } from '@walletconnect/modal-react-native';
 
 // WalletConnect Project ID - Get yours at https://cloud.walletconnect.com
-const PROJECT_ID = 'YOUR_PROJECT_ID_HERE';
+const PROJECT_ID = '294df0b46b618142c74b235b57ba8b07';
 
 const providerMetadata = {
     name: 'Eco DMS',
