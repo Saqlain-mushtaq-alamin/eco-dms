@@ -26,4 +26,12 @@ config.resolver.extraNodeModules = {
 // 4. Support platform extensions for React Native Web compatibility
 config.resolver.sourceExts = ['jsx', 'js', 'ts', 'tsx', 'json'];
 
+// 5. Configure server to be accessible on the network
+config.server = {
+    ...config.server,
+    enhanceMiddleware: (middleware) => {
+        return middleware;
+    },
+};
+
 module.exports = config;

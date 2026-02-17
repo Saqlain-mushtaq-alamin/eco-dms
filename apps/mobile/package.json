@@ -4,7 +4,8 @@
   "private": true,
   "main": "index.js",
   "scripts": {
-    "start": "expo start",
+    "start": "expo start --host lan",
+    "start:tunnel": "expo start --tunnel",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "test": "echo \"(add jest or detox later)\""
