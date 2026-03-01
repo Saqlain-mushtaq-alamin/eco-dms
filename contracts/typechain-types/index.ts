@@ -26,6 +26,8 @@ export type { ECDSA } from "./@openzeppelin/contracts/utils/cryptography/ECDSA";
 export { ECDSA__factory } from "./factories/@openzeppelin/contracts/utils/cryptography/ECDSA__factory";
 export type { EIP712 } from "./@openzeppelin/contracts/utils/cryptography/EIP712";
 export { EIP712__factory } from "./factories/@openzeppelin/contracts/utils/cryptography/EIP712__factory";
+export type { MessageHashUtils } from "./@openzeppelin/contracts/utils/cryptography/MessageHashUtils";
+export { MessageHashUtils__factory } from "./factories/@openzeppelin/contracts/utils/cryptography/MessageHashUtils__factory";
 export type { SafeCast } from "./@openzeppelin/contracts/utils/math/SafeCast";
 export { SafeCast__factory } from "./factories/@openzeppelin/contracts/utils/math/SafeCast__factory";
 export type { ShortStrings } from "./@openzeppelin/contracts/utils/ShortStrings";

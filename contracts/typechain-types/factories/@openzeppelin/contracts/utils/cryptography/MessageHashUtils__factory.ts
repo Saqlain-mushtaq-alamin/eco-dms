@@ -8,44 +8,33 @@ import {
   Interface,
 } from "ethers";
 import type { Signer, ContractDeployTransaction, ContractRunner } from "ethers";
-import type { NonPayableOverrides } from "../../../../common";
+import type { NonPayableOverrides } from "../../../../../common";
 import type {
-  ShortStrings,
-  ShortStringsInterface,
-} from "../../../../@openzeppelin/contracts/utils/ShortStrings";
+  MessageHashUtils,
+  MessageHashUtilsInterface,
+} from "../../../../../@openzeppelin/contracts/utils/cryptography/MessageHashUtils";
 
 const _abi = [
   {
     inputs: [],
-    name: "InvalidShortString",
-    type: "error",
-  },
-  {
-    inputs: [
-      {
-        internalType: "string",
-        name: "str",
-        type: "string",
-      },
-    ],
-    name: "StringTooLong",
+    name: "ERC5267ExtensionsNotSupported",
     type: "error",
   },
 ] as const;
 
 const _bytecode =
-  "0x60556032600b8282823980515f1a607314602657634e487b7160e01b5f525f60045260245ffd5b305f52607381538281f3fe730000000000000000000000000000000000000000301460806040525f5ffdfea26469706673582212205331629f8f9bf0cbfbabc3d9173056cd00dba4e3cc0330036bc4382e2359a42464736f6c634300081c0033";
+  "0x60556032600b8282823980515f1a607314602657634e487b7160e01b5f525f60045260245ffd5b305f52607381538281f3fe730000000000000000000000000000000000000000301460806040525f5ffdfea26469706673582212206131ed8ee4dbbce47bcc4c6f88c9616eec0a3b2c76e6ecedd23ff36dd351a5da64736f6c634300081c0033";
 
-type ShortStringsConstructorParams =
+type MessageHashUtilsConstructorParams =
   | [signer?: Signer]
   | ConstructorParameters<typeof ContractFactory>;
 
 const isSuperArgs = (
-  xs: ShortStringsConstructorParams
+  xs: MessageHashUtilsConstructorParams
 ): xs is ConstructorParameters<typeof ContractFactory> => xs.length > 1;
 
-export class ShortStrings__factory extends ContractFactory {
-  constructor(...args: ShortStringsConstructorParams) {
+export class MessageHashUtils__factory extends ContractFactory {
+  constructor(...args: MessageHashUtilsConstructorParams) {
     if (isSuperArgs(args)) {
       super(...args);
     } else {
@@ -60,24 +49,24 @@ export class ShortStrings__factory extends ContractFactory {
   }
   override deploy(overrides?: NonPayableOverrides & { from?: string }) {
     return super.deploy(overrides || {}) as Promise<
-      ShortStrings & {
+      MessageHashUtils & {
         deploymentTransaction(): ContractTransactionResponse;
       }
     >;
   }
-  override connect(runner: ContractRunner | null): ShortStrings__factory {
-    return super.connect(runner) as ShortStrings__factory;
+  override connect(runner: ContractRunner | null): MessageHashUtils__factory {
+    return super.connect(runner) as MessageHashUtils__factory;
   }
 
   static readonly bytecode = _bytecode;
   static readonly abi = _abi;
-  static createInterface(): ShortStringsInterface {
-    return new Interface(_abi) as ShortStringsInterface;
+  static createInterface(): MessageHashUtilsInterface {
+    return new Interface(_abi) as MessageHashUtilsInterface;
   }
   static connect(
     address: string,
     runner?: ContractRunner | null
-  ): ShortStrings {
-    return new Contract(address, _abi, runner) as unknown as ShortStrings;
+  ): MessageHashUtils {
+    return new Contract(address, _abi, runner) as unknown as MessageHashUtils;
   }
 }
