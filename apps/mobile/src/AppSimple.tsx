@@ -3,7 +3,7 @@ import { View, Text } from 'react-native';
 
 export default function AppSimple() {
     console.log('AppSimple component rendering...');
-    
+
     return (
         <View style={{
             flex: 1,
