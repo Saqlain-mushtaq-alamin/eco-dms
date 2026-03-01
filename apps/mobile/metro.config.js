@@ -16,18 +16,10 @@ config.resolver.nodeModulesPaths = [
     path.resolve(workspaceRoot, 'node_modules'),
 ];
 
-// 3. Support shared packages
-config.resolver.extraNodeModules = {
-    '@eco-dms/ui': path.resolve(workspaceRoot, 'packages/ui'),
-    '@eco-dms/hooks': path.resolve(workspaceRoot, 'packages/hooks'),
-    '@eco-dms/services': path.resolve(workspaceRoot, 'packages/services'),
-};
-
-// 4. Support platform extensions for React Native Web compatibility
-// Also add GraphQL file extensions
+// 3. Support GraphQL file extensions (removed workspace package mappings to avoid ethers bundling)
 config.resolver.sourceExts = ['jsx', 'js', 'ts', 'tsx', 'json', 'graphql', 'gql'];
 
-// 5. Configure server to be accessible on the network
+// 4. Configure server to be accessible on the network
 config.server = {
     ...config.server,
     enhanceMiddleware: (middleware) => {

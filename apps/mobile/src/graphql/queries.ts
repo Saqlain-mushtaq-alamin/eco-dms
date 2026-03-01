@@ -1,4 +1,6 @@
-import { gql } from '@apollo/client';
+// Apollo Client removed - caused crypto errors
+// import { gql } from '@apollo/client';
+const gql = (x: any) => x; // Stub
 
 /**
  * GraphQL Queries for Mobile App

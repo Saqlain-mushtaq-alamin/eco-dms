@@ -9,27 +9,21 @@ import {
     Alert,
     ActivityIndicator,
 } from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useQuery } from '@apollo/client';
-import { RootStackParamList } from '../types';
+// React Navigation removed
+// import { NativeStackScreenProps } from '@react-navigation/native-stack';
+// import { RootStackParamList } from '../types';
+type Props = any;
 import { getMe, logout } from '../config/api';
-import { GET_ECO_FEED } from '../graphql/queries';
-
-type Props = NativeStackScreenProps<RootStackParamList, 'Feed'>;
 
 export default function FeedScreen({ navigation }: Props) {
     const [address, setAddress] = useState('');
-
-    // Use GraphQL to fetch eco-verified posts from The Graph
-    const { data, loading, error, refetch } = useQuery(GET_ECO_FEED, {
-        variables: { limit: 50, skip: 0 },
-        pollInterval: 10000, // Refresh every 10 seconds
-    });
+    const [loading, setLoading] = useState(true);
+    const [posts, setPosts] = useState<any[]>([]);
 
     useEffect(() => {
         checkAuth();
+        loadDemoFeed();
 
-        // Auth check - redirect if not authenticated
         const unsubscribe = navigation.addListener('focus', () => {
             checkAuth();
         });
@@ -41,20 +35,43 @@ export default function FeedScreen({ navigation }: Props) {
         try {
             const profile = await getMe();
             if (!profile) {
-                navigation.replace('SignIn');
+                // Demo mode - skip auth
+                setAddress('Demo User');
             } else if (!profile.username) {
                 navigation.replace('CreateProfile');
             } else {
                 setAddress(profile.wallet_address);
             }
         } catch (err) {
-            console.error('Auth check failed:', err);
-            navigation.replace('SignIn');
+            console.log('Auth check skipped (demo mode)');
+            setAddress('Demo User');
         }
     };
 
+    const loadDemoFeed = () => {
+        setLoading(true);
+        // Demo data for testing
+        setPosts([
+            {
+                id: '1',
+                content: 'Welcome to Eco DMS! This is a demo post. GraphQL/Apollo has been removed due to React Native compatibility issues.',
+                author: { username: 'Demo User' },
+                createdAt: new Date().toISOString(),
+                ecoScore: 95,
+            },
+            {
+                id: '2',
+                content: 'The mobile app now works without crypto errors! You can enable backend REST API integration for real data.',
+                author: { username: 'System' },
+                createdAt: new Date().toISOString(),
+                ecoScore: 88,
+            },
+        ]);
+        setLoading(false);
+    };
+
     const handleRefresh = () => {
-        refetch();
+        loadDemoFeed();
     };
 
     const handleLogout = async () => {
@@ -74,8 +91,6 @@ export default function FeedScreen({ navigation }: Props) {
             ]
         );
     };
-
-    const posts = data?.posts || [];
 
     return (
         <View style={styles.container}>
@@ -100,25 +115,15 @@ export default function FeedScreen({ navigation }: Props) {
                 </TouchableOpacity>
             </View>
 
-            {error && (
-                <View style={styles.errorBanner}>
-                    <Text style={styles.errorText}>⚠️ Graph Node Error</Text>
-                    <Text style={styles.errorSubtext}>
-                        Make sure The Graph is running: cd eco-dms && make graph-start
-                    </Text>
-                    <Text style={styles.errorDetails}>{error.message}</Text>
-                </View>
-            )}
-
             <ScrollView
                 style={styles.content}
                 refreshControl={
                     <RefreshControl refreshing={loading} onRefresh={handleRefresh} />
                 }
             >
-                <Text style={styles.title}>🌱 Eco-Verified Feed</Text>
+                <Text style={styles.title}>🌱 Eco-Verified Feed (Demo)</Text>
                 <Text style={styles.subtitle}>
-                    Posts verified by ML as eco-friendly content
+                    Apollo/GraphQL removed - Using demo data
                 </Text>
 
                 {loading && posts.length === 0 ? (
@@ -143,38 +148,20 @@ export default function FeedScreen({ navigation }: Props) {
                         >
                             <View style={styles.postHeader}>
                                 <Text style={styles.postAuthor}>
-                                    {post.author.id.slice(0, 6)}...{post.author.id.slice(-4)}
+                                    {post.author.username}
                                 </Text>
-                                {post.isEcoVerified && (
-                                    <View style={styles.verifiedBadge}>
-                                        <Text style={styles.verifiedText}>🌱 ECO</Text>
-                                    </View>
-                                )}
+                                <View style={styles.verifiedBadge}>
+                                    <Text style={styles.verifiedText}>🌱 {post.ecoScore}</Text>
+                                </View>
                             </View>
 
-                            <Text style={styles.postCID} numberOfLines={1}>
-                                CID: {post.contentCID}
+                            <Text style={styles.postContent}>
+                                {post.content}
                             </Text>
 
-                            {post.mlVerdict && (
-                                <View style={styles.verdictContainer}>
-                                    <Text style={styles.verdictText}>
-                                        ML Verdict: {post.mlVerdict}
-                                    </Text>
-                                </View>
-                            )}
-
                             <View style={styles.postStats}>
-                                <View style={styles.statItem}>
-                                    <Text style={styles.statIcon}>❤️</Text>
-                                    <Text style={styles.statText}>{post.likesCount}</Text>
-                                </View>
-                                <View style={styles.statItem}>
-                                    <Text style={styles.statIcon}>💬</Text>
-                                    <Text style={styles.statText}>{post.commentsCount}</Text>
-                                </View>
                                 <Text style={styles.timestamp}>
-                                    {new Date(parseInt(post.createdAt) * 1000).toLocaleDateString()}
+                                    {new Date(post.createdAt).toLocaleDateString()}
                                 </Text>
                             </View>
                         </TouchableOpacity>
@@ -310,11 +297,11 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#059669',
     },
-    postCID: {
-        fontSize: 11,
-        color: '#9ca3af',
+    postContent: {
+        fontSize: 14,
+        color: '#374151',
+        lineHeight: 20,
         marginBottom: 12,
-        fontFamily: 'monospace',
     },
     verifiedBadge: {
         backgroundColor: '#d1fae5',

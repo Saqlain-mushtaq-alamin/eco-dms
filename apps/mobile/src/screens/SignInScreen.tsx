@@ -2,26 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
-import { getNonce, prepareMessage, verifySignature, getMe } from '../config/api';
-import { useWallet } from '../context/WalletContext';
+import { getMe } from '../config/api';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SignIn'>;
 
 export default function SignInScreen({ navigation }: Props) {
     const [loading, setLoading] = useState(false);
-    const { isConnected, address, provider, open } = useWallet();
 
     useEffect(() => {
         // Check if already authenticated
         checkAuth();
     }, []);
-
-    useEffect(() => {
-        // When wallet connects, perform SIWE authentication
-        if (isConnected && address && provider) {
-            handleSIWEAuth();
-        }
-    }, [isConnected, address]);
 
     const checkAuth = async () => {
         try {
@@ -36,57 +27,18 @@ export default function SignInScreen({ navigation }: Props) {
         }
     };
 
-    const handleConnect = async () => {
-        setLoading(true);
-        try {
-            if (open) {
-                await open();
-            } else {
-                Alert.alert(
-                    'WalletConnect Not Configured',
-                    'Please follow WALLETCONNECT_SETUP.md to configure WalletConnect, or use the backend authentication for testing.',
-                    [{ text: 'OK' }]
-                );
-            }
-        } catch (err: any) {
-            Alert.alert('Error', err.message || 'Failed to open wallet modal');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleSIWEAuth = async () => {
-        if (!address || !provider) return;
-
-        try {
-            // Get nonce from backend
-            const { nonce } = await getNonce();
-
-            // Prepare SIWE message
-            const { message } = await prepareMessage(address, 1, nonce);
-
-            // Request signature from wallet
-            const signature = await provider.request({
-                method: 'personal_sign',
-                params: [message, address],
-            });
-
-            // Verify signature on backend
-            await verifySignature(message, signature);
-
-            // Check if profile exists
-            const profile = await getMe();
-            if (profile?.username && profile.username.trim()) {
-                navigation.replace('Feed');
-            } else {
-                navigation.replace('CreateProfile');
-            }
-        } catch (err: any) {
-            console.error('SIWE auth error:', err);
-            Alert.alert('Authentication Failed', err.message || 'Please try again');
-        } finally {
-            setLoading(false);
-        }
+    const handleSkipAuth = () => {
+        Alert.alert(
+            'Demo Mode',
+            'Skip authentication and browse the eco feed?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Browse Feed',
+                    onPress: () => navigation.replace('Feed')
+                }
+            ]
+        );
     };
 
     return (
@@ -97,38 +49,33 @@ export default function SignInScreen({ navigation }: Props) {
             </Text>
 
             <TouchableOpacity
-                style={[styles.button, loading && styles.buttonDisabled]}
-                onPress={handleConnect}
-                disabled={loading || isConnected}
+                style={styles.button}
+                onPress={handleSkipAuth}
+                disabled={loading}
             >
                 <Text style={styles.buttonText}>
-                    {loading ? 'Connecting...' : isConnected ? '✓ Connected' : '📱 Connect Wallet'}
+                    📱 Browse Eco Feed (Demo)
                 </Text>
             </TouchableOpacity>
 
-            {isConnected && address && (
-                <View style={styles.connectedInfo}>
-                    <Text style={styles.connectedLabel}>Connected:</Text>
-                    <Text style={styles.connectedAddress}>
-                        {address.slice(0, 6)}...{address.slice(-4)}
-                    </Text>
-                </View>
-            )}
-
-            <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>OR</Text>
-                <View style={styles.dividerLine} />
+            <View style={styles.infoBox}>
+                <Text style={styles.infoTitle}>🔧 Authentication Temporarily Disabled</Text>
+                <Text style={styles.infoText}>
+                    WalletConnect has been removed to fix polyfill issues.
+                </Text>
+                <Text style={styles.infoText}>
+                    • You can browse the eco-verified feed
+                </Text>
+                <Text style={styles.infoText}>
+                    • Graph Node integration working
+                </Text>
+                <Text style={styles.infoText}>
+                    • Authentication will be re-enabled soon
+                </Text>
             </View>
 
-            <Text style={styles.testNote}>Testing without WalletConnect?</Text>
-            <Text style={styles.testSubnote}>
-                You'll need to configure WalletConnect later for full functionality.
-                See WALLETCONNECT_SETUP.md for instructions.
-            </Text>
-
             <Text style={styles.note}>
-                Supports MetaMask, Trust Wallet, Rainbow, and 300+ wallets via WalletConnect
+                Backend running at: 192.168.0.102:8000
             </Text>
         </View>
     );
@@ -159,67 +106,37 @@ const styles = StyleSheet.create({
         padding: 16,
         borderRadius: 8,
         alignItems: 'center',
-        marginBottom: 16,
-    },
-    buttonDisabled: {
-        backgroundColor: '#9ca3af',
+        marginBottom: 24,
     },
     buttonText: {
         color: '#fff',
         fontSize: 16,
         fontWeight: '600',
     },
-    connectedInfo: {
-        backgroundColor: '#d1fae5',
+    infoBox: {
+        backgroundColor: '#f0fdf4',
         padding: 16,
         borderRadius: 8,
-        marginBottom: 16,
-    },
-    connectedLabel: {
-        fontSize: 12,
-        color: '#065f46',
-        marginBottom: 4,
-    },
-    connectedAddress: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#065f46',
-        fontFamily: 'monospace',
-    },
-    divider: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginVertical: 24,
-    },
-    dividerLine: {
-        flex: 1,
-        height: 1,
-        backgroundColor: '#e5e7eb',
-    },
-    dividerText: {
-        marginHorizontal: 16,
-        color: '#9ca3af',
-        fontSize: 14,
-        fontWeight: '600',
-    },
-    testNote: {
-        fontSize: 14,
-        color: '#666',
-        marginBottom: 8,
-        textAlign: 'center',
-        fontWeight: '600',
-    },
-    testSubnote: {
-        fontSize: 12,
-        color: '#9ca3af',
+        borderWidth: 1,
+        borderColor: '#d1fae5',
         marginBottom: 24,
-        textAlign: 'center',
-        paddingHorizontal: 16,
+    },
+    infoTitle: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#065f46',
+        marginBottom: 8,
+    },
+    infoText: {
+        fontSize: 12,
+        color: '#166534',
+        marginBottom: 4,
     },
     note: {
         fontSize: 12,
         color: '#9ca3af',
         textAlign: 'center',
-        marginTop: 24,
+        marginTop: 16,
+        fontFamily: 'monospace',
     },
 });

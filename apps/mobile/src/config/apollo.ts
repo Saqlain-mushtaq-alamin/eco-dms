@@ -1,4 +1,5 @@
-import { ApolloClient, InMemoryCache, HttpLink } from '@apollo/client';
+// Apollo Client removed - caused crypto errors
+// import { ApolloClient, InMemoryCache, HttpLink } from '@apollo/client';
 
 /**
  * THE GRAPH APOLLO CLIENT FOR MOBILE
@@ -15,6 +16,11 @@ import { ApolloClient, InMemoryCache, HttpLink } from '@apollo/client';
 // For emulator: use 127.0.0.1
 const GRAPH_URL = 'http://192.168.0.102:8100/subgraphs/name/eco-dms';
 
+// Apollo Client removed - stub export
+export const graphClient: any = null;
+
+/*
+// Original Apollo Client config (removed due to crypto errors)
 export const graphClient = new ApolloClient({
     link: new HttpLink({
         uri: GRAPH_URL,
@@ -50,6 +56,7 @@ export const graphClient = new ApolloClient({
         },
     },
 });
+*/
 
 /**
  * IPFS Gateway configuration

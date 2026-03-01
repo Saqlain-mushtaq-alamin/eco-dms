@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "scheme": "ecodms",
+    "main": "index.js",
     "splash": {
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
