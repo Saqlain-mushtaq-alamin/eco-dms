@@ -10,8 +10,10 @@ import { ApolloClient, InMemoryCache, HttpLink } from '@apollo/client';
  * - Leaderboards
  */
 
-// For mobile, use your computer's local IP or deployed Graph endpoint
-const GRAPH_URL = 'http://127.0.0.1:8100/subgraphs/name/eco-dms';
+// IMPORTANT: For physical iPhone/Android device, use your computer's local network IP
+// Find your IP: Run 'ipconfig' in Windows PowerShell and look for IPv4 Address
+// For emulator: use 127.0.0.1
+const GRAPH_URL = 'http://192.168.0.102:8100/subgraphs/name/eco-dms';
 
 export const graphClient = new ApolloClient({
     link: new HttpLink({

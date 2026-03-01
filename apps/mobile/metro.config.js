@@ -24,7 +24,8 @@ config.resolver.extraNodeModules = {
 };
 
 // 4. Support platform extensions for React Native Web compatibility
-config.resolver.sourceExts = ['jsx', 'js', 'ts', 'tsx', 'json'];
+// Also add GraphQL file extensions
+config.resolver.sourceExts = ['jsx', 'js', 'ts', 'tsx', 'json', 'graphql', 'gql'];
 
 // 5. Configure server to be accessible on the network
 config.server = {

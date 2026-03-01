@@ -15,7 +15,7 @@ dev: install
 	@echo Starting Redis...
 	@docker run --rm -d --name eco-redis -p 6379:6379 redis:7 1>nul 2>nul || echo Redis already running or Docker not available.
 	@echo Starting Backend...
-	@start "" /B cmd /C "set PYTHONPATH=%CD%\backend&& .venv\Scripts\python -m uvicorn backend.app.main:app --reload --port 8000"
+	@start "" /B cmd /C "set PYTHONPATH=%CD%\backend&& .venv\Scripts\python -m uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000"
 	@echo Starting Hardhat...
 	@pushd contracts && start "" /B cmd /C "npx hardhat node --port 8545" && popd
 	@echo Waiting for Hardhat to start (15 seconds)...
@@ -30,7 +30,7 @@ dev: install
 # Backend only (runs inside backend directory)
 backend: install
 	@echo Starting Backend only...
-	@pushd backend && start "" /B cmd /C "set PYTHONPATH=%CD%&& .venv\Scripts\python -m uvicorn backend.app.main:app --reload --port 8000" && popd
+	@pushd backend && start "" /B cmd /C "set PYTHONPATH=%CD%&& .venv\Scripts\python -m uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000" && popd
 
 # Web only
 web:

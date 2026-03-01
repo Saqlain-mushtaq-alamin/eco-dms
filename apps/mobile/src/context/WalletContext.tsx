@@ -1,8 +1,24 @@
 import React, { createContext, useContext, ReactNode } from 'react';
-import { WalletConnectModal, useWalletConnectModal } from '@walletconnect/modal-react-native';
+import { Alert } from 'react-native';
 
 // WalletConnect Project ID - Get yours at https://cloud.walletconnect.com
 const PROJECT_ID = '294df0b46b618142c74b235b57ba8b07';
+
+// Check if WalletConnect should be enabled
+const ENABLE_WALLETCONNECT = PROJECT_ID && PROJECT_ID.length > 0;
+
+// Conditionally import WalletConnect only if enabled
+let WalletConnectModal: any;
+let useWalletConnectModal: any;
+
+if (ENABLE_WALLETCONNECT) {
+    // Load WalletConnect polyfills first
+    require('@walletconnect/react-native-compat');
+
+    const walletConnect = require('@walletconnect/modal-react-native');
+    WalletConnectModal = walletConnect.WalletConnectModal;
+    useWalletConnectModal = walletConnect.useWalletConnectModal;
+}
 
 const providerMetadata = {
     name: 'Eco DMS',
@@ -26,15 +42,36 @@ type WalletContextType = {
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export function WalletProvider({ children }: { children: ReactNode }) {
-    const { isConnected, address, provider, open, close } = useWalletConnectModal();
+    let modalData = {
+        isConnected: false,
+        address: undefined,
+        provider: undefined,
+        open: async () => {
+            Alert.alert(
+                'WalletConnect Not Available',
+                'WalletConnect is not configured. Please add a valid PROJECT_ID in WalletContext.tsx'
+            );
+        },
+        close: async () => { },
+    };
+
+    // Only use WalletConnect if enabled
+    if (ENABLE_WALLETCONNECT && useWalletConnectModal) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        modalData = useWalletConnectModal();
+    }
+
+    const { isConnected, address, provider, open, close } = modalData;
 
     return (
         <WalletContext.Provider value={{ isConnected, address, provider, open, close }}>
             {children}
-            <WalletConnectModal
-                projectId={PROJECT_ID}
-                providerMetadata={providerMetadata}
-            />
+            {ENABLE_WALLETCONNECT && WalletConnectModal && (
+                <WalletConnectModal
+                    projectId={PROJECT_ID}
+                    providerMetadata={providerMetadata}
+                />
+            )}
         </WalletContext.Provider>
     );
 }

@@ -84,6 +84,9 @@ importers:
       graphql:
         specifier: ^16.8.1
         version: 16.12.0
+      graphql-tag:
+        specifier: ^2.12.6
+        version: 2.12.6(graphql@16.12.0)
       process:
         specifier: ^0.11.10
         version: 0.11.10

@@ -1,7 +1,8 @@
 // React Native polyfills for crypto and web APIs
 // This file must be imported first in index.js
+// CRITICAL: Order matters! Load these before anything else.
 
-// 1. Random number generation
+// 1. Random number generation (MUST BE FIRST)
 import 'react-native-get-random-values';
 
 // 2. Buffer polyfill
@@ -28,5 +29,6 @@ if (typeof global.crypto === 'undefined') {
     } as any;
 }
 
-// Note: WalletConnect polyfills are loaded by @walletconnect/modal-react-native
-// when the modal is actually initialized, so we don't need to import them here
+// 6. WalletConnect React Native Compat (MUST be loaded before WalletConnect)
+// This sets up all the required polyfills for WalletConnect to work in React Native
+import '@walletconnect/react-native-compat';
