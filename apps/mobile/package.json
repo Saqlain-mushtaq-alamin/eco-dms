@@ -3,10 +3,13 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "start": "expo start --clear --tunnel",
+    "start:lan": "expo start --clear --host lan",
+    "start:localhost": "expo start --clear --host localhost",
+    "android": "expo start --android --clear --host localhost",
+    "ios": "expo start --clear --tunnel",
+    "web": "expo start --web --clear",
+    "doctor": "npx expo-doctor"
   },
   "dependencies": {
     "expo": "~55.0.4",
@@ -15,6 +18,7 @@
     "react-native": "0.83.2"
   },
   "devDependencies": {
+    "@expo/ngrok": "^4.1.0",
     "@types/react": "~19.2.2",
     "typescript": "~5.9.2"
   },

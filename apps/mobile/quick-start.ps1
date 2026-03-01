@@ -50,8 +50,8 @@ Write-Host ""
 Write-Host "Select your test platform:" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "1. Test on Android Emulator (Windows)" -ForegroundColor Yellow
-Write-Host "2. Test on iPhone via QR Code (same WiFi)" -ForegroundColor Yellow
-Write-Host "3. Test on iPhone via Tunnel (any network)" -ForegroundColor Yellow
+Write-Host "2. Test on iPhone via QR Code (tunnel - recommended)" -ForegroundColor Yellow
+Write-Host "3. Test on iPhone via QR Code (LAN - same WiFi)" -ForegroundColor Yellow
 Write-Host "4. Show all options / Interactive mode" -ForegroundColor Yellow
 Write-Host ""
 
@@ -75,11 +75,26 @@ switch ($choice) {
         .\start-android.ps1
     }
     "2" {
-        Write-Host "[Starting iPhone Test (QR Code)...]" -ForegroundColor Green
+        Write-Host "[Starting iPhone Test (Tunnel Mode)...]" -ForegroundColor Green
         Write-Host ""
         Write-Host "Instructions:" -ForegroundColor Cyan
         Write-Host "1. Install 'Expo Go' from App Store on your iPhone" -ForegroundColor White
-        Write-Host "2. Connect your iPhone to the SAME WiFi as this PC" -ForegroundColor White
+        Write-Host "2. A QR code will appear below" -ForegroundColor White
+        Write-Host "3. Open Camera app on iPhone and scan the QR code" -ForegroundColor White
+        Write-Host "4. Tap the notification to open in Expo Go" -ForegroundColor White
+        Write-Host "5. Tap 'Run Tests' button in the app" -ForegroundColor White
+        Write-Host "6. Verify all 5 tests pass" -ForegroundColor White
+        Write-Host ""
+        Write-Host "Starting in 3 seconds..." -ForegroundColor Yellow
+        Start-Sleep -Seconds 3
+        .\start-iphone.ps1
+    }
+    "3" {
+        Write-Host "[Starting iPhone Test (LAN Mode)...]" -ForegroundColor Green
+        Write-Host ""
+        Write-Host "Instructions:" -ForegroundColor Cyan
+        Write-Host "1. Install 'Expo Go' from App Store on your iPhone" -ForegroundColor White
+        Write-Host "2. Connect iPhone and PC to the SAME WiFi network" -ForegroundColor White
         Write-Host "3. A QR code will appear below" -ForegroundColor White
         Write-Host "4. Open Camera app on iPhone and scan the QR code" -ForegroundColor White
         Write-Host "5. Tap the notification to open in Expo Go" -ForegroundColor White
@@ -88,23 +103,7 @@ switch ($choice) {
         Write-Host ""
         Write-Host "Starting in 3 seconds..." -ForegroundColor Yellow
         Start-Sleep -Seconds 3
-        .\start-iphone.ps1
-    }
-    "3" {
-        Write-Host "[Starting iPhone Test (Tunnel Mode)...]" -ForegroundColor Green
-        Write-Host ""
-        Write-Host "Instructions:" -ForegroundColor Cyan
-        Write-Host "1. Install 'Expo Go' from App Store on your iPhone" -ForegroundColor White
-        Write-Host "2. A QR code will appear (works on ANY network)" -ForegroundColor White
-        Write-Host "3. Open Camera app on iPhone and scan the QR code" -ForegroundColor White
-        Write-Host "4. Tap the notification to open in Expo Go" -ForegroundColor White
-        Write-Host "5. Wait a bit longer for tunnel to connect" -ForegroundColor White
-        Write-Host "6. Tap 'Run Tests' button in the app" -ForegroundColor White
-        Write-Host "7. Verify all 5 tests pass" -ForegroundColor White
-        Write-Host ""
-        Write-Host "Starting in 3 seconds..." -ForegroundColor Yellow
-        Start-Sleep -Seconds 3
-        .\start-iphone.ps1 -tunnel
+        .\start-iphone.ps1 -Lan
     }
     "4" {
         Write-Host "[Starting Interactive Mode...]" -ForegroundColor Green

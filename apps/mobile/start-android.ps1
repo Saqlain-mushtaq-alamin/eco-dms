@@ -1,57 +1,71 @@
-# Start Android Emulator and Expo App
-
 param(
-    [string]$emulator = "Pixel_9_Pro"
+    [string]$Emulator = ""
 )
 
-Write-Host "=== Starting Eco-DMS Mobile App ===" -ForegroundColor Green
+Write-Host "=== Eco-DMS Mobile (Android) ===" -ForegroundColor Green
 Write-Host ""
 
-# Set Android SDK path
-$env:ANDROID_HOME = "C:\Users\Admin\AppData\Local\Android\Sdk"
-$emulatorPath = "$env:ANDROID_HOME\emulator\emulator.exe"
-
-# Set Expo environment variables
+Set-Location $PSScriptRoot
 $env:EXPO_NO_TELEMETRY = "1"
 
-# Check if emulator exists
-if (-not (Test-Path $emulatorPath)) {
-    Write-Host "[ERROR] Android emulator not found at $emulatorPath" -ForegroundColor Red
-    Write-Host "Please install Android Studio and Android SDK" -ForegroundColor Yellow
+$adbCommand = Get-Command adb -ErrorAction SilentlyContinue
+$emulatorCommand = Get-Command emulator -ErrorAction SilentlyContinue
+
+if (-not $adbCommand) {
+    Write-Host "[ERROR] adb is not in PATH. Install Android SDK Platform-Tools and add it to PATH." -ForegroundColor Red
     exit 1
 }
 
-# Check if emulator is already running
-$running = adb devices | Select-String "emulator"
-if ($running) {
-    Write-Host "[OK] Android emulator is already running" -ForegroundColor Green
+if (-not $emulatorCommand) {
+    Write-Host "[ERROR] emulator is not in PATH. Install Android SDK Emulator and add it to PATH." -ForegroundColor Red
+    exit 1
+}
+
+$running = (& adb devices) | Select-String "emulator-"
+if (-not $running) {
+    if ([string]::IsNullOrWhiteSpace($Emulator)) {
+        $availableAvds = & emulator -list-avds
+        if (-not $availableAvds -or $availableAvds.Count -eq 0) {
+            Write-Host "[ERROR] No Android Virtual Devices found. Create one in Android Studio > Device Manager." -ForegroundColor Red
+            exit 1
+        }
+        $Emulator = $availableAvds[0]
+    }
+
+    Write-Host "[Starting Android emulator: $Emulator]" -ForegroundColor Cyan
+    Start-Process -FilePath $emulatorCommand.Source -ArgumentList "-avd", $Emulator | Out-Null
+
+    Write-Host "[Waiting for emulator to connect...]" -ForegroundColor Yellow
+    & adb wait-for-device | Out-Null
+
+    $bootCompleted = $false
+    for ($i = 0; $i -lt 60; $i++) {
+        $boot = (& adb shell getprop sys.boot_completed 2>$null).Trim()
+        if ($boot -eq "1") {
+            $bootCompleted = $true
+            break
+        }
+        Start-Sleep -Seconds 2
+    }
+
+    if (-not $bootCompleted) {
+        Write-Host "[WARNING] Emulator did not report full boot yet; continuing anyway..." -ForegroundColor Yellow
+    }
+    else {
+        Write-Host "[OK] Emulator boot completed" -ForegroundColor Green
+    }
 }
 else {
-    Write-Host "[Starting Android emulator: $emulator]" -ForegroundColor Cyan
-    Start-Process $emulatorPath -ArgumentList "-avd", $emulator -WindowStyle Normal
-    
-    Write-Host "[Waiting for emulator to boot (30 seconds)...]" -ForegroundColor Yellow
-    Start-Sleep -Seconds 30
-    
-    $devices = adb devices
-    Write-Host "Connected devices:" -ForegroundColor Cyan
-    Write-Host $devices
+    Write-Host "[OK] Android emulator already running" -ForegroundColor Green
 }
 
-Write-Host ""
-Write-Host "[Setting up ADB port forwarding...]" -ForegroundColor Cyan
-adb reverse tcp:8081 tcp:8081 | Out-Null
-adb reverse tcp:19000 tcp:19000 | Out-Null
-adb reverse tcp:19001 tcp:19001 | Out-Null
-Write-Host "[OK] ADB ports configured" -ForegroundColor Green
+Write-Host "[Configuring ADB reverse ports...]" -ForegroundColor Cyan
+& adb reverse tcp:8081 tcp:8081 | Out-Null
+& adb reverse tcp:19000 tcp:19000 | Out-Null
+& adb reverse tcp:19001 tcp:19001 | Out-Null
+Write-Host "[OK] ADB reverse configured" -ForegroundColor Green
 
 Write-Host ""
-Write-Host "[Starting Expo on Android...]" -ForegroundColor Green
+Write-Host "[Starting Expo for Android emulator...]" -ForegroundColor Green
 Write-Host ""
-
-# Change to mobile directory and start Expo
-Set-Location $PSScriptRoot
-npm start -- --android
-
-Write-Host ""
-Write-Host "[DONE] The app should open in the Android emulator." -ForegroundColor Green
+npx expo start --android --host localhost --clear

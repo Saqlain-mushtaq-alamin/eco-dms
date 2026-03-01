@@ -30,11 +30,12 @@ npm install
 4. Scan the QR code displayed in the terminal with your iPhone camera
 5. The app will open in Expo Go
 
-**Alternative (if QR code doesn't work):**
+`npm start` uses **tunnel mode by default** in this project to avoid local network timeout issues.
+
+If you want same-WiFi LAN mode instead:
 ```bash
-npm start -- --tunnel
+npm run start:lan
 ```
-This creates a tunnel that works even if devices are on different networks.
 
 ### Method 2: Testing on Android Emulator (Windows)
 
@@ -76,6 +77,8 @@ This creates a tunnel that works even if devices are on different networks.
    npm run android
    ```
 
+This command uses `--host localhost` and clears cache for stable emulator connection.
+
 The app will automatically install and run on the emulator.
 
 ### Method 3: Web Browser (For Quick Testing)
@@ -106,8 +109,11 @@ Once the app is running on your device:
 # Start development server
 npm start
 
-# Start with tunnel (for testing across networks)
-npm start -- --tunnel
+# Start with LAN mode (same WiFi only)
+npm run start:lan
+
+# Start with localhost mode (emulator/local only)
+npm run start:localhost
 
 # Start on Android
 npm run android
@@ -139,12 +145,13 @@ npm start -- --clear
 ### iPhone/iOS Issues
 
 **Problem: QR code not working**
-- Solution 1: Ensure both devices are on same WiFi network
-- Solution 2: Use tunnel mode: `npm start -- --tunnel`
-- Solution 3: Manually type the connection URL in Expo Go app
+- Solution 1: Use default tunnel mode: `npm start`
+- Solution 2: Update Expo Go app to the latest version on iPhone
+- Solution 3: Manually type the `exp://...` URL from terminal in Expo Go
 
 **Problem: "Couldn't connect to Metro"**
-- Solution: Check firewall settings or try tunnel mode
+- Solution 1: Restart in tunnel mode: `npm start`
+- Solution 2: Run `./fix-firewall.ps1` in elevated PowerShell
 
 ### General Issues
 

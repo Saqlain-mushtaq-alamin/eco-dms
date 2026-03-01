@@ -27,11 +27,6 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    },
-    "extra": {
-      "eas": {
-        "projectId": "eco-dms-mobile"
-      }
     }
   }
 }

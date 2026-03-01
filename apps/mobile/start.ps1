@@ -7,8 +7,8 @@ Write-Host ""
 Write-Host "Select how you want to run the app:" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "1. Android Emulator" -ForegroundColor Yellow
-Write-Host "2. iPhone (via QR Code - same WiFi)" -ForegroundColor Yellow
-Write-Host "3. iPhone (via Tunnel - any network)" -ForegroundColor Yellow
+Write-Host "2. iPhone (via Tunnel QR - recommended)" -ForegroundColor Yellow
+Write-Host "3. iPhone (via LAN QR - same WiFi)" -ForegroundColor Yellow
 Write-Host "4. Web Browser" -ForegroundColor Yellow
 Write-Host "5. Show all options (interactive menu)" -ForegroundColor Yellow
 Write-Host ""
@@ -25,13 +25,13 @@ switch ($choice) {
     }
     "2" {
         Write-Host ""
-        Write-Host "🍎 Launching for iPhone (Local Network)..." -ForegroundColor Green
+        Write-Host "🍎 Launching for iPhone (Tunnel Mode)..." -ForegroundColor Green
         .\start-iphone.ps1
     }
     "3" {
         Write-Host ""
-        Write-Host "🍎 Launching for iPhone (Tunnel Mode)..." -ForegroundColor Green
-        .\start-iphone.ps1 -tunnel
+        Write-Host "🍎 Launching for iPhone (LAN Mode)..." -ForegroundColor Green
+        .\start-iphone.ps1 -Lan
     }
     "4" {
         Write-Host ""

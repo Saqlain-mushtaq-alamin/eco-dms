@@ -1,41 +1,30 @@
-# Start Expo App for iPhone (QR Code)
-
 param(
-    [switch]$tunnel
+    [switch]$Lan
 )
 
-# Set Expo environment variables
 $env:EXPO_NO_TELEMETRY = "1"
 
-Write-Host "=== Starting Eco-DMS Mobile App for iPhone ===" -ForegroundColor Green
+Write-Host "=== Eco-DMS Mobile (iPhone QR) ===" -ForegroundColor Green
 Write-Host ""
 
-if ($tunnel) {
-    Write-Host "[Starting with tunnel mode (works across different networks)]" -ForegroundColor Cyan
+if ($Lan) {
+    Write-Host "[Starting in LAN mode] iPhone and PC must be on the same Wi-Fi." -ForegroundColor Yellow
     Write-Host ""
 } else {
-    Write-Host "[Starting on local network]" -ForegroundColor Cyan
-    Write-Host "[NOTE] Your iPhone and PC must be on the same WiFi network" -ForegroundColor Yellow
+    Write-Host "[Starting in TUNNEL mode] Recommended to avoid timeout/network issues." -ForegroundColor Cyan
     Write-Host ""
 }
 
 Write-Host "Instructions:" -ForegroundColor Yellow
-Write-Host "  1. Install 'Expo Go' app from the App Store on your iPhone"
-Write-Host "  2. Wait for the QR code to appear below"
-Write-Host "  3. Open Camera app on iPhone and scan the QR code"
-Write-Host "  4. Tap the notification to open in Expo Go"
+Write-Host "  1. Open Expo Go on your iPhone"
+Write-Host "  2. Scan the QR code shown in this terminal"
+Write-Host "  3. Keep this terminal running while testing"
 Write-Host ""
 
-# Change to mobile directory
 Set-Location $PSScriptRoot
 
-# Start Expo
-if ($tunnel) {
-    npm start -- --tunnel
+if ($Lan) {
+    npx expo start --host lan --clear
+} else {
+    npx expo start --tunnel --clear
 }
-else {
-    npm start
-}
-
-Write-Host ""
-Write-Host "[DONE] Expo server started!" -ForegroundColor Green
