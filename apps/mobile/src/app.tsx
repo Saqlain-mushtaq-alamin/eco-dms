@@ -7,9 +7,7 @@ import { graphClient } from './config/apollo';
 import { Navigation } from './navigation/Navigation';
 import { WalletProvider } from './context/WalletContext';
 
-// Required for WalletConnect crypto polyfills
-import 'react-native-get-random-values';
-import '@walletconnect/react-native-compat';
+// Note: Polyfills are loaded in index.js before this file is imported
 
 export default function App() {
     return (

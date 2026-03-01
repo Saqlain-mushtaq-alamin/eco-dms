@@ -36,6 +36,20 @@ backend: install
 web:
 	@pushd apps\web && pnpm dev && popd
 
+# Mobile only
+mobile:
+	@echo Starting Mobile (Expo)...
+	@pushd apps\mobile && start "Expo Mobile" cmd /C "pnpm expo start --clear --host lan" && popd
+	@echo Mobile started! Check 'Expo Mobile' window for QR code.
+
+# Restart mobile (useful when it crashes)
+restart-mobile:
+	@echo Restarting Mobile...
+	@taskkill /F /FI "WINDOWTITLE eq Expo Mobile*" 2>nul || echo No mobile app running
+	@taskkill /F /IM node.exe /T 2>nul || echo No Node processes
+	@timeout /t 2 /nobreak >nul
+	@$(MAKE) mobile
+
 # Contracts only
 contracts:
 	@pushd contracts && npx hardhat node --port 8545 && popd
@@ -63,6 +77,8 @@ stop:
 	@docker stop graph-node graph-postgres graph-ipfs 2>nul || echo Graph services not running
 	@taskkill /F /FI "WINDOWTITLE eq Celery*" 2>nul || echo No Celery worker to stop
 	@taskkill /F /FI "WINDOWTITLE eq uvicorn*" 2>nul || echo No backend to stop
+	@taskkill /F /FI "WINDOWTITLE eq Expo Mobile*" 2>nul || echo No mobile app to stop
+	@taskkill /F /IM node.exe /T 2>nul || echo No Node processes to stop
 	@echo Services stopped.
 
 # ==================
@@ -98,7 +114,7 @@ graph-deploy:
 
 # Full dev environment with Graph Node
 dev-full: install
-	@echo Starting full development stack (Backend + Contracts + Web + Graph)...
+	@echo Starting full development stack (Backend + Contracts + Web + Mobile + Graph)...
 	@$(MAKE) graph-start
 	@echo Waiting for Graph Node to initialize (20 seconds)...
 	@timeout /t 20 /nobreak >nul
@@ -107,11 +123,22 @@ dev-full: install
 	@timeout /t 10 /nobreak >nul
 	@echo Deploying subgraph...
 	@$(MAKE) graph-deploy
-	@echo Full stack ready!
-	@echo   Backend: http://127.0.0.1:8000
+	@echo Waiting for backend to stabilize (5 seconds)...
+	@timeout /t 5 /nobreak >nul
+	@echo Starting Mobile App...
+	@$(MAKE) mobile
+	@echo.
+	@echo ========================================
+	@echo   FULL STACK READY!
+	@echo ========================================
+	@echo   Backend: http://192.168.0.102:8000
 	@echo   Web: http://localhost:5173
+	@echo   Mobile: Check 'Expo Mobile' window for QR code
 	@echo   Hardhat: http://127.0.0.1:8545
 	@echo   GraphQL: http://127.0.0.1:8100/subgraphs/name/eco-dms/graphql
+	@echo.
+	@echo TIP: If mobile has issues, run: make restart-mobile
+	@echo ========================================
 
 # Clean
 clean:

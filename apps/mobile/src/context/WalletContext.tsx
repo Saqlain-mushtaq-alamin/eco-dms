@@ -4,17 +4,17 @@ import { Alert } from 'react-native';
 // WalletConnect Project ID - Get yours at https://cloud.walletconnect.com
 const PROJECT_ID = '294df0b46b618142c74b235b57ba8b07';
 
-// Check if WalletConnect should be enabled
-const ENABLE_WALLETCONNECT = PROJECT_ID && PROJECT_ID.length > 0;
+// Temporarily disable WalletConnect to avoid polyfill issues
+// Re-enable by setting this to true after ensuring all polyfills are loaded
+const ENABLE_WALLETCONNECT = false; // PROJECT_ID && PROJECT_ID.length > 0;
 
 // Conditionally import WalletConnect only if enabled
 let WalletConnectModal: any;
 let useWalletConnectModal: any;
 
 if (ENABLE_WALLETCONNECT) {
-    // Load WalletConnect polyfills first
-    require('@walletconnect/react-native-compat');
-
+    // Note: Polyfills are already loaded in polyfills.ts via index.js
+    // No need to require them again here
     const walletConnect = require('@walletconnect/modal-react-native');
     WalletConnectModal = walletConnect.WalletConnectModal;
     useWalletConnectModal = walletConnect.useWalletConnectModal;
