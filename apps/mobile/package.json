@@ -1,24 +1,22 @@
 {
-  "name": "eco-dms-mobile",
-  "version": "0.1.0",
-  "private": true,
-  "main": "index.js",
+  "name": "mobile",
+  "version": "1.0.0",
+  "main": "index.ts",
   "scripts": {
-    "start": "expo start --host lan",
-    "start:clear": "expo start --host lan --clear",
-    "start:tunnel": "expo start --tunnel",
-    "android": "expo run:android",
-    "ios": "expo run:ios",
-    "test": "echo \"(add jest or detox later)\""
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
   },
   "dependencies": {
-    "expo": "~54.0.0",
-    "expo-status-bar": "^3.0.9",
-    "react": "18.3.1",
-    "react-native": "0.81.5"
+    "expo": "~55.0.4",
+    "expo-status-bar": "~55.0.4",
+    "react": "19.2.0",
+    "react-native": "0.83.2"
   },
   "devDependencies": {
-    "@types/react": "^18.3.28",
-    "typescript": "^5.9.3"
-  }
+    "@types/react": "~19.2.2",
+    "typescript": "~5.9.2"
+  },
+  "private": true
 }

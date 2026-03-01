@@ -1,10 +1,6 @@
-// NO POLYFILLS - Caused crypto errors
-// import './src/polyfills';
-
 import { registerRootComponent } from 'expo';
-// import App from './src/app';
-// import App from './src/AppSimple';
-import App from './src/AppMinimal';
+
+import App from './App';
 
 // registerRootComponent calls AppRegistry.registerComponent('main', () => App);
 // It also ensures that whether you load the app in Expo Go or in a native build,
