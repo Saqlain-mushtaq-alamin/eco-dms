@@ -1,12 +1,11 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, ViewStyle } from 'react-native';
 import { useTheme } from '../theme';
 
 export interface AvatarProps {
     uri?: string;
     name?: string;
     size?: 'sm' | 'md' | 'lg' | 'xl';
-    style?: ViewStyle;
+    style?: React.CSSProperties;
     testID?: string;
 }
 
@@ -29,11 +28,12 @@ export const Avatar: React.FC<AvatarProps> = ({
     const avatarSize = sizeMap[size];
     const fontSize = avatarSize / 2.5;
 
-    const avatarStyles: ViewStyle = {
+    const avatarStyles: React.CSSProperties = {
         width: avatarSize,
         height: avatarSize,
         borderRadius: theme.borderRadius.full,
         backgroundColor: theme.colors.primary,
+        display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         overflow: 'hidden',
@@ -49,24 +49,14 @@ export const Avatar: React.FC<AvatarProps> = ({
     };
 
     return (
-        <View style={[avatarStyles, style]} testID={testID}>
+        <div style={{ ...avatarStyles, ...style }} data-testid={testID}>
             {uri ? (
-                <Image source={{ uri }} style={styles.image} />
+                <img src={uri} style={{ width: '100%', height: '100%' }} alt="avatar" />
             ) : (
-                <Text style={[styles.initials, { fontSize, color: '#ffffff' }]}>
+                <span style={{ fontSize, color: '#ffffff', fontWeight: '600' }}>
                     {name ? getInitials(name) : '?'}
-                </Text>
+                </span>
             )}
-        </View>
+        </div>
     );
 };
-
-const styles = StyleSheet.create({
-    image: {
-        width: '100%',
-        height: '100%',
-    },
-    initials: {
-        fontWeight: '600',
-    },
-});

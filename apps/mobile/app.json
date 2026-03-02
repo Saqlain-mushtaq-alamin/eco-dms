@@ -35,6 +35,22 @@
       "ios",
       "android",
       "web"
-    ]
+    ],
+    "plugins": [],
+    "experiments": {
+      "tsconfigPaths": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "eco-dms-mobile"
+      }
+    },
+    "newArchEnabled": false,
+    "ios": {
+      "newArchEnabled": false
+    },
+    "android": {
+      "newArchEnabled": false
+    }
   }
 }

@@ -3,12 +3,12 @@ import {
     View,
     Text,
     StyleSheet,
-    Pressable,
     ActivityIndicator,
     Alert,
     ScrollView,
     Platform,
 } from 'react-native';
+import { GlassCard, GlassButton } from '@eco-dms/ui';
 import { useWallet } from '../context/WalletContext';
 import api from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -102,7 +102,7 @@ export function SignInScreen({ onSignInSuccess }: SignInScreenProps) {
                 <Text style={styles.title}>🌱 Eco-DMS</Text>
                 <Text style={styles.subtitle}>Sign In with Ethereum</Text>
 
-                <View style={styles.infoBox}>
+                <GlassCard variant="light" padding="lg">
                     <Text style={styles.infoTitle}>Decentralized Authentication</Text>
                     <Text style={styles.infoText}>
                         • No passwords needed{'\n'}
@@ -110,7 +110,7 @@ export function SignInScreen({ onSignInSuccess }: SignInScreenProps) {
                         • Secure & private{'\n'}
                         • Works with MetaMask, Trust Wallet, and more
                     </Text>
-                </View>
+                </GlassCard>
 
                 {loading && step && (
                     <View style={styles.stepContainer}>
@@ -119,7 +119,7 @@ export function SignInScreen({ onSignInSuccess }: SignInScreenProps) {
                             <Text style={styles.stepText}>{step}</Text>
                         </View>
                         {step === 'Connecting wallet...' && (
-                            <View style={styles.instructionsBox}>
+                            <GlassCard variant="light" padding="sm" style={styles.instructionsBox}>
                                 <Text style={styles.instructionsTitle}>📱 Next Steps:</Text>
                                 <Text style={styles.instructionsText}>
                                     1. Select MetaMask from the wallet list{'\n'}
@@ -128,46 +128,37 @@ export function SignInScreen({ onSignInSuccess }: SignInScreenProps) {
                                     4. Return to this app{'\n\n'}
                                     ⏳ Waiting for approval...
                                 </Text>
-                            </View>
+                            </GlassCard>
                         )}
                     </View>
                 )}
 
-                <Pressable
-                    style={({ pressed }) => [
-                        styles.button,
-                        loading && styles.buttonDisabled,
-                        pressed && !loading && styles.buttonPressed,
-                    ]}
+                <GlassButton
+                    title={isConnected ? 'Sign In' : 'Connect Wallet'}
+                    variant="primary"
                     onPress={handleSignIn}
+                    loading={loading}
                     disabled={loading}
-                >
-                    {loading ? (
-                        <ActivityIndicator color="white" />
-                    ) : (
-                        <Text style={styles.buttonText}>
-                            {isConnected ? 'Sign In' : 'Connect Wallet'}
-                        </Text>
-                    )}
-                </Pressable>
+                    style={styles.signInButton}
+                />
 
                 {isConnected && address && (
-                    <View style={styles.addressBox}>
+                    <GlassCard variant="light" padding="sm">
                         <Text style={styles.addressLabel}>Connected:</Text>
                         <Text style={styles.addressText}>
                             {address.slice(0, 6)}...{address.slice(-4)}
                         </Text>
-                    </View>
+                    </GlassCard>
                 )}
 
-                <View style={styles.howItWorks}>
+                <GlassCard variant="light" padding="lg" style={styles.howItWorks}>
                     <Text style={styles.howItWorksTitle}>How it works:</Text>
                     <Text style={styles.howItWorksText}>
                         1. Connect your wallet{'\n'}
                         2. Sign a message to prove ownership{'\n'}
                         3. You're in! No passwords needed
                     </Text>
-                </View>
+                </GlassCard>
 
                 <Text style={styles.platformText}>
                     Platform: {Platform.OS}
@@ -187,6 +178,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         padding: 20,
+        gap: 20,
     },
     title: {
         fontSize: 48,
@@ -197,21 +189,7 @@ const styles = StyleSheet.create({
     subtitle: {
         fontSize: 20,
         color: '#1d1e1f',
-        marginBottom: 30,
-    },
-    infoBox: {
-        backgroundColor: 'rgba(241, 241, 241, 0.7)',
-        padding: 20,
-        borderRadius: 16,
-        width: '100%',
-        marginBottom: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 3,
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.18)',
+        marginBottom: 10,
     },
     infoTitle: {
         fontSize: 18,
@@ -227,7 +205,6 @@ const styles = StyleSheet.create({
     stepContainer: {
         flexDirection: 'column',
         alignItems: 'flex-start',
-        marginBottom: 20,
         backgroundColor: 'rgba(171, 202, 47, 0.1)',
         padding: 12,
         borderRadius: 12,
@@ -248,12 +225,7 @@ const styles = StyleSheet.create({
     },
     instructionsBox: {
         marginTop: 12,
-        padding: 12,
-        backgroundColor: 'rgba(241, 241, 241, 0.7)',
-        borderRadius: 8,
         width: '100%',
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.18)',
     },
     instructionsTitle: {
         fontSize: 16,
@@ -266,34 +238,8 @@ const styles = StyleSheet.create({
         color: '#1d1e1f',
         lineHeight: 20,
     },
-    button: {
-        backgroundColor: '#abca2f',
-        paddingVertical: 16,
-        paddingHorizontal: 40,
-        borderRadius: 12,
+    signInButton: {
         width: '100%',
-        alignItems: 'center',
-    },
-    buttonDisabled: {
-        backgroundColor: 'rgba(171, 202, 47, 0.5)',
-    },
-    buttonPressed: {
-        backgroundColor: '#9bb829',
-        opacity: 0.8,
-    },
-    buttonText: {
-        color: '#010203',
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
-    addressBox: {
-        marginTop: 20,
-        backgroundColor: 'rgba(241, 241, 241, 0.7)',
-        padding: 12,
-        borderRadius: 12,
-        width: '100%',
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.18)',
     },
     addressLabel: {
         fontSize: 14,
@@ -307,13 +253,8 @@ const styles = StyleSheet.create({
         fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     },
     howItWorks: {
-        marginTop: 30,
-        backgroundColor: 'rgba(241, 241, 241, 0.7)',
-        padding: 20,
-        borderRadius: 16,
+        marginTop: 10,
         width: '100%',
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.18)',
     },
     howItWorksTitle: {
         fontSize: 16,
@@ -327,7 +268,6 @@ const styles = StyleSheet.create({
         lineHeight: 20,
     },
     platformText: {
-        marginTop: 20,
         fontSize: 12,
         color: '#1d1e1f',
     },
