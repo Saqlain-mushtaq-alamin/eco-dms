@@ -14,9 +14,14 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "allowJs": true,
-    "jsx": "react-jsx"
+    "allowJs": false,
+    "jsx": "react-jsx",
+    "types": [],
+    "noEmit": true
   },
+  "include": [
+    "shared/**/*"
+  ],
   "exclude": [
     "node_modules",
     "**/node_modules/**",
@@ -24,14 +29,12 @@
     "**/build/**",
     "**/*.venv/**",
     "**/backend.venv/**",
-    "apps/web/dist",
-    "apps/web/*.config.*",
-    "apps/mobile/eslint.config.js",
-    "apps/mobile/metro.config.js",
-    "apps/mobile/index.js",
-    "apps/mobile/scripts/**/*.js",
-    "backend/**/*.py",
-    "subgraph/scripts/**/*.js"
-  ],
-  "extends": "expo/tsconfig.base"
+    "**/*.config.js",
+    "**/*.config.ts",
+    "apps/**",
+    "backend/**",
+    "contracts/**",
+    "subgraph/**",
+    "infrastructure/**"
+  ]
 }

@@ -11,6 +11,8 @@ config.resolver = {
     sourceExts: ['js', 'jsx', 'json', 'ts', 'tsx'],
     // Explicitly define node_modules location
     nodeModulesPaths: [path.resolve(__dirname, 'node_modules')],
+    // Ensure React is resolved correctly
+    resolverMainFields: ['react-native', 'browser', 'main'],
 };
 
 // Improve transformer stability
@@ -23,9 +25,12 @@ config.transformer = {
         keep_classnames: true,
         keep_fnames: true,
     },
+    // Ensure Babel processes all files consistently
+    enableBabelRCLookup: true,
+    enableBabelRuntime: true,
 };
 
-// Cache configuration for better stability
-config.resetCache = false;
+// Always reset cache to avoid stale bundles
+config.resetCache = true;
 
 module.exports = config;
