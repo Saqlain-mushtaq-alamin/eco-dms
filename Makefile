@@ -44,7 +44,7 @@ web:
 # Mobile only
 mobile:
 	@echo Starting Mobile (Expo)...
-	@pushd apps\mobile && start "Expo Mobile" cmd /C "npm start" && popd
+	@pushd apps\mobile && start "Expo Mobile" cmd /C "pnpm start" && popd
 	@echo Mobile started! Check 'Expo Mobile' window for QR code.
 	@echo Note: Using tunnel mode for iPhone compatibility.
 
