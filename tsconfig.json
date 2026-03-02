@@ -32,5 +32,6 @@
     "apps/mobile/scripts/**/*.js",
     "backend/**/*.py",
     "subgraph/scripts/**/*.js"
-  ]
+  ],
+  "extends": "expo/tsconfig.base"
 }

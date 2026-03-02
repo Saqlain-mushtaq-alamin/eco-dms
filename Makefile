@@ -5,13 +5,18 @@ SHELL := cmd.exe
 PY_ENV=.venv
 PYTHON=py -3.11
 
+# Install JavaScript workspace dependencies
+install-js:
+	@where pnpm >nul 2>nul || (echo pnpm is required. Install with: npm i -g pnpm && exit /b 1)
+	@pnpm install
+
 # Install dependencies (full requirements including celery)
 install:
 	@if not exist "$(PY_ENV)" ($(PYTHON) -m venv "$(PY_ENV)")
 	@"$(PY_ENV)\Scripts\pip" install -r backend\requirements.txt 2>nul || echo Dependencies already installed
 
 # Dev setup: start backend, contracts, and web (NO ML/Celery)
-dev: install
+dev: install install-js
 	@echo Starting Redis...
 	@docker run --rm -d --name eco-redis -p 6379:6379 redis:7 1>nul 2>nul || echo Redis already running or Docker not available.
 	@echo Starting Backend...
@@ -113,7 +118,7 @@ graph-deploy:
 	@echo Subgraph deployed!
 
 # Full dev environment with Graph Node
-dev-full: install
+dev-full: install install-js
 	@echo Starting full development stack (Backend + Contracts + Web + Mobile + Graph)...
 	@$(MAKE) graph-start
 	@echo Waiting for Graph Node to initialize (20 seconds)...
