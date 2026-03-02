@@ -60,8 +60,12 @@ export const GlassButton: React.FC<GlassButtonProps> = ({
         textAlign: 'center',
     };
 
+    const TouchableOpacityComponent = TouchableOpacity as unknown as React.ComponentType<any>;
+    const ActivityIndicatorComponent = ActivityIndicator as unknown as React.ComponentType<any>;
+    const TextComponent = Text as unknown as React.ComponentType<any>;
+
     return (
-        <TouchableOpacity
+        <TouchableOpacityComponent
             style={[buttonStyles, variant === 'glass' && styles.glass, style]}
             onPress={onPress}
             disabled={disabled || loading}
@@ -71,13 +75,13 @@ export const GlassButton: React.FC<GlassButtonProps> = ({
             accessibilityState={{ disabled: disabled || loading }}
         >
             {loading ? (
-                <ActivityIndicator
+                <ActivityIndicatorComponent
                     color={variant === 'primary' ? theme.colors.accent : theme.colors.primary}
                 />
             ) : (
-                <Text style={textStyles}>{title}</Text>
+                <TextComponent style={textStyles}>{title}</TextComponent>
             )}
-        </TouchableOpacity>
+        </TouchableOpacityComponent>
     );
 };
 

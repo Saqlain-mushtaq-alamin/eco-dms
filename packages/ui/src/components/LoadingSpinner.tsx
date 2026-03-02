@@ -17,10 +17,13 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
 }) => {
     const theme = useTheme();
 
+    const RNView = View as unknown as React.ComponentType<any>;
+    const RNActivityIndicator = ActivityIndicator as unknown as React.ComponentType<any>;
+
     return (
-        <View style={[styles.container, style]} testID={testID}>
-            <ActivityIndicator size={size} color={color || theme.colors.primary} />
-        </View>
+        <RNView style={[styles.container, style]} testID={testID}>
+            <RNActivityIndicator size={size} color={color || theme.colors.primary} />
+        </RNView>
     );
 };
 

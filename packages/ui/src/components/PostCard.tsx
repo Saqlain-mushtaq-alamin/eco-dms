@@ -4,6 +4,11 @@ import { Avatar } from './Avatar';
 import { Card } from './Card';
 import { useTheme } from '../theme';
 
+const RNView = View as unknown as React.ComponentType<any>;
+const RNText = Text as unknown as React.ComponentType<any>;
+const RNImage = Image as unknown as React.ComponentType<any>;
+const RNTouchableOpacity = TouchableOpacity as unknown as React.ComponentType<any>;
+
 export interface PostCardProps {
     author: {
         address: string;
@@ -65,7 +70,7 @@ export const PostCard: React.FC<PostCardProps> = ({
     return (
         <Card style={cardStyle as ViewStyle} padding="md" testID={testID}>
             {/* Author Header */}
-            <TouchableOpacity
+            <RNTouchableOpacity
                 style={styles.header}
                 onPress={onAuthorPress}
                 disabled={!onAuthorPress}
@@ -75,24 +80,24 @@ export const PostCard: React.FC<PostCardProps> = ({
                     name={author.username || author.address}
                     size="sm"
                 />
-                <View style={[styles.authorInfo, { marginLeft: theme.spacing.sm }]}>
-                    <Text style={[styles.username, { color: theme.colors.text }]}>
+                <RNView style={[styles.authorInfo, { marginLeft: theme.spacing.sm }]}>
+                    <RNText style={[styles.username, { color: theme.colors.text }]}>
                         {author.username || formatAddress(author.address)}
-                    </Text>
-                    <Text style={[styles.timestamp, { color: theme.colors.textSecondary }]}>
+                    </RNText>
+                    <RNText style={[styles.timestamp, { color: theme.colors.textSecondary }]}>
                         {formatTimestamp(timestamp)}
-                    </Text>
-                </View>
-            </TouchableOpacity>
+                    </RNText>
+                </RNView>
+            </RNTouchableOpacity>
 
             {/* Content */}
-            <Text style={[styles.content, { color: theme.colors.text, marginTop: theme.spacing.md }]}>
+            <RNText style={[styles.content, { color: theme.colors.text, marginTop: theme.spacing.md }]}>
                 {content}
-            </Text>
+            </RNText>
 
             {/* Image */}
             {imageUri && (
-                <Image
+                <RNImage
                     source={{ uri: imageUri }}
                     style={[styles.image, { marginTop: theme.spacing.md, borderRadius: theme.borderRadius.md }]}
                     resizeMode="cover"
@@ -100,33 +105,33 @@ export const PostCard: React.FC<PostCardProps> = ({
             )}
 
             {/* Actions */}
-            <View style={[styles.actions, { marginTop: theme.spacing.md }]}>
-                <TouchableOpacity
+            <RNView style={[styles.actions, { marginTop: theme.spacing.md }]}>
+                <RNTouchableOpacity
                     style={styles.action}
                     onPress={onLike}
                     disabled={!onLike}
                     accessibilityRole="button"
                     accessibilityLabel={isLiked ? 'Unlike' : 'Like'}
                 >
-                    <Text style={{ fontSize: 18 }}>{isLiked ? '❤️' : '🤍'}</Text>
-                    <Text style={[styles.actionText, { color: theme.colors.text, marginLeft: theme.spacing.xs }]}>
+                    <RNText style={{ fontSize: 18 }}>{isLiked ? '❤️' : '🤍'}</RNText>
+                    <RNText style={[styles.actionText, { color: theme.colors.text, marginLeft: theme.spacing.xs }]}>
                         {likes}
-                    </Text>
-                </TouchableOpacity>
+                    </RNText>
+                </RNTouchableOpacity>
 
-                <TouchableOpacity
+                <RNTouchableOpacity
                     style={[styles.action, { marginLeft: theme.spacing.lg }]}
                     onPress={onComment}
                     disabled={!onComment}
                     accessibilityRole="button"
                     accessibilityLabel="Comment"
                 >
-                    <Text style={{ fontSize: 18 }}>💬</Text>
-                    <Text style={[styles.actionText, { color: theme.colors.text, marginLeft: theme.spacing.xs }]}>
+                    <RNText style={{ fontSize: 18 }}>💬</RNText>
+                    <RNText style={[styles.actionText, { color: theme.colors.text, marginLeft: theme.spacing.xs }]}>
                         {comments}
-                    </Text>
-                </TouchableOpacity>
-            </View>
+                    </RNText>
+                </RNTouchableOpacity>
+            </RNView>
         </Card>
     );
 };

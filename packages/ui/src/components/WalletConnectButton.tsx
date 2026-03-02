@@ -24,8 +24,11 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({
         return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
     };
 
+    const Touchable = TouchableOpacity as unknown as React.ComponentType<any>;
+    const RNText = Text as unknown as React.ComponentType<any>;
+
     return (
-        <TouchableOpacity
+        <Touchable
             style={[
                 styles.button,
                 {
@@ -41,10 +44,10 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({
             accessibilityRole="button"
             accessibilityLabel={connected ? 'Disconnect wallet' : 'Connect wallet'}
         >
-            <Text style={[styles.text, { color: '#ffffff' }]}>
+            <RNText style={[styles.text, { color: '#ffffff' }]}>
                 {loading ? 'Connecting...' : connected && address ? formatAddress(address) : 'Connect Wallet'}
-            </Text>
-        </TouchableOpacity>
+            </RNText>
+        </Touchable>
     );
 };
 

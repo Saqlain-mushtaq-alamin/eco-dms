@@ -46,10 +46,10 @@ export const Card: React.FC<CardProps> = ({
             : theme.colors.border,
     };
 
-    return (
-        <View style={[cardStyles, style]} testID={testID}>
-            {children}
-        </View>
+    return React.createElement(
+        View as unknown as React.ComponentType<any>,
+        { style: [cardStyles, style], testID },
+        children,
     );
 };
 

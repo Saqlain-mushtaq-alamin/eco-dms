@@ -81,24 +81,39 @@ export default function WalletConnect({ onConnected }: { onConnected: (address: 
     }
 
     return (
-        <Card padding="lg" style={{ marginTop: 24 }}>
-            <h2 style={{ fontSize: 20, fontWeight: '600', marginBottom: 16 }}>Sign In with Ethereum</h2>
-            {error && <div style={{ color: '#ef4444', marginBottom: 16 }}>{error}</div>}
+        <div className="w-full max-w-md">
+            <Card
+                padding="lg"
+                style={{ borderWidth: 2, borderColor: '#abca2f', borderRadius: 24 }}
+            >
+                <div className="text-center mb-6">
+                    <h2 className="text-4xl font-bold text-[#abca2f] mb-2">Let's goooo! 🚀</h2>
+                    <p className="text-lg text-gray-700">Sign in with Ethereum</p>
+                </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <Button
-                    title={loading ? 'Connecting...' : 'Connect with MetaMask'}
-                    onPress={() => handleConnect('metamask')}
-                    variant="primary"
-                    disabled={loading}
-                />
-                <Button
-                    title={loading ? 'Connecting...' : 'Connect with WalletConnect'}
-                    onPress={() => handleConnect('walletconnect')}
-                    variant="secondary"
-                    disabled={loading}
-                />
-            </div>
-        </Card>
+                {error && (
+                    <div className="mb-4 p-4 bg-red-50 border-2 border-red-400 rounded-xl text-red-700">
+                        {error}
+                    </div>
+                )}
+
+                <div className="space-y-4">
+                    <Button
+                        title={loading ? '⏳ Vibing...' : '🦊 Connect with MetaMask'}
+                        onPress={() => handleConnect('metamask')}
+                        variant="primary"
+                        disabled={loading}
+                    />
+                    <Button
+                        title={loading ? '⏳ Vibing...' : '🔗 Connect with WalletConnect'}
+                        onPress={() => handleConnect('walletconnect')}
+                        variant="secondary"
+                        disabled={loading}
+                    />
+                </div>
+
+          
+            </Card>
+        </div>
     )
 }

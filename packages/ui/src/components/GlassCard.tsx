@@ -18,6 +18,11 @@ export const GlassCard: React.FC<GlassCardProps> = ({
     testID,
 }) => {
     const theme = useTheme();
+    const ViewComponent = View as unknown as React.ComponentType<{
+        style?: any;
+        testID?: string;
+        children?: React.ReactNode;
+    }>;
 
     const cardStyles: ViewStyle = {
         ...styles.glass,
@@ -37,9 +42,9 @@ export const GlassCard: React.FC<GlassCardProps> = ({
     };
 
     return (
-        <View style={[cardStyles, style]} testID={testID}>
+        <ViewComponent style={[cardStyles, style]} testID={testID}>
             {children}
-        </View>
+        </ViewComponent>
     );
 };
 

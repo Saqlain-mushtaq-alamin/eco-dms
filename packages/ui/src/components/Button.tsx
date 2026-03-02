@@ -31,6 +31,9 @@ export const Button: React.FC<ButtonProps> = ({
     testID,
 }) => {
     const theme = useTheme();
+    const TouchableOpacityComponent = TouchableOpacity as unknown as React.ComponentType<any>;
+    const ActivityIndicatorComponent = ActivityIndicator as unknown as React.ComponentType<any>;
+    const TextComponent = Text as unknown as React.ComponentType<any>;
 
     const buttonStyles: ViewStyle = {
         ...styles.base,
@@ -63,7 +66,7 @@ export const Button: React.FC<ButtonProps> = ({
     };
 
     return (
-        <TouchableOpacity
+        <TouchableOpacityComponent
             style={[buttonStyles, style]}
             onPress={onPress}
             disabled={disabled || loading}
@@ -73,11 +76,11 @@ export const Button: React.FC<ButtonProps> = ({
             accessibilityState={{ disabled: disabled || loading }}
         >
             {loading ? (
-                <ActivityIndicator color={variant === 'outline' ? theme.colors.primary : theme.colors.accent} />
+                <ActivityIndicatorComponent color={variant === 'outline' ? theme.colors.primary : theme.colors.accent} />
             ) : (
-                <Text style={textStyles}>{title}</Text>
+                <TextComponent style={textStyles}>{title}</TextComponent>
             )}
-        </TouchableOpacity>
+        </TouchableOpacityComponent>
     );
 };
 

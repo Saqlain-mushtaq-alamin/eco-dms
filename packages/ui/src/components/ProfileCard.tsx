@@ -27,6 +27,8 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
     testID,
 }) => {
     const theme = useTheme();
+    const ViewComponent = View as unknown as React.ComponentType<any>;
+    const TextComponent = Text as unknown as React.ComponentType<any>;
 
     const formatAddress = (addr: string) => {
         return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -34,10 +36,10 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
 
     return (
         <Card style={style} padding="lg" testID={testID}>
-            <View style={styles.container}>
+            <ViewComponent style={styles.container}>
                 <Avatar uri={avatarUri} name={username || address} size="lg" />
-                <View style={[styles.info, { marginLeft: theme.spacing.md }]}>
-                    <Text style={[
+                <ViewComponent style={[styles.info, { marginLeft: theme.spacing.md }]}>
+                    <TextComponent style={[
                         styles.username,
                         {
                             color: theme.colors.text,
@@ -46,24 +48,24 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                         },
                     ]}>
                         {username || formatAddress(address)}
-                    </Text>
+                    </TextComponent>
                     {bio && (
-                        <Text style={[styles.bio, { color: theme.colors.textSecondary, marginTop: theme.spacing.xs }]}>
+                        <TextComponent style={[styles.bio, { color: theme.colors.textSecondary, marginTop: theme.spacing.xs }]}>
                             {bio}
-                        </Text>
+                        </TextComponent>
                     )}
-                    <View style={[styles.stats, { marginTop: theme.spacing.sm }]}>
-                        <View style={styles.stat}>
-                            <Text style={[styles.statValue, { color: theme.colors.primary }]}>{ecoScore}</Text>
-                            <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Eco Score</Text>
-                        </View>
-                        <View style={[styles.stat, { marginLeft: theme.spacing.lg }]}>
-                            <Text style={[styles.statValue, { color: theme.colors.primary }]}>{verifiedActions}</Text>
-                            <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Verified</Text>
-                        </View>
-                    </View>
-                </View>
-            </View>
+                    <ViewComponent style={[styles.stats, { marginTop: theme.spacing.sm }]}>
+                        <ViewComponent style={styles.stat}>
+                            <TextComponent style={[styles.statValue, { color: theme.colors.primary }]}>{ecoScore}</TextComponent>
+                            <TextComponent style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Eco Score</TextComponent>
+                        </ViewComponent>
+                        <ViewComponent style={[styles.stat, { marginLeft: theme.spacing.lg }]}>
+                            <TextComponent style={[styles.statValue, { color: theme.colors.primary }]}>{verifiedActions}</TextComponent>
+                            <TextComponent style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Verified</TextComponent>
+                        </ViewComponent>
+                    </ViewComponent>
+                </ViewComponent>
+            </ViewComponent>
         </Card>
     );
 };

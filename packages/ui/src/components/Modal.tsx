@@ -10,6 +10,11 @@ import {
 } from 'react-native';
 import { useTheme } from '../theme';
 
+const RNModalComponent = RNModal as unknown as React.ComponentType<any>;
+const ViewComponent = View as unknown as React.ComponentType<any>;
+const TextComponent = Text as unknown as React.ComponentType<any>;
+const TouchableOpacityComponent = TouchableOpacity as unknown as React.ComponentType<any>;
+
 export interface ModalProps {
     visible: boolean;
     onClose: () => void;
@@ -30,19 +35,19 @@ export const Modal: React.FC<ModalProps> = ({
     const theme = useTheme();
 
     return (
-        <RNModal
+        <RNModalComponent
             visible={visible}
             transparent
             animationType="fade"
             onRequestClose={onClose}
             testID={testID}
         >
-            <TouchableOpacity
+            <TouchableOpacityComponent
                 style={styles.backdrop}
                 activeOpacity={1}
                 onPress={onClose}
             >
-                <TouchableOpacity
+                <TouchableOpacityComponent
                     activeOpacity={1}
                     style={[
                         styles.modalContainer,
@@ -54,11 +59,11 @@ export const Modal: React.FC<ModalProps> = ({
                         },
                         style,
                     ]}
-                    onPress={(e) => e.stopPropagation()}
+                    onPress={() => { }}
                 >
                     {title && (
-                        <View style={[styles.header, { marginBottom: theme.spacing.md }]}>
-                            <Text style={[
+                        <ViewComponent style={[styles.header, { marginBottom: theme.spacing.md }]}>
+                            <TextComponent style={[
                                 styles.title,
                                 {
                                     color: theme.colors.text,
@@ -67,16 +72,16 @@ export const Modal: React.FC<ModalProps> = ({
                                 },
                             ]}>
                                 {title}
-                            </Text>
-                            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                                <Text style={[styles.closeText, { color: theme.colors.textSecondary }]}>✕</Text>
-                            </TouchableOpacity>
-                        </View>
+                            </TextComponent>
+                            <TouchableOpacityComponent onPress={onClose} style={styles.closeButton}>
+                                <TextComponent style={[styles.closeText, { color: theme.colors.textSecondary }]}>✕</TextComponent>
+                            </TouchableOpacityComponent>
+                        </ViewComponent>
                     )}
-                    <View style={styles.content}>{children}</View>
-                </TouchableOpacity>
-            </TouchableOpacity>
-        </RNModal>
+                    <ViewComponent style={styles.content}>{children}</ViewComponent>
+                </TouchableOpacityComponent>
+            </TouchableOpacityComponent>
+        </RNModalComponent>
     );
 };
 

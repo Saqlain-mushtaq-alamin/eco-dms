@@ -41,31 +41,35 @@ export const Input: React.FC<InputProps> = ({
         fontSize: 16,
     };
 
-    return (
-        <View style={[styles.container, style]}>
-            {label && (
-                <Text style={[styles.label, { color: theme.colors.text, marginBottom: theme.spacing.xs }]}>
-                    {label}
-                </Text>
-            )}
-            <TextInput
-                style={inputStyles}
-                value={value}
-                onChangeText={onChangeText}
-                placeholder={placeholder}
-                placeholderTextColor={theme.colors.textSecondary}
-                secureTextEntry={secureTextEntry}
-                multiline={multiline}
-                numberOfLines={numberOfLines}
-                editable={!disabled}
-                testID={testID}
-            />
-            {error && (
-                <Text style={[styles.error, { color: theme.colors.error, marginTop: theme.spacing.xs }]}>
-                    {error}
-                </Text>
-            )}
-        </View>
+    return React.createElement(
+        View as any,
+        { style: [styles.container, style] },
+        label
+            ? React.createElement(
+                  Text as any,
+                  { style: [styles.label, { color: theme.colors.text, marginBottom: theme.spacing.xs }] },
+                  label,
+              )
+            : null,
+        React.createElement(TextInput as any, {
+            style: inputStyles,
+            value,
+            onChangeText,
+            placeholder,
+            placeholderTextColor: theme.colors.textSecondary,
+            secureTextEntry,
+            multiline,
+            numberOfLines,
+            editable: !disabled,
+            testID,
+        }),
+        error
+            ? React.createElement(
+                  Text as any,
+                  { style: [styles.error, { color: theme.colors.error, marginTop: theme.spacing.xs }] },
+                  error,
+              )
+            : null,
     );
 };
 
