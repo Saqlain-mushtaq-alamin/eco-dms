@@ -44,15 +44,16 @@ web:
 # Mobile only
 mobile:
 	@echo Starting Mobile (Expo)...
-	@pushd apps\mobile && start "Expo Mobile" cmd /C "pnpm expo start --clear --host lan" && popd
+	@pushd apps\mobile && start "Expo Mobile" cmd /C "npm start" && popd
 	@echo Mobile started! Check 'Expo Mobile' window for QR code.
+	@echo Note: Using tunnel mode for iPhone compatibility.
 
 # Restart mobile (useful when it crashes)
 restart-mobile:
 	@echo Restarting Mobile...
 	@taskkill /F /FI "WINDOWTITLE eq Expo Mobile*" 2>nul || echo No mobile app running
-	@taskkill /F /IM node.exe /T 2>nul || echo No Node processes
 	@timeout /t 2 /nobreak >nul
+	@pushd apps\mobile && rmdir /S /Q .expo 2>nul && popd || echo Cache cleared
 	@$(MAKE) mobile
 
 # Contracts only

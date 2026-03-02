@@ -1,6 +1,6 @@
+import React, { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, Platform, Pressable, ScrollView } from 'react-native';
-import { useState } from 'react';
 
 export default function App() {
   const [testsPassed, setTestsPassed] = useState<string[]>([]);
