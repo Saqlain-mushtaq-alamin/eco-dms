@@ -115,7 +115,7 @@ export function SignInScreen({ onSignInSuccess }: SignInScreenProps) {
                 {loading && step && (
                     <View style={styles.stepContainer}>
                         <View style={styles.stepRow}>
-                            <ActivityIndicator size="small" color="#2e7d32" />
+                            <ActivityIndicator size="small" color="#abca2f" />
                             <Text style={styles.stepText}>{step}</Text>
                         </View>
                         {step === 'Connecting wallet...' && (
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
     },
     container: {
         flex: 1,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: '#ffffff',
         alignItems: 'center',
         justifyContent: 'center',
         padding: 20,
@@ -191,45 +191,49 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 48,
         fontWeight: 'bold',
-        color: '#2e7d32',
+        color: '#abca2f',
         marginBottom: 8,
     },
     subtitle: {
         fontSize: 20,
-        color: '#666',
+        color: '#1d1e1f',
         marginBottom: 30,
     },
     infoBox: {
-        backgroundColor: 'white',
+        backgroundColor: 'rgba(241, 241, 241, 0.7)',
         padding: 20,
-        borderRadius: 12,
+        borderRadius: 16,
         width: '100%',
         marginBottom: 20,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowRadius: 8,
         elevation: 3,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.18)',
     },
     infoTitle: {
         fontSize: 18,
         fontWeight: 'bold',
         marginBottom: 12,
-        color: '#333',
+        color: '#010203',
     },
     infoText: {
         fontSize: 16,
-        color: '#666',
+        color: '#1d1e1f',
         lineHeight: 24,
     },
     stepContainer: {
         flexDirection: 'column',
         alignItems: 'flex-start',
         marginBottom: 20,
-        backgroundColor: '#e8f5e9',
+        backgroundColor: 'rgba(171, 202, 47, 0.1)',
         padding: 12,
-        borderRadius: 8,
+        borderRadius: 12,
         width: '100%',
+        borderWidth: 1,
+        borderColor: 'rgba(171, 202, 47, 0.2)',
     },
     stepRow: {
         flexDirection: 'row',
@@ -239,29 +243,31 @@ const styles = StyleSheet.create({
     stepText: {
         marginLeft: 12,
         fontSize: 16,
-        color: '#2e7d32',
+        color: '#abca2f',
         fontWeight: 'bold',
     },
     instructionsBox: {
         marginTop: 12,
         padding: 12,
-        backgroundColor: '#fff3e0',
+        backgroundColor: 'rgba(241, 241, 241, 0.7)',
         borderRadius: 8,
         width: '100%',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.18)',
     },
     instructionsTitle: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: '#e65100',
+        color: '#010203',
         marginBottom: 8,
     },
     instructionsText: {
         fontSize: 14,
-        color: '#666',
+        color: '#1d1e1f',
         lineHeight: 20,
     },
     button: {
-        backgroundColor: '#2e7d32',
+        backgroundColor: '#abca2f',
         paddingVertical: 16,
         paddingHorizontal: 40,
         borderRadius: 12,
@@ -269,56 +275,60 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     buttonDisabled: {
-        backgroundColor: '#81c784',
+        backgroundColor: 'rgba(171, 202, 47, 0.5)',
     },
     buttonPressed: {
-        backgroundColor: '#1b5e20',
+        backgroundColor: '#9bb829',
         opacity: 0.8,
     },
     buttonText: {
-        color: 'white',
+        color: '#010203',
         fontSize: 18,
         fontWeight: 'bold',
     },
     addressBox: {
         marginTop: 20,
-        backgroundColor: '#e3f2fd',
+        backgroundColor: 'rgba(241, 241, 241, 0.7)',
         padding: 12,
-        borderRadius: 8,
+        borderRadius: 12,
         width: '100%',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.18)',
     },
     addressLabel: {
         fontSize: 14,
-        color: '#666',
+        color: '#1d1e1f',
         marginBottom: 4,
     },
     addressText: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: '#1976d2',
+        color: '#abca2f',
         fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     },
     howItWorks: {
         marginTop: 30,
-        backgroundColor: 'white',
+        backgroundColor: 'rgba(241, 241, 241, 0.7)',
         padding: 20,
-        borderRadius: 12,
+        borderRadius: 16,
         width: '100%',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.18)',
     },
     howItWorksTitle: {
         fontSize: 16,
         fontWeight: 'bold',
         marginBottom: 12,
-        color: '#333',
+        color: '#010203',
     },
     howItWorksText: {
         fontSize: 14,
-        color: '#666',
+        color: '#1d1e1f',
         lineHeight: 20,
     },
     platformText: {
         marginTop: 20,
         fontSize: 12,
-        color: '#999',
+        color: '#1d1e1f',
     },
 });

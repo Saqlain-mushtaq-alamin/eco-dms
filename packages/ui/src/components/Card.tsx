@@ -6,6 +6,7 @@ export interface CardProps {
     children: React.ReactNode;
     style?: ViewStyle;
     padding?: 'sm' | 'md' | 'lg';
+    variant?: 'default' | 'glass' | 'glassDark';
     testID?: string;
 }
 
@@ -13,13 +14,25 @@ export const Card: React.FC<CardProps> = ({
     children,
     style,
     padding = 'md',
+    variant = 'default',
     testID,
 }) => {
     const theme = useTheme();
 
+    const getBackgroundColor = () => {
+        switch (variant) {
+            case 'glass':
+                return 'rgba(241, 241, 241, 0.7)';
+            case 'glassDark':
+                return 'rgba(29, 30, 31, 0.7)';
+            default:
+                return theme.colors.surface;
+        }
+    };
+
     const cardStyles: ViewStyle = {
         ...styles.card,
-        backgroundColor: theme.colors.surface,
+        backgroundColor: getBackgroundColor(),
         borderRadius: theme.borderRadius.lg,
         padding:
             padding === 'sm'
@@ -28,7 +41,9 @@ export const Card: React.FC<CardProps> = ({
                     ? theme.spacing.md
                     : theme.spacing.lg,
         borderWidth: 1,
-        borderColor: theme.colors.border,
+        borderColor: variant.includes('glass')
+            ? theme.colors.glass.border
+            : theme.colors.border,
     };
 
     return (

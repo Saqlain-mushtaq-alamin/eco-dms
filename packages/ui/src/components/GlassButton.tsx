@@ -9,10 +9,10 @@ import {
 } from 'react-native';
 import { useTheme } from '../theme';
 
-export interface ButtonProps {
+export interface GlassButtonProps {
     title: string;
     onPress: () => void;
-    variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
+    variant?: 'primary' | 'secondary' | 'glass';
     size?: 'sm' | 'md' | 'lg';
     disabled?: boolean;
     loading?: boolean;
@@ -20,7 +20,7 @@ export interface ButtonProps {
     testID?: string;
 }
 
-export const Button: React.FC<ButtonProps> = ({
+export const GlassButton: React.FC<GlassButtonProps> = ({
     title,
     onPress,
     variant = 'primary',
@@ -39,11 +39,9 @@ export const Button: React.FC<ButtonProps> = ({
                 ? theme.colors.primary
                 : variant === 'secondary'
                     ? theme.colors.secondary
-                    : variant === 'outline'
-                        ? 'transparent'
-                        : 'transparent',
-        borderWidth: variant === 'outline' ? 1 : 0,
-        borderColor: variant === 'outline' ? theme.colors.primary : 'transparent',
+                    : theme.colors.glass.background,
+        borderWidth: variant === 'glass' ? 1 : 0,
+        borderColor: variant === 'glass' ? theme.colors.glass.border : 'transparent',
         paddingVertical: size === 'sm' ? theme.spacing.sm : size === 'md' ? theme.spacing.md : theme.spacing.lg,
         paddingHorizontal: size === 'sm' ? theme.spacing.md : size === 'md' ? theme.spacing.lg : theme.spacing.xl,
         borderRadius: theme.borderRadius.md,
@@ -53,10 +51,10 @@ export const Button: React.FC<ButtonProps> = ({
     const textStyles: TextStyle = {
         color:
             variant === 'primary'
-                ? theme.colors.accent // Dark text on lime green primary
+                ? theme.colors.accent
                 : variant === 'secondary'
                     ? theme.colors.text
-                    : theme.colors.primary,
+                    : theme.colors.text,
         fontSize: size === 'sm' ? 14 : size === 'md' ? 16 : 18,
         fontWeight: '600',
         textAlign: 'center',
@@ -64,7 +62,7 @@ export const Button: React.FC<ButtonProps> = ({
 
     return (
         <TouchableOpacity
-            style={[buttonStyles, style]}
+            style={[buttonStyles, variant === 'glass' && styles.glass, style]}
             onPress={onPress}
             disabled={disabled || loading}
             testID={testID}
@@ -73,7 +71,9 @@ export const Button: React.FC<ButtonProps> = ({
             accessibilityState={{ disabled: disabled || loading }}
         >
             {loading ? (
-                <ActivityIndicator color={variant === 'outline' ? theme.colors.primary : theme.colors.accent} />
+                <ActivityIndicator
+                    color={variant === 'primary' ? theme.colors.accent : theme.colors.primary}
+                />
             ) : (
                 <Text style={textStyles}>{title}</Text>
             )}
@@ -86,5 +86,15 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         flexDirection: 'row',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    glass: {
+        shadowOpacity: 0.2,
+        shadowRadius: 12,
+        elevation: 5,
     },
 });

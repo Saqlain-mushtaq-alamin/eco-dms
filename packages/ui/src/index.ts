@@ -9,6 +9,10 @@ export { PostCard } from './components/PostCard';
 export { LoadingSpinner } from './components/LoadingSpinner';
 export { Modal } from './components/Modal';
 
+// Glassmorphism Components
+export { GlassCard } from './components/GlassCard';
+export { GlassButton } from './components/GlassButton';
+
 // Theme
 export { theme, ThemeProvider, useTheme } from './theme';
 export type { Theme } from './theme';
