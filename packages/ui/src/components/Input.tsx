@@ -46,10 +46,10 @@ export const Input: React.FC<InputProps> = ({
         { style: [styles.container, style] },
         label
             ? React.createElement(
-                  Text as any,
-                  { style: [styles.label, { color: theme.colors.text, marginBottom: theme.spacing.xs }] },
-                  label,
-              )
+                Text as any,
+                { style: [styles.label, { color: theme.colors.text, marginBottom: theme.spacing.xs }] },
+                label,
+            )
             : null,
         React.createElement(TextInput as any, {
             style: inputStyles,
@@ -65,10 +65,10 @@ export const Input: React.FC<InputProps> = ({
         }),
         error
             ? React.createElement(
-                  Text as any,
-                  { style: [styles.error, { color: theme.colors.error, marginTop: theme.spacing.xs }] },
-                  error,
-              )
+                Text as any,
+                { style: [styles.error, { color: theme.colors.error, marginTop: theme.spacing.xs }] },
+                error,
+            )
             : null,
     );
 };

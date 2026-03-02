@@ -29,7 +29,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                             className="text-2xl font-bold hover:opacity-80 transition-opacity"
                             style={{ color: '#abca2f' }}
                         >
-                            🌱 Eco DMS
+                            🌱 Eco  DMS
                         </Link>
 
                         {isAuthenticated && (
@@ -37,21 +37,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
                                 <Link
                                     to="/feed"
                                     className="px-4 py-2 rounded-lg font-medium transition-all hover:bg-[rgba(171,202,47,0.1)]"
-                                    style={{ color: '#1d1e1f' }}
+                                    style={{ color: '#abca2f' }}
                                 >
                                     Feed
                                 </Link>
                                 <Link
                                     to="/dashboard"
                                     className="px-4 py-2 rounded-lg font-medium transition-all hover:bg-[rgba(171,202,47,0.1)]"
-                                    style={{ color: '#1d1e1f' }}
+                                    style={{ color: '#abca2f' }}
                                 >
                                     Dashboard
                                 </Link>
                                 <Link
                                     to="/profile"
                                     className="px-4 py-2 rounded-lg font-medium transition-all hover:bg-[rgba(171,202,47,0.1)]"
-                                    style={{ color: '#1d1e1f' }}
+                                    style={{ color: '#abca2f' }}
                                 >
                                     Profile
                                 </Link>
