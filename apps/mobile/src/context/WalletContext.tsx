@@ -1,9 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { WalletConnectModal, useWalletConnectModal } from '@walletconnect/modal-react-native';
-import { ethers } from 'ethers';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WalletContextType } from '../types';
-import { WALLETCONNECT_PROJECT_ID } from '../config/walletConnect';
+import { WALLETCONNECT_PROJECT_ID, SUPPORTED_CHAINS } from '../config/walletConnect';
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
@@ -14,18 +13,35 @@ interface WalletProviderProps {
 export function WalletProvider({ children }: WalletProviderProps) {
     const { open, isConnected, address, provider } = useWalletConnectModal();
     const [isLoading, setIsLoading] = useState(false);
+    const [resolvedAddress, setResolvedAddress] = useState<string | null>(null);
 
     // Use refs to track latest values for the polling function
     const isConnectedRef = useRef(isConnected);
     const addressRef = useRef(address);
-    const providerRef = useRef(provider);
 
     useEffect(() => {
         isConnectedRef.current = isConnected;
         addressRef.current = address;
-        providerRef.current = provider;
         console.log('📡 Connection state updated:', { isConnected, address: address?.substring(0, 10) + '...' || 'none', hasProvider: !!provider });
+        if (address) {
+            setResolvedAddress(address);
+        }
     }, [isConnected, address, provider]);
+
+    const getAddressFromSession = (walletProvider: any): string | null => {
+        try {
+            const accounts: string[] | undefined = walletProvider?.session?.namespaces?.eip155?.accounts;
+            if (!accounts || accounts.length === 0) {
+                return null;
+            }
+            const first = accounts[0];
+            const parts = first.split(':');
+            const extracted = parts[parts.length - 1];
+            return extracted || null;
+        } catch {
+            return null;
+        }
+    };
 
     // Connect wallet
     const connectWallet = async (): Promise<string> => {
@@ -35,6 +51,7 @@ export function WalletProvider({ children }: WalletProviderProps) {
             // If already connected, return address
             if (isConnectedRef.current && addressRef.current) {
                 console.log('✅ Already connected:', addressRef.current);
+                setResolvedAddress(addressRef.current);
                 setIsLoading(false);
                 return addressRef.current;
             }
@@ -52,30 +69,17 @@ export function WalletProvider({ children }: WalletProviderProps) {
             if (isConnectedRef.current && addressRef.current) {
                 setIsLoading(false);
                 console.log('✅ Connected immediately! Address:', addressRef.current);
+                setResolvedAddress(addressRef.current);
                 return addressRef.current;
             }
 
-            // If not connected yet, check the provider directly
-            console.log('Checking provider for connection info...');
-            const currentProvider = providerRef.current;
-            if (currentProvider) {
-                console.log('Provider exists:', Object.keys(currentProvider));
-
-                // Try to get accounts from provider
-                try {
-                    const accounts = await currentProvider.request({ method: 'eth_accounts' }) as string[];
-                    console.log('Accounts from provider:', accounts);
-                    if (accounts && accounts.length > 0) {
-                        const addr = accounts[0];
-                        setIsLoading(false);
-                        console.log('✅ Got address from provider:', addr);
-                        return addr;
-                    }
-                } catch (providerError) {
-                    console.error('Error getting accounts from provider:', providerError);
-                }
-            } else {
-                console.log('❌ No provider available yet');
+            const sessionAddress = getAddressFromSession(provider);
+            if (sessionAddress) {
+                console.log('✅ Resolved address from WalletConnect session:', sessionAddress);
+                setResolvedAddress(sessionAddress);
+                await AsyncStorage.setItem('wallet_address', sessionAddress);
+                setIsLoading(false);
+                return sessionAddress;
             }
 
             // Last resort: poll for connection
@@ -96,8 +100,22 @@ export function WalletProvider({ children }: WalletProviderProps) {
                         clearInterval(checkConnection);
                         setIsLoading(false);
                         console.log('✅ Connection successful! Address:', addr);
+                        setResolvedAddress(addr);
                         resolve(addr);
-                    } else if (attempts >= maxAttempts) {
+                        return;
+                    }
+
+                    const fallbackAddress = getAddressFromSession(provider);
+                    if (fallbackAddress) {
+                        clearInterval(checkConnection);
+                        setIsLoading(false);
+                        console.log('✅ Connection detected from session fallback! Address:', fallbackAddress);
+                        setResolvedAddress(fallbackAddress);
+                        resolve(fallbackAddress);
+                        return;
+                    }
+
+                    if (attempts >= maxAttempts) {
                         clearInterval(checkConnection);
                         setIsLoading(false);
                         console.error('❌ Connection not detected');
@@ -120,6 +138,7 @@ export function WalletProvider({ children }: WalletProviderProps) {
             }
             await AsyncStorage.removeItem('auth_token');
             await AsyncStorage.removeItem('wallet_address');
+            setResolvedAddress(null);
         } catch (error) {
             console.error('Disconnect error:', error);
             throw error;
@@ -128,7 +147,8 @@ export function WalletProvider({ children }: WalletProviderProps) {
 
     // Sign message with wallet
     const signMessage = async (message: string): Promise<string> => {
-        if (!provider || !address) {
+        const signingAddress = address || resolvedAddress;
+        if (!provider || !signingAddress) {
             throw new Error('Wallet not connected');
         }
 
@@ -139,7 +159,7 @@ export function WalletProvider({ children }: WalletProviderProps) {
             // Signature is returned
             const signature = await provider.request({
                 method: 'personal_sign',
-                params: [message, address],
+                params: [message, signingAddress],
             }) as any;
 
             return signature;
@@ -151,14 +171,14 @@ export function WalletProvider({ children }: WalletProviderProps) {
 
     // Save address when connected
     useEffect(() => {
-        if (isConnected && address) {
+        if (address) {
             AsyncStorage.setItem('wallet_address', address);
         }
-    }, [isConnected, address]);
+    }, [address]);
 
     const value: WalletContextType = {
-        address: address ?? null,
-        isConnected,
+        address: address ?? resolvedAddress,
+        isConnected: isConnected || !!resolvedAddress,
         isLoading,
         connectWallet,
         disconnectWallet,
@@ -186,12 +206,10 @@ export function WalletProvider({ children }: WalletProviderProps) {
                         eip155: {
                             methods: [
                                 'eth_sendTransaction',
-                                'eth_signTransaction',
-                                'eth_sign',
                                 'personal_sign',
                                 'eth_signTypedData',
                             ],
-                            chains: ['eip155:1', 'eip155:31337'], // Ethereum mainnet + Hardhat local
+                            chains: SUPPORTED_CHAINS,
                             events: ['chainChanged', 'accountsChanged'],
                             rpcMap: {},
                         },

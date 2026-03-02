@@ -2,6 +2,7 @@
   "expo": {
     "name": "Eco-DMS Mobile",
     "slug": "eco-dms-mobile",
+    "scheme": "ecodms",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
