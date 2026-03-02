@@ -1,0 +1,290 @@
+import React, { useState } from 'react';
+import {
+    View,
+    Text,
+    StyleSheet,
+    Pressable,
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    Platform,
+} from 'react-native';
+import { useWallet } from '../context/WalletContext';
+import api from '../config/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { NonceResponse, PrepareMessageResponse, AuthResponse } from '../types';
+
+interface SignInScreenProps {
+    onSignInSuccess: () => void;
+}
+
+export function SignInScreen({ onSignInSuccess }: SignInScreenProps) {
+    const { connectWallet, signMessage, address, isConnected } = useWallet();
+    const [loading, setLoading] = useState(false);
+    const [step, setStep] = useState<string>('');
+
+    const handleSignIn = async () => {
+        setLoading(true);
+        try {
+            // Step 1: Connect wallet if not connected
+            if (!isConnected || !address) {
+                setStep('Connecting wallet...');
+                await connectWallet();
+                // MetaMask (or selected wallet) opens
+                // User approves connection
+                // Back to app with address
+
+                // Wait a bit for address to be set
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+
+            // Get the address after connection
+            const walletAddress = address;
+            if (!walletAddress) {
+                throw new Error('No wallet address found');
+            }
+
+            // Step 2: Get nonce from backend
+            setStep('Getting nonce...');
+            const { data: nonceData } = await api.get<NonceResponse>('/api/siwe/nonce');
+            console.log('Nonce received:', nonceData.nonce);
+
+            // Step 3: Prepare SIWE message
+            setStep('Preparing message...');
+            const { data: prepareData } = await api.post<PrepareMessageResponse>('/api/siwe/prepare', {
+                address: walletAddress.toLowerCase(),
+                nonce: nonceData.nonce,
+            });
+            console.log('Message prepared:', prepareData.message);
+
+            // Step 4: Sign message with wallet
+            setStep('Waiting for signature...');
+            // Wallet app opens again
+            // User sees SIWE message
+            // User clicks "Sign"
+            // Signature returned
+            const signature = await signMessage(prepareData.message);
+            console.log('Message signed');
+
+            // Step 5: Verify signature with backend
+            setStep('Verifying signature...');
+            const { data: authData } = await api.post<AuthResponse>('/api/siwe/verify', {
+                message: prepareData.message,
+                signature: signature,
+                address: walletAddress.toLowerCase(),
+                nonce: nonceData.nonce,
+            });
+
+            // Step 6: Save auth token and address
+            await AsyncStorage.setItem('auth_token', authData.token);
+            await AsyncStorage.setItem('wallet_address', authData.address);
+
+            console.log('✅ Authentication successful!');
+            Alert.alert('Success', 'Signed in successfully!', [
+                { text: 'OK', onPress: onSignInSuccess },
+            ]);
+        } catch (error: any) {
+            console.error('Sign in error:', error);
+            let errorMessage = 'Failed to sign in';
+
+            if (error.response?.data?.detail) {
+                errorMessage = error.response.data.detail;
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
+            Alert.alert('Error', errorMessage);
+        } finally {
+            setLoading(false);
+            setStep('');
+        }
+    };
+
+    return (
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
+            <View style={styles.container}>
+                <Text style={styles.title}>🌱 Eco-DMS</Text>
+                <Text style={styles.subtitle}>Sign In with Ethereum</Text>
+
+                <View style={styles.infoBox}>
+                    <Text style={styles.infoTitle}>Decentralized Authentication</Text>
+                    <Text style={styles.infoText}>
+                        • No passwords needed{'\n'}
+                        • Sign in with your wallet{'\n'}
+                        • Secure & private{'\n'}
+                        • Works with MetaMask, Trust Wallet, and more
+                    </Text>
+                </View>
+
+                {loading && step && (
+                    <View style={styles.stepContainer}>
+                        <ActivityIndicator size="small" color="#2e7d32" />
+                        <Text style={styles.stepText}>{step}</Text>
+                    </View>
+                )}
+
+                <Pressable
+                    style={({ pressed }) => [
+                        styles.button,
+                        loading && styles.buttonDisabled,
+                        pressed && !loading && styles.buttonPressed,
+                    ]}
+                    onPress={handleSignIn}
+                    disabled={loading}
+                >
+                    {loading ? (
+                        <ActivityIndicator color="white" />
+                    ) : (
+                        <Text style={styles.buttonText}>
+                            {isConnected ? 'Sign In' : 'Connect Wallet'}
+                        </Text>
+                    )}
+                </Pressable>
+
+                {isConnected && address && (
+                    <View style={styles.addressBox}>
+                        <Text style={styles.addressLabel}>Connected:</Text>
+                        <Text style={styles.addressText}>
+                            {address.slice(0, 6)}...{address.slice(-4)}
+                        </Text>
+                    </View>
+                )}
+
+                <View style={styles.howItWorks}>
+                    <Text style={styles.howItWorksTitle}>How it works:</Text>
+                    <Text style={styles.howItWorksText}>
+                        1. Connect your wallet{'\n'}
+                        2. Sign a message to prove ownership{'\n'}
+                        3. You're in! No passwords needed
+                    </Text>
+                </View>
+
+                <Text style={styles.platformText}>
+                    Platform: {Platform.OS}
+                </Text>
+            </View>
+        </ScrollView>
+    );
+}
+
+const styles = StyleSheet.create({
+    scrollContainer: {
+        flexGrow: 1,
+    },
+    container: {
+        flex: 1,
+        backgroundColor: '#f5f5f5',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+    },
+    title: {
+        fontSize: 48,
+        fontWeight: 'bold',
+        color: '#2e7d32',
+        marginBottom: 8,
+    },
+    subtitle: {
+        fontSize: 20,
+        color: '#666',
+        marginBottom: 30,
+    },
+    infoBox: {
+        backgroundColor: 'white',
+        padding: 20,
+        borderRadius: 12,
+        width: '100%',
+        marginBottom: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    infoTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 12,
+        color: '#333',
+    },
+    infoText: {
+        fontSize: 16,
+        color: '#666',
+        lineHeight: 24,
+    },
+    stepContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 20,
+        backgroundColor: '#e8f5e9',
+        padding: 12,
+        borderRadius: 8,
+        width: '100%',
+    },
+    stepText: {
+        marginLeft: 12,
+        fontSize: 16,
+        color: '#2e7d32',
+    },
+    button: {
+        backgroundColor: '#2e7d32',
+        paddingVertical: 16,
+        paddingHorizontal: 40,
+        borderRadius: 12,
+        width: '100%',
+        alignItems: 'center',
+    },
+    buttonDisabled: {
+        backgroundColor: '#81c784',
+    },
+    buttonPressed: {
+        backgroundColor: '#1b5e20',
+        opacity: 0.8,
+    },
+    buttonText: {
+        color: 'white',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    addressBox: {
+        marginTop: 20,
+        backgroundColor: '#e3f2fd',
+        padding: 12,
+        borderRadius: 8,
+        width: '100%',
+    },
+    addressLabel: {
+        fontSize: 14,
+        color: '#666',
+        marginBottom: 4,
+    },
+    addressText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#1976d2',
+        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    },
+    howItWorks: {
+        marginTop: 30,
+        backgroundColor: 'white',
+        padding: 20,
+        borderRadius: 12,
+        width: '100%',
+    },
+    howItWorksTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginBottom: 12,
+        color: '#333',
+    },
+    howItWorksText: {
+        fontSize: 14,
+        color: '#666',
+        lineHeight: 20,
+    },
+    platformText: {
+        marginTop: 20,
+        fontSize: 12,
+        color: '#999',
+    },
+});

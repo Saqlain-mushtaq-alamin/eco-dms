@@ -36,5 +36,6 @@
     "contracts/**",
     "subgraph/**",
     "infrastructure/**"
-  ]
+  ],
+  "extends": "expo/tsconfig.base"
 }
