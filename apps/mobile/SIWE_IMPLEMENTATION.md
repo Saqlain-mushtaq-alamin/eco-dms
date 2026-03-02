@@ -226,7 +226,40 @@ npm start
 
 ### Common Issues
 
-#### 1. "Network request failed"
+#### 1. "import.meta is not supported in Hermes"
+**Cause**: Babel config missing import.meta polyfill
+
+**Fix**: Already fixed! The `babel.config.js` has been updated with:
+```javascript
+{
+  presets: [
+    ['babel-preset-expo', {
+      unstable_transformImportMeta: true,
+    }],
+  ],
+}
+```
+If you still see this error, clear cache: `rm -rf .expo node_modules/.cache && npm start --clear`
+
+#### 2. "WebSocket connection closed: 3000 (Project not found)"
+**Cause**: Invalid WalletConnect Project ID
+
+**Fix**: Get your own Project ID (free):
+1. Go to https://cloud.walletconnect.com/
+2. Create an account
+3. Create a new project
+4. Copy your Project ID
+5. Update `apps/mobile/src/config/walletConnect.ts`:
+   ```typescript
+   export const WALLETCONNECT_PROJECT_ID = 'your-project-id-here';
+   ```
+
+#### 3. "Application module is not available"
+**Cause**: React Native compatibility warning (non-critical)
+
+**Fix**: This warning doesn't prevent the app from working. You can ignore it. The app should still load and function normally.
+
+#### 4. "Network request failed"
 **Cause**: Can't reach backend from phone
 
 **Fix**:
@@ -235,7 +268,7 @@ npm start
 - Check firewall settings
 - Backend must listen on 0.0.0.0
 
-#### 2. "MetaMask doesn't open"
+#### 5. "MetaMask doesn't open"
 **Cause**: Deep linking not working
 
 **Fix**:
@@ -243,14 +276,14 @@ npm start
 - Try closing and reopening MetaMask
 - Restart phone if needed
 
-#### 3. "Invalid or expired nonce"
+#### 6. "Invalid or expired nonce"
 **Cause**: Nonce expired (5 minutes default)
 
 **Fix**:
 - Complete sign-in faster
 - Or increase NONCE_TTL_SECONDS in backend config
 
-#### 4. "Signature invalid"
+#### 7. "Signature invalid"
 **Cause**: Wrong address or message format
 
 **Fix**:

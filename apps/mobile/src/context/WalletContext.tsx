@@ -3,10 +3,7 @@ import { WalletConnectModal, useWalletConnectModal } from '@walletconnect/modal-
 import { ethers } from 'ethers';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WalletContextType } from '../types';
-
-// WalletConnect Project ID - Get from https://cloud.walletconnect.com
-// For testing, you can use this temporary one or get your own (free)
-const PROJECT_ID = 'a01e2d0959c3160c685269339abce35a'; // Demo project ID
+import { WALLETCONNECT_PROJECT_ID } from '../config/walletConnect';
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
@@ -95,7 +92,7 @@ export function WalletProvider({ children }: WalletProviderProps) {
         <WalletContext.Provider value={value}>
             {children}
             <WalletConnectModal
-                projectId={PROJECT_ID}
+                projectId={WALLETCONNECT_PROJECT_ID}
                 providerMetadata={{
                     name: 'Eco-DMS',
                     description: 'Decentralized Document Management System with ML Verification',
