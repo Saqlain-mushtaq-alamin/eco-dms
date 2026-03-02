@@ -26,7 +26,7 @@ export interface WalletContextType {
     address: string | null;
     isConnected: boolean;
     isLoading: boolean;
-    connectWallet: () => Promise<void>;
+    connectWallet: () => Promise<string>;
     disconnectWallet: () => Promise<void>;
     signMessage: (message: string) => Promise<string>;
     provider: any;

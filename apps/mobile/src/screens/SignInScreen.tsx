@@ -27,21 +27,17 @@ export function SignInScreen({ onSignInSuccess }: SignInScreenProps) {
         setLoading(true);
         try {
             // Step 1: Connect wallet if not connected
-            if (!isConnected || !address) {
-                setStep('Connecting wallet...');
-                await connectWallet();
-                // MetaMask (or selected wallet) opens
-                // User approves connection
-                // Back to app with address
+            let walletAddress = address;
 
-                // Wait a bit for address to be set
-                await new Promise(resolve => setTimeout(resolve, 1000));
+            if (!isConnected || !walletAddress) {
+                setStep('Connecting wallet...');
+                // connectWallet now returns the address when connection completes
+                walletAddress = await connectWallet();
+                console.log('Wallet connected:', walletAddress);
             }
 
-            // Get the address after connection
-            const walletAddress = address;
             if (!walletAddress) {
-                throw new Error('No wallet address found');
+                throw new Error('No wallet address found after connection');
             }
 
             // Step 2: Get nonce from backend
@@ -118,8 +114,22 @@ export function SignInScreen({ onSignInSuccess }: SignInScreenProps) {
 
                 {loading && step && (
                     <View style={styles.stepContainer}>
-                        <ActivityIndicator size="small" color="#2e7d32" />
-                        <Text style={styles.stepText}>{step}</Text>
+                        <View style={styles.stepRow}>
+                            <ActivityIndicator size="small" color="#2e7d32" />
+                            <Text style={styles.stepText}>{step}</Text>
+                        </View>
+                        {step === 'Connecting wallet...' && (
+                            <View style={styles.instructionsBox}>
+                                <Text style={styles.instructionsTitle}>📱 Next Steps:</Text>
+                                <Text style={styles.instructionsText}>
+                                    1. Select MetaMask from the wallet list{'\n'}
+                                    2. MetaMask app will open automatically{'\n'}
+                                    3. Tap "Connect" to approve{'\n'}
+                                    4. Return to this app{'\n\n'}
+                                    ⏳ Waiting for approval...
+                                </Text>
+                            </View>
+                        )}
                     </View>
                 )}
 
@@ -213,18 +223,42 @@ const styles = StyleSheet.create({
         lineHeight: 24,
     },
     stepContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
         marginBottom: 20,
         backgroundColor: '#e8f5e9',
         padding: 12,
         borderRadius: 8,
         width: '100%',
     },
+    stepRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        width: '100%',
+    },
     stepText: {
         marginLeft: 12,
         fontSize: 16,
         color: '#2e7d32',
+        fontWeight: 'bold',
+    },
+    instructionsBox: {
+        marginTop: 12,
+        padding: 12,
+        backgroundColor: '#fff3e0',
+        borderRadius: 8,
+        width: '100%',
+    },
+    instructionsTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#e65100',
+        marginBottom: 8,
+    },
+    instructionsText: {
+        fontSize: 14,
+        color: '#666',
+        lineHeight: 20,
     },
     button: {
         backgroundColor: '#2e7d32',

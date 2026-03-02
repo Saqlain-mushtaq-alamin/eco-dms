@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { WalletConnectModal, useWalletConnectModal } from '@walletconnect/modal-react-native';
 import { ethers } from 'ethers';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -15,22 +15,100 @@ export function WalletProvider({ children }: WalletProviderProps) {
     const { open, isConnected, address, provider } = useWalletConnectModal();
     const [isLoading, setIsLoading] = useState(false);
 
+    // Use refs to track latest values for the polling function
+    const isConnectedRef = useRef(isConnected);
+    const addressRef = useRef(address);
+    const providerRef = useRef(provider);
+
+    useEffect(() => {
+        isConnectedRef.current = isConnected;
+        addressRef.current = address;
+        providerRef.current = provider;
+        console.log('📡 Connection state updated:', { isConnected, address: address?.substring(0, 10) + '...' || 'none', hasProvider: !!provider });
+    }, [isConnected, address, provider]);
+
     // Connect wallet
-    const connectWallet = async () => {
+    const connectWallet = async (): Promise<string> => {
         try {
             setIsLoading(true);
-            await open();
-            // WalletConnect modal opens
-            // User selects wallet (MetaMask, Trust, etc.)
-            // Wallet app opens automatically
-            // User approves connection
-            // isConnected becomes true
-            // address is populated
+
+            // If already connected, return address
+            if (isConnectedRef.current && addressRef.current) {
+                console.log('✅ Already connected:', addressRef.current);
+                setIsLoading(false);
+                return addressRef.current;
+            }
+
+            // Open WalletConnect modal
+            console.log('🔵 Opening WalletConnect modal...');
+            const result = await open();
+            console.log('🔵 Modal result:', result);
+
+            // Give extra time for the hook to update
+            console.log('⏳ Waiting for connection state to update...');
+            await new Promise(resolve => setTimeout(resolve, 3000));
+
+            // Check if we got connected
+            if (isConnectedRef.current && addressRef.current) {
+                setIsLoading(false);
+                console.log('✅ Connected immediately! Address:', addressRef.current);
+                return addressRef.current;
+            }
+
+            // If not connected yet, check the provider directly
+            console.log('Checking provider for connection info...');
+            const currentProvider = providerRef.current;
+            if (currentProvider) {
+                console.log('Provider exists:', Object.keys(currentProvider));
+
+                // Try to get accounts from provider
+                try {
+                    const accounts = await currentProvider.request({ method: 'eth_accounts' }) as string[];
+                    console.log('Accounts from provider:', accounts);
+                    if (accounts && accounts.length > 0) {
+                        const addr = accounts[0];
+                        setIsLoading(false);
+                        console.log('✅ Got address from provider:', addr);
+                        return addr;
+                    }
+                } catch (providerError) {
+                    console.error('Error getting accounts from provider:', providerError);
+                }
+            } else {
+                console.log('❌ No provider available yet');
+            }
+
+            // Last resort: poll for connection
+            console.log('Starting polling for connection...');
+            return await new Promise<string>((resolve, reject) => {
+                let attempts = 0;
+                const maxAttempts = 30; // 30 seconds
+
+                const checkConnection = setInterval(() => {
+                    attempts++;
+
+                    const connected = isConnectedRef.current;
+                    const addr = addressRef.current;
+
+                    console.log(`⏳ [${attempts}/${maxAttempts}] isConnected: ${connected}, hasAddress: ${!!addr}`);
+
+                    if (connected && addr) {
+                        clearInterval(checkConnection);
+                        setIsLoading(false);
+                        console.log('✅ Connection successful! Address:', addr);
+                        resolve(addr);
+                    } else if (attempts >= maxAttempts) {
+                        clearInterval(checkConnection);
+                        setIsLoading(false);
+                        console.error('❌ Connection not detected');
+                        reject(new Error('Could not detect wallet connection. Please try connecting again.'));
+                    }
+                }, 1000);
+            });
         } catch (error) {
-            console.error('Connect wallet error:', error);
-            throw error;
-        } finally {
             setIsLoading(false);
+            console.error('❌ Connect wallet error:', error);
+            throw error;
         }
     };
 
