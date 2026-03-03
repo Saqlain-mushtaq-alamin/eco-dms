@@ -21,11 +21,7 @@ export function SignInRoute() {
     }
 
     return (
-        <div className="max-w-xl mx-auto">
-            <h1 className="text-3xl font-bold mb-6 text-center">Welcome to Eco DMS</h1>
-            <p className="text-gray-600 text-center mb-8">
-                Connect your wallet to verify eco-friendly content and earn rewards
-            </p>
+        <div className="w-full">
             <WalletConnect onConnected={handleConnected} />
         </div>
     )

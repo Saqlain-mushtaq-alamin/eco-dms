@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Button, Card } from '@eco-dms/ui'
+import { Card, WalletConnectActionsPanel, WalletConnectHero } from '@eco-dms/ui'
 import { getNonce, prepareMessage, verifySignature } from '../api'
 import EthereumProvider from '@walletconnect/ethereum-provider'
 
@@ -81,39 +81,37 @@ export default function WalletConnect({ onConnected }: { onConnected: (address: 
     }
 
     return (
-        <div className="w-full max-w-md">
-            <Card
-                padding="lg"
-                style={{ borderWidth: 2, borderColor: '#abca2f', borderRadius: 24 }}
-            >
-                <div className="text-center mb-6">
-                    <h2 className="text-4xl font-bold text-[#abca2f] mb-2">Let's goooo! 🚀</h2>
-                    <p className="text-lg text-gray-700">Sign in with Ethereum</p>
-                </div>
+        <div className="relative w-full h-[100dvh] max-h-[100dvh] flex items-center px-3 md:px-6 signin-vibe-bg overflow-hidden">
+            <div className="vibe-blob vibe-blob-one" aria-hidden="true" />
+            <div className="vibe-blob vibe-blob-two" aria-hidden="true" />
 
-                {error && (
-                    <div className="mb-4 p-4 bg-red-50 border-2 border-red-400 rounded-xl text-red-700">
-                        {error}
+            <div className="w-full h-full max-h-full mx-auto px-2 md:px-4 relative z-10 overflow-hidden">
+                <Card
+                    padding="lg"
+                    style={{ borderWidth: 0, borderColor: 'transparent', borderRadius: 24, shadowColor: '#010203', shadowOpacity: 0.08, shadowRadius: 22, elevation: 3, height: '100%' }}
+                    variant="glass"
+                >
+                    <div className="flex flex-col lg:flex-row lg:items-center h-full overflow-hidden gap-8 lg:gap-10">
+                        <div className="hidden md:flex flex-1 flex-col justify-center">
+                            <WalletConnectHero
+                                title="Discover what truly excites you"
+                                subtitle="Decentralized Social Impact Platform"
+                            />
+                        </div>
+
+                        <div className="w-full lg:w-auto lg:min-w-[450px] lg:ml-auto">
+                            <WalletConnectActionsPanel
+                                title="Welcome to Eco DMS"
+                                subtitle="Sign in with Ethereum to join the ecosystem working to save the planet."
+                                error={error}
+                                loading={loading}
+                                onMetaMask={() => handleConnect('metamask')}
+                                onWalletConnect={() => handleConnect('walletconnect')}
+                            />
+                        </div>
                     </div>
-                )}
-
-                <div className="space-y-4">
-                    <Button
-                        title={loading ? '⏳ Vibing...' : '🦊 Connect with MetaMask'}
-                        onPress={() => handleConnect('metamask')}
-                        variant="primary"
-                        disabled={loading}
-                    />
-                    <Button
-                        title={loading ? '⏳ Vibing...' : '🔗 Connect with WalletConnect'}
-                        onPress={() => handleConnect('walletconnect')}
-                        variant="secondary"
-                        disabled={loading}
-                    />
-                </div>
-
-          
-            </Card>
+                </Card>
+            </div>
         </div>
     )
 }

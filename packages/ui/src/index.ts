@@ -12,6 +12,7 @@ export { Modal } from './components/Modal';
 // Glassmorphism Components
 export { GlassCard } from './components/GlassCard';
 export { GlassButton } from './components/GlassButton';
+export { WalletConnectHero, WalletConnectActionsPanel } from './components/WalletConnectSections';
 
 // Theme
 export { theme, ThemeProvider, useTheme } from './theme';
