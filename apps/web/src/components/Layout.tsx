@@ -30,6 +30,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         { to: '/feed', icon: '🏠', label: 'Feed' },
         { to: '/dashboard', icon: '📊', label: 'Dashboard' },
         { to: '/friends', icon: '👥', label: 'Friends' }
+        
     ]), [])
 
     useEffect(() => {
@@ -180,7 +181,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                                         <Link
                                             key={item.to}
                                             to={item.to}
-                                            className="relative h-11 w-16 rounded-xl flex items-center justify-center text-xl transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+                                            className="relative h-11 w-24 rounded-xl flex items-center justify-center text-xl transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
                                             style={{
                                                 backgroundColor: isActive ? '#abca2f' : 'rgba(171,202,47,0.12)',
                                                 color: isActive ? '#010203' : '#5b6d14'
@@ -189,7 +190,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                                         >
                                             <span>{item.icon}</span>
                                             <span
-                                                className="absolute -bottom-1 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-full transition-all duration-200"
+                                                className="absolute -bottom-4 left-1/2 h-1 w-full -translate-x-1/2 rounded-full transition-all duration-200"
                                                 style={{
                                                     backgroundColor: '#abca2f',
                                                     opacity: isActive ? 1 : 0

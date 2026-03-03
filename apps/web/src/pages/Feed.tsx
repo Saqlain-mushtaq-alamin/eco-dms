@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Button, Card, Input, LoadingSpinner } from '@eco-dms/ui'
+import { Button, Input, LoadingSpinner } from '@eco-dms/ui'
 
 type Post = {
     cid?: string
@@ -460,299 +460,361 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
         setVerificationModal({ isOpen: false, details: null, loading: false })
     }
     return (
-        <div className="mt-6 space-y-4">
-            <h2 className="text-xl font-semibold">Social Feed</h2>
-            <p className="text-sm text-gray-600">Signed in as {address.substring(0, 6)}...{address.substring(38)}</p>
-
-            {/* Create Post Form */}
-            <Card>
-                <form onSubmit={onSubmit} className="space-y-2">
-                    <Input
-                        value={content}
-                        onChangeText={setContent}
-                        placeholder="What's on your mind?"
-                        multiline
-                        numberOfLines={3}
-                    />
-
-                    {/* Image Previews */}
-                    {imagePreviewUrls.length > 0 && (
-                        <div className="flex flex-wrap gap-2">
-                            {imagePreviewUrls.map((url, index) => (
-                                <div key={index} className="relative">
-                                    <img src={url} alt="Preview" className="w-20 h-20 object-cover rounded border" />
-                                    <button
-                                        type="button"
-                                        onClick={() => removeImage(index)}
-                                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold hover:bg-red-600"
-                                    >
-                                        ×
-                                    </button>
-                                </div>
-                            ))}
+        <div className="mt-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                {/* Left Sidebar */}
+                <aside className="hidden lg:block lg:col-span-3 space-y-4 sticky top-24 self-start max-h-[calc(100vh-7rem)] overflow-y-auto pr-1">
+                    <div className="glass-card p-4">
+                        <h3 className="text-lg font-semibold mb-3">Menu</h3>
+                        <div className="space-y-2">
+                            <button
+                                type="button"
+                                onClick={() => onVisitProfile(address)}
+                                className="w-full text-left px-3 py-2 rounded-lg bg-white/70 hover:bg-white transition shadow-sm"
+                            >
+                                👤 User Profile
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const section = document.getElementById('discover-people-card')
+                                    section?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                                }}
+                                className="w-full text-left px-3 py-2 rounded-lg bg-white/70 hover:bg-white transition shadow-sm"
+                            >
+                                👥 Follower Explore
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setShowingFeed(true)}
+                                className="w-full text-left px-3 py-2 rounded-lg bg-white/70 hover:bg-white transition shadow-sm"
+                            >
+                                📰 Feed
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setShowingFeed(false)}
+                                className="w-full text-left px-3 py-2 rounded-lg bg-white/70 hover:bg-white transition shadow-sm"
+                            >
+                                ✍️ My Posts
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setError('Saved posts feature coming soon')}
+                                className="w-full text-left px-3 py-2 rounded-lg bg-white/70 hover:bg-white transition shadow-sm"
+                            >
+                                🔖 Saved
+                            </button>
                         </div>
-                    )}
+                    </div>
 
-                    <div className="flex gap-2 items-center">
-                        {/* Image Upload Button with Icon */}
-                        <label className="cursor-pointer px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-                            </svg>
-                            <span>Add Image</span>
-                            <input
-                                type="file"
-                                accept="image/*"
-                                multiple
-                                onChange={handleImageSelect}
-                                className="hidden"
-                                disabled={loading}
+                    <div className="glass-card p-4">
+                        <h4 className="font-semibold text-gray-900">Account</h4>
+                        <p className="text-sm text-gray-600 mt-1">
+                            Signed in as {address.substring(0, 6)}...{address.substring(38)}
+                        </p>
+                    </div>
+                </aside>
+
+                {/* Middle Main Feed */}
+                <main className="col-span-1 lg:col-span-6 space-y-4">
+                    <h2 className="text-xl font-semibold">Social Feed</h2>
+
+                    {/* Create Post Form */}
+                    <div className="glass-card p-4">
+                        <form onSubmit={onSubmit} className="space-y-2">
+                            <Input
+                                value={content}
+                                onChangeText={setContent}
+                                placeholder="What's on your mind?"
+                                multiline
+                                numberOfLines={3}
                             />
-                        </label>
 
-                        <Button
-                            title={uploadingImages ? 'Uploading Images...' : loading ? 'Posting...' : 'Post'}
-                            onPress={() => {
-                                const event = { preventDefault: () => { } } as React.FormEvent
-                                onSubmit(event)
-                            }}
-                            disabled={loading || uploadingImages}
-                        />
-                    </div>
-                </form>
-            </Card>
-
-            {/* Discover Users Section */}
-            <Card>
-                <h3 className="text-lg font-semibold mb-3">Discover People</h3>
-                {users.length === 0 ? (
-                    <p className="text-gray-500 text-sm">No other users yet</p>
-                ) : (
-                    <div className="space-y-2 max-h-60 overflow-y-auto">
-                        {users.map((user) => (
-                            <div
-                                key={user.wallet_address}
-                                onClick={() => onVisitProfile(user.wallet_address)}
-                                className="cursor-pointer rounded-lg border bg-white p-3 hover:bg-gray-50"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className="h-12 w-12 overflow-hidden rounded-full bg-gray-200">
-                                        {resolveIpfsUrl(user.avatar_cid) ? (
-                                            <img
-                                                src={resolveIpfsUrl(user.avatar_cid)}
-                                                alt="Avatar"
-                                                className="h-12 w-12 object-cover"
-                                                onError={(e) => {
-                                                    (e.target as HTMLImageElement).style.display = 'none'
-                                                }}
-                                            />
-                                        ) : (
-                                            <div className="flex h-12 w-12 items-center justify-center text-sm font-bold text-gray-700">
-                                                {(getUserDisplayName(user).charAt(0) || user.wallet_address.charAt(2)).toUpperCase()}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                        <p className="truncate font-semibold text-gray-900">{getUserDisplayName(user)}</p>
-                                        <p className="font-mono text-xs text-gray-500">
-                                            {user.wallet_address.substring(0, 6)}...{user.wallet_address.substring(38)}
-                                        </p>
-                                        {getUserBio(user) && (
-                                            <p className="mt-1 truncate text-sm text-gray-600">{getUserBio(user)}</p>
-                                        )}
-                                    </div>
-                                    <div className="text-xs text-gray-500">{user.followers_count || 0} followers</div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </Card>
-
-            {/* Feed Toggle Tabs */}
-            <div className="flex gap-2 border-b">
-                <button
-                    onClick={() => setShowingFeed(true)}
-                    className={`px-4 py-2 font-medium transition ${showingFeed
-                        ? 'border-b-2 border-blue-600 text-blue-600'
-                        : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                >
-                    Following Feed
-                </button>
-                <button
-                    onClick={() => setShowingFeed(false)}
-                    className={`px-4 py-2 font-medium transition ${!showingFeed
-                        ? 'border-b-2 border-blue-600 text-blue-600'
-                        : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                >
-                    My Posts
-                </button>
-            </div>
-
-            {error && <div className="text-red-600">{error}</div>}
-            {loading && !error && <div><LoadingSpinner /></div>}
-
-            <div className="space-y-4">
-                {posts.length === 0 && !loading && <p>No posts yet.</p>}
-                {posts.map((p) => (
-                    <div key={p.cid ?? p.created_at} className="border rounded-lg p-4 bg-white shadow-sm">
-                        {/* Post Header */}
-                        <div className="flex items-center justify-between mb-2">
-                            <div className="text-sm text-gray-500">
-                                <span className="font-medium text-gray-700">
-                                    {p.author_wallet.substring(0, 6)}...{p.author_wallet.substring(38)}
-                                </span>
-                                {' · '}
-                                {new Date(p.created_at).toLocaleString()}
-                            </div>
-                            {/* Eco Verification Badge */}
-                            {p.signed_verdict_cid && (
-                                <button
-                                    onClick={() => handleShowVerification(p.signed_verdict_cid!)}
-                                    className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium transition hover:shadow-md ${p.verified
-                                        ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                        }`}
-                                    title="Click to view verification details"
-                                >
-                                    {p.verified ? (
-                                        <>
-                                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                            </svg>
-                                            <span>ECO</span>
-                                            {p.eco_score && <span className="text-xs">({Math.round(p.eco_score * 100)}%)</span>}
-                                        </>
-                                    ) : (
-                                        <>
-                                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                                            </svg>
-                                            <span>Not Eco</span>
-                                            {p.eco_score && <span className="text-xs">({Math.round(p.eco_score * 100)}%)</span>}
-                                        </>
-                                    )}
-                                </button>
-                            )}
-                        </div>
-
-                        {/* Post Content */}
-                        <div className="mt-2 text-gray-900">{p.content}</div>
-
-                        {/* Post Images */}
-                        {p.media_cids?.length > 0 && (
-                            <div className="mt-3 grid grid-cols-2 gap-2">
-                                {p.media_cids.map((cid, idx) => (
-                                    <img
-                                        key={idx}
-                                        src={resolveIpfsUrl(cid)}
-                                        alt="Post image"
-                                        className="w-full rounded border object-cover"
-                                        style={{ maxHeight: '300px' }}
-                                        onError={(e) => {
-                                            const fallback = `https://gateway.pinata.cloud/ipfs/${cid.replace('ipfs://', '')}`
-                                            const img = e.target as HTMLImageElement
-                                            if (!img.src.includes('gateway.pinata.cloud')) {
-                                                img.src = fallback
-                                            }
-                                        }}
-                                    />
-                                ))}
-                            </div>
-                        )}
-
-                        {/* Tags */}
-                        {p.tags?.length ? (
-                            <div className="mt-2 flex gap-2">
-                                {p.tags.map((tag, i) => (
-                                    <span key={i} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                                        #{tag}
-                                    </span>
-                                ))}
-                            </div>
-                        ) : null}
-
-                        {/* Action Buttons */}
-                        <div className="mt-3 flex items-center gap-4 border-t pt-3">
-                            {/* Like Button */}
-                            <button
-                                onClick={() => handleLike(p.cid!, p.liked_by_user ?? false)}
-                                className={`flex items-center gap-1 px-3 py-1 rounded transition ${p.liked_by_user
-                                    ? 'bg-red-100 text-red-600 hover:bg-red-200'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                    }`}
-                                disabled={!p.cid}
-                            >
-                                <span>{p.liked_by_user ? '❤️' : '🤍'}</span>
-                                <span className="text-sm font-medium">{p.likes_count || 0}</span>
-                            </button>
-
-                            {/* Comments Button */}
-                            <button
-                                onClick={() => handleToggleComments(p.cid!)}
-                                className="flex items-center gap-1 px-3 py-1 rounded bg-gray-100 text-gray-600 hover:bg-gray-200 transition"
-                                disabled={!p.cid}
-                            >
-                                <span>💬</span>
-                                <span className="text-sm font-medium">{p.comments_count || 0}</span>
-                            </button>
-
-                            {/* CID Info */}
-                            <div className="ml-auto text-xs text-gray-400">
-                                CID: {p.cid?.substring(0, 8)}...
-                            </div>
-                        </div>
-
-                        {/* Comments Section */}
-                        {expandedComments.has(p.cid!) && (
-                            <div className="mt-4 border-t pt-4 space-y-3">
-                                {/* Add Comment Input */}
-                                <div className="flex gap-2">
-                                    <input
-                                        type="text"
-                                        value={commentInputs[p.cid!] || ''}
-                                        onChange={(e) => setCommentInputs({ ...commentInputs, [p.cid!]: e.target.value })}
-                                        placeholder="Write a comment..."
-                                        className="flex-1 border rounded px-3 py-2 text-sm"
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && !e.shiftKey) {
-                                                e.preventDefault()
-                                                handleAddComment(p.cid!)
-                                            }
-                                        }}
-                                    />
-                                    <button
-                                        onClick={() => handleAddComment(p.cid!)}
-                                        className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
-                                    >
-                                        Post
-                                    </button>
-                                </div>
-
-                                {/* Comments List */}
-                                <div className="space-y-2">
-                                    {comments[p.cid!]?.length === 0 && (
-                                        <p className="text-sm text-gray-500 italic">No comments yet</p>
-                                    )}
-                                    {comments[p.cid!]?.map((comment) => (
-                                        <div key={comment.cid} className="bg-gray-50 rounded p-3">
-                                            <div className="text-xs text-gray-500 mb-1">
-                                                <span className="font-medium text-gray-700">
-                                                    {comment.author_wallet.substring(0, 6)}...{comment.author_wallet.substring(38)}
-                                                </span>
-                                                {' · '}
-                                                {new Date(comment.created_at).toLocaleString()}
-                                            </div>
-                                            <div className="text-sm text-gray-900">{comment.content}</div>
+                            {/* Image Previews */}
+                            {imagePreviewUrls.length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                    {imagePreviewUrls.map((url, index) => (
+                                        <div key={index} className="relative">
+                                            <img src={url} alt="Preview" className="w-20 h-20 object-cover rounded" />
+                                            <button
+                                                type="button"
+                                                onClick={() => removeImage(index)}
+                                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold hover:bg-red-600"
+                                            >
+                                                ×
+                                            </button>
                                         </div>
                                     ))}
                                 </div>
+                            )}
+
+                            <div className="flex gap-2 items-center">
+                                {/* Image Upload Button with Icon */}
+                                <label className="cursor-pointer px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                                    </svg>
+                                    <span>Add Image</span>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        multiple
+                                        onChange={handleImageSelect}
+                                        className="hidden"
+                                        disabled={loading}
+                                    />
+                                </label>
+
+                                <Button
+                                    title={uploadingImages ? 'Uploading Images...' : loading ? 'Posting...' : 'Post'}
+                                    onPress={() => {
+                                        const event = { preventDefault: () => { } } as React.FormEvent
+                                        onSubmit(event)
+                                    }}
+                                    disabled={loading || uploadingImages}
+                                />
                             </div>
-                        )}
+                        </form>
                     </div>
-                ))}
+
+                    {/* Feed Toggle Tabs */}
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setShowingFeed(true)}
+                            className={`px-4 py-2 font-medium transition ${showingFeed
+                                ? 'rounded-lg bg-white/90 text-blue-600 shadow-sm'
+                                : 'rounded-lg text-gray-600 hover:bg-white/70 hover:text-gray-900'
+                                }`}
+                        >
+                            Following Feed
+                        </button>
+                        <button
+                            onClick={() => setShowingFeed(false)}
+                            className={`px-4 py-2 font-medium transition ${!showingFeed
+                                ? 'rounded-lg bg-white/90 text-blue-600 shadow-sm'
+                                : 'rounded-lg text-gray-600 hover:bg-white/70 hover:text-gray-900'
+                                }`}
+                        >
+                            My Posts
+                        </button>
+                    </div>
+
+                    {error && <div className="text-red-600">{error}</div>}
+                    {loading && !error && <div><LoadingSpinner /></div>}
+
+                    <div className="space-y-4">
+                        {posts.length === 0 && !loading && <p>No posts yet.</p>}
+                        {posts.map((p) => (
+                            <div key={p.cid ?? p.created_at} className="glass-card p-4 shadow-xl">
+                                {/* Post Header */}
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="text-sm text-gray-500">
+                                        <span className="font-medium text-gray-700">
+                                            {p.author_wallet.substring(0, 6)}...{p.author_wallet.substring(38)}
+                                        </span>
+                                        {' · '}
+                                        {new Date(p.created_at).toLocaleString()}
+                                    </div>
+                                    {/* Eco Verification Badge */}
+                                    {p.signed_verdict_cid && (
+                                        <button
+                                            onClick={() => handleShowVerification(p.signed_verdict_cid!)}
+                                            className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium transition hover:shadow-md ${p.verified
+                                                ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                }`}
+                                            title="Click to view verification details"
+                                        >
+                                            {p.verified ? (
+                                                <>
+                                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                                    </svg>
+                                                    <span>ECO</span>
+                                                    {p.eco_score && <span className="text-xs">({Math.round(p.eco_score * 100)}%)</span>}
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                                    </svg>
+                                                    <span>Not Eco</span>
+                                                    {p.eco_score && <span className="text-xs">({Math.round(p.eco_score * 100)}%)</span>}
+                                                </>
+                                            )}
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Post Content */}
+                                <div className="mt-2 text-gray-900">{p.content}</div>
+
+                                {/* Post Images */}
+                                {p.media_cids?.length > 0 && (
+                                    <div className="mt-3 grid grid-cols-2 gap-2">
+                                        {p.media_cids.map((cid, idx) => (
+                                            <img
+                                                key={idx}
+                                                src={resolveIpfsUrl(cid)}
+                                                alt="Post image"
+                                                className="w-full rounded border object-cover"
+                                                style={{ maxHeight: '300px' }}
+                                                onError={(e) => {
+                                                    const fallback = `https://gateway.pinata.cloud/ipfs/${cid.replace('ipfs://', '')}`
+                                                    const img = e.target as HTMLImageElement
+                                                    if (!img.src.includes('gateway.pinata.cloud')) {
+                                                        img.src = fallback
+                                                    }
+                                                }}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* Tags */}
+                                {p.tags?.length ? (
+                                    <div className="mt-2 flex gap-2">
+                                        {p.tags.map((tag, i) => (
+                                            <span key={i} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                                                #{tag}
+                                            </span>
+                                        ))}
+                                    </div>
+                                ) : null}
+
+                                {/* Action Buttons */}
+                                <div className="mt-3 flex items-center gap-4 pt-3">
+                                    {/* Like Button */}
+                                    <button
+                                        onClick={() => handleLike(p.cid!, p.liked_by_user ?? false)}
+                                        className={`flex items-center gap-1 px-3 py-1 rounded transition ${p.liked_by_user
+                                            ? 'bg-red-100 text-red-600 hover:bg-red-200'
+                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                            }`}
+                                        disabled={!p.cid}
+                                    >
+                                        <span>{p.liked_by_user ? '❤️' : '🤍'}</span>
+                                        <span className="text-sm font-medium">{p.likes_count || 0}</span>
+                                    </button>
+
+                                    {/* Comments Button */}
+                                    <button
+                                        onClick={() => handleToggleComments(p.cid!)}
+                                        className="flex items-center gap-1 px-3 py-1 rounded bg-gray-100 text-gray-600 hover:bg-gray-200 transition"
+                                        disabled={!p.cid}
+                                    >
+                                        <span>💬</span>
+                                        <span className="text-sm font-medium">{p.comments_count || 0}</span>
+                                    </button>
+
+                                    {/* CID Info */}
+                                    <div className="ml-auto text-xs text-gray-400">
+                                        CID: {p.cid?.substring(0, 8)}...
+                                    </div>
+                                </div>
+
+                                {/* Comments Section */}
+                                {expandedComments.has(p.cid!) && (
+                                    <div className="mt-4 pt-4 space-y-3">
+                                        {/* Add Comment Input */}
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={commentInputs[p.cid!] || ''}
+                                                onChange={(e) => setCommentInputs({ ...commentInputs, [p.cid!]: e.target.value })}
+                                                placeholder="Write a comment..."
+                                                className="flex-1 rounded-lg px-3 py-2 text-sm bg-white/80"
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                                        e.preventDefault()
+                                                        handleAddComment(p.cid!)
+                                                    }
+                                                }}
+                                            />
+                                            <button
+                                                onClick={() => handleAddComment(p.cid!)}
+                                                className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                                            >
+                                                Post
+                                            </button>
+                                        </div>
+
+                                        {/* Comments List */}
+                                        <div className="space-y-2">
+                                            {comments[p.cid!]?.length === 0 && (
+                                                <p className="text-sm text-gray-500 italic">No comments yet</p>
+                                            )}
+                                            {comments[p.cid!]?.map((comment) => (
+                                                <div key={comment.cid} className="bg-gray-50 rounded p-3">
+                                                    <div className="text-xs text-gray-500 mb-1">
+                                                        <span className="font-medium text-gray-700">
+                                                            {comment.author_wallet.substring(0, 6)}...{comment.author_wallet.substring(38)}
+                                                        </span>
+                                                        {' · '}
+                                                        {new Date(comment.created_at).toLocaleString()}
+                                                    </div>
+                                                    <div className="text-sm text-gray-900">{comment.content}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </main>
+
+                {/* Right Sidebar */}
+                <aside className="hidden lg:block lg:col-span-3 sticky top-24 self-start max-h-[calc(100vh-7rem)] overflow-y-auto pr-1">
+                    <div className="glass-card p-4">
+                        <div id="discover-people-card">
+                            <h3 className="text-lg font-semibold mb-3">Discover People</h3>
+                            {users.length === 0 ? (
+                                <p className="text-gray-500 text-sm">No other users yet</p>
+                            ) : (
+                                <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-1">
+                                    {users.map((user) => (
+                                        <div
+                                            key={user.wallet_address}
+                                            onClick={() => onVisitProfile(user.wallet_address)}
+                                            className="cursor-pointer rounded-lg bg-white/80 p-3 hover:bg-white shadow-sm transition"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="h-12 w-12 overflow-hidden rounded-full bg-gray-200">
+                                                    {resolveIpfsUrl(user.avatar_cid) ? (
+                                                        <img
+                                                            src={resolveIpfsUrl(user.avatar_cid)}
+                                                            alt="Avatar"
+                                                            className="h-12 w-12 object-cover"
+                                                            onError={(e) => {
+                                                                (e.target as HTMLImageElement).style.display = 'none'
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <div className="flex h-12 w-12 items-center justify-center text-sm font-bold text-gray-700">
+                                                            {(getUserDisplayName(user).charAt(0) || user.wallet_address.charAt(2)).toUpperCase()}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="truncate font-semibold text-gray-900">{getUserDisplayName(user)}</p>
+                                                    <p className="font-mono text-xs text-gray-500">
+                                                        {user.wallet_address.substring(0, 6)}...{user.wallet_address.substring(38)}
+                                                    </p>
+                                                    {getUserBio(user) && (
+                                                        <p className="mt-1 truncate text-sm text-gray-600">{getUserBio(user)}</p>
+                                                    )}
+                                                </div>
+                                                <div className="text-xs text-gray-500">{user.followers_count || 0} followers</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </aside>
             </div>
 
             {/* Verification Details Modal */}
