@@ -14,10 +14,12 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
+      "newArchEnabled": true,
       "supportsTablet": true,
       "bundleIdentifier": "com.ecodms.mobile"
     },
     "android": {
+      "newArchEnabled": true,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -44,13 +46,6 @@
       "eas": {
         "projectId": "eco-dms-mobile"
       }
-    },
-    "newArchEnabled": false,
-    "ios": {
-      "newArchEnabled": false
-    },
-    "android": {
-      "newArchEnabled": false
     }
   }
 }

@@ -16,30 +16,16 @@ config.resolver.nodeModulesPaths = [
     path.resolve(projectRoot, 'node_modules'),
     path.resolve(workspaceRoot, 'node_modules'),
 ];
-
-// Handle problematic packages
-config.resolver.resolveRequest = (context, moduleName, platform) => {
-    // Fix multiformats import issues - redirect cjs to esm
-    // Handles both 'multiformats/cjs/...' and importing from cjs path
-    if (moduleName.includes('/cjs/') && moduleName.includes('multiformats')) {
-        const newModuleName = moduleName.replace(/\/cjs\//g, '/esm/');
-        try {
-            return context.resolveRequest(context, newModuleName, platform);
-        } catch (e) {
-            // If ESM resolution fails, try the original
-            console.warn(`Failed to resolve ${newModuleName}, falling back to original`);
-        }
-    }
-
-    // Default resolver
-    return context.resolveRequest(context, moduleName, platform);
+config.resolver.extraNodeModules = {
+    react: path.resolve(projectRoot, 'node_modules/react'),
+    'react-native': path.resolve(projectRoot, 'node_modules/react-native'),
 };
 
 // Enable symlinks for monorepo
 config.resolver.unstable_enableSymlinks = true;
 config.resolver.unstable_enablePackageExports = true;
 
-// Disable new architecture to prevent TurboModule errors
+// Allow hierarchical lookup for pnpm nested deps (e.g. valtio -> use-sync-external-store)
 config.resolver.disableHierarchicalLookup = false;
 
 module.exports = config;

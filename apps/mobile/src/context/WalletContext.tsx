@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
+import '@walletconnect/react-native-compat';
 import { WalletConnectModal, useWalletConnectModal } from '@walletconnect/modal-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WalletContextType } from '../types';

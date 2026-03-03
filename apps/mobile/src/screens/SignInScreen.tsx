@@ -7,10 +7,10 @@ import {
     Alert,
     ScrollView,
     Platform,
+    Pressable,
 } from 'react-native';
-import { GlassCard, GlassButton } from '@eco-dms/ui';
 import { useWallet } from '../context/WalletContext';
-import api from '../config/api';
+import api, { API_BASE_URL } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NonceResponse, PrepareMessageResponse, AuthResponse } from '../types';
 
@@ -85,6 +85,8 @@ export function SignInScreen({ onSignInSuccess }: SignInScreenProps) {
 
             if (error.response?.data?.detail) {
                 errorMessage = error.response.data.detail;
+            } else if (error.response?.status === 404) {
+                errorMessage = `Endpoint not found (404). API base: ${API_BASE_URL}`;
             } else if (error.message) {
                 errorMessage = error.message;
             }
@@ -102,7 +104,7 @@ export function SignInScreen({ onSignInSuccess }: SignInScreenProps) {
                 <Text style={styles.title}>🌱 Eco-DMS</Text>
                 <Text style={styles.subtitle}>Sign In with Ethereum</Text>
 
-                <GlassCard variant="light" padding="lg">
+                <View style={styles.card}>
                     <Text style={styles.infoTitle}>Decentralized Authentication</Text>
                     <Text style={styles.infoText}>
                         • No passwords needed{'\n'}
@@ -110,7 +112,7 @@ export function SignInScreen({ onSignInSuccess }: SignInScreenProps) {
                         • Secure & private{'\n'}
                         • Works with MetaMask, Trust Wallet, and more
                     </Text>
-                </GlassCard>
+                </View>
 
                 {loading && step && (
                     <View style={styles.stepContainer}>
@@ -119,7 +121,7 @@ export function SignInScreen({ onSignInSuccess }: SignInScreenProps) {
                             <Text style={styles.stepText}>{step}</Text>
                         </View>
                         {step === 'Connecting wallet...' && (
-                            <GlassCard variant="light" padding="sm" style={styles.instructionsBox}>
+                            <View style={[styles.card, styles.instructionsBox]}>
                                 <Text style={styles.instructionsTitle}>📱 Next Steps:</Text>
                                 <Text style={styles.instructionsText}>
                                     1. Select MetaMask from the wallet list{'\n'}
@@ -128,37 +130,44 @@ export function SignInScreen({ onSignInSuccess }: SignInScreenProps) {
                                     4. Return to this app{'\n\n'}
                                     ⏳ Waiting for approval...
                                 </Text>
-                            </GlassCard>
+                            </View>
                         )}
                     </View>
                 )}
 
-                <GlassButton
-                    title={isConnected ? 'Sign In' : 'Connect Wallet'}
-                    variant="primary"
+                <Pressable
                     onPress={handleSignIn}
-                    loading={loading}
                     disabled={loading}
-                    style={styles.signInButton}
-                />
+                    style={({ pressed }) => [
+                        styles.button,
+                        loading && styles.buttonDisabled,
+                        pressed && !loading && styles.buttonPressed,
+                    ]}
+                >
+                    {loading ? (
+                        <ActivityIndicator color="#ffffff" />
+                    ) : (
+                        <Text style={styles.buttonText}>{isConnected ? 'Sign In' : 'Connect Wallet'}</Text>
+                    )}
+                </Pressable>
 
                 {isConnected && address && (
-                    <GlassCard variant="light" padding="sm">
+                    <View style={styles.card}>
                         <Text style={styles.addressLabel}>Connected:</Text>
                         <Text style={styles.addressText}>
                             {address.slice(0, 6)}...{address.slice(-4)}
                         </Text>
-                    </GlassCard>
+                    </View>
                 )}
 
-                <GlassCard variant="light" padding="lg" style={styles.howItWorks}>
+                <View style={[styles.card, styles.howItWorks]}>
                     <Text style={styles.howItWorksTitle}>How it works:</Text>
                     <Text style={styles.howItWorksText}>
                         1. Connect your wallet{'\n'}
                         2. Sign a message to prove ownership{'\n'}
                         3. You're in! No passwords needed
                     </Text>
-                </GlassCard>
+                </View>
 
                 <Text style={styles.platformText}>
                     Platform: {Platform.OS}
@@ -196,6 +205,14 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         marginBottom: 12,
         color: '#010203',
+    },
+    card: {
+        width: '100%',
+        backgroundColor: '#ffffff',
+        borderRadius: 12,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: '#ececec',
     },
     infoText: {
         fontSize: 16,
@@ -238,8 +255,24 @@ const styles = StyleSheet.create({
         color: '#1d1e1f',
         lineHeight: 20,
     },
-    signInButton: {
+    button: {
         width: '100%',
+        backgroundColor: '#abca2f',
+        borderRadius: 12,
+        paddingVertical: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    buttonDisabled: {
+        opacity: 0.7,
+    },
+    buttonPressed: {
+        opacity: 0.85,
+    },
+    buttonText: {
+        color: '#ffffff',
+        fontSize: 16,
+        fontWeight: '700',
     },
     addressLabel: {
         fontSize: 14,

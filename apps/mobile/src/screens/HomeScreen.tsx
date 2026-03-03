@@ -6,8 +6,8 @@ import {
     ScrollView,
     Alert,
     Platform,
+    Pressable,
 } from 'react-native';
-import { GlassCard, GlassButton } from '@eco-dms/ui';
 import { useWallet } from '../context/WalletContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -54,14 +54,14 @@ export function HomeScreen({ onSignOut }: HomeScreenProps) {
                 <Text style={styles.title}>🌱 Eco-DMS</Text>
                 <Text style={styles.subtitle}>Welcome!</Text>
 
-                <GlassCard variant="light" padding="lg">
+                <View style={styles.card}>
                     <Text style={styles.cardTitle}>✅ You're Signed In</Text>
                     <Text style={styles.cardText}>
                         Connected with Sign-In with Ethereum (SIWE)
                     </Text>
-                </GlassCard>
+                </View>
 
-                <GlassCard variant="light" padding="lg">
+                <View style={styles.card}>
                     <Text style={styles.cardTitle}>Wallet Address</Text>
                     <Text style={styles.addressText}>
                         {(address || userAddress).slice(0, 10)}...
@@ -70,9 +70,9 @@ export function HomeScreen({ onSignOut }: HomeScreenProps) {
                     <Text style={styles.fullAddressText}>
                         {address || userAddress}
                     </Text>
-                </GlassCard>
+                </View>
 
-                <GlassCard variant="light" padding="lg">
+                <View style={styles.card}>
                     <Text style={styles.cardTitle}>Authentication Method</Text>
                     <Text style={styles.cardText}>
                         • Decentralized (SIWE){'\n'}
@@ -80,9 +80,9 @@ export function HomeScreen({ onSignOut }: HomeScreenProps) {
                         • Self-custodial{'\n'}
                         • Backend: FastAPI + Redis
                     </Text>
-                </GlassCard>
+                </View>
 
-                <GlassCard variant="light" padding="lg">
+                <View style={styles.card}>
                     <Text style={styles.cardTitle}>Features Available</Text>
                     <Text style={styles.cardText}>
                         ✅ WalletConnect Integration{'\n'}
@@ -91,23 +91,23 @@ export function HomeScreen({ onSignOut }: HomeScreenProps) {
                         ✅ Backend API Connection{'\n'}
                         ✅ Graph Protocol Ready
                     </Text>
-                </GlassCard>
+                </View>
 
-                <GlassButton
-                    title="Sign Out"
-                    variant="primary"
+                <Pressable
                     onPress={handleSignOut}
-                    style={styles.signOutButton}
-                />
+                    style={({ pressed }) => [styles.signOutButton, pressed && styles.buttonPressed]}
+                >
+                    <Text style={styles.signOutButtonText}>Sign Out</Text>
+                </Pressable>
 
-                <GlassCard variant="light" padding="md">
+                <View style={styles.card}>
                     <Text style={styles.footerText}>
                         Platform: {Platform.OS}{'\n'}
                         SDK: 54.0.0{'\n'}
                         WalletConnect: ✅{'\n'}
                         SIWE: ✅
                     </Text>
-                </GlassCard>
+                </View>
             </View>
         </ScrollView>
     );
@@ -142,6 +142,14 @@ const styles = StyleSheet.create({
         marginBottom: 12,
         color: '#010203',
     },
+    card: {
+        width: '100%',
+        backgroundColor: '#ffffff',
+        borderRadius: 12,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: '#ececec',
+    },
     cardText: {
         fontSize: 16,
         color: '#1d1e1f',
@@ -162,6 +170,19 @@ const styles = StyleSheet.create({
     signOutButton: {
         width: '100%',
         marginTop: 20,
+        backgroundColor: '#abca2f',
+        borderRadius: 12,
+        paddingVertical: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    signOutButtonText: {
+        color: '#ffffff',
+        fontWeight: '700',
+        fontSize: 16,
+    },
+    buttonPressed: {
+        opacity: 0.85,
     },
     footerText: {
         fontSize: 14,

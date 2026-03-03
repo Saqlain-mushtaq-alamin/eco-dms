@@ -12,8 +12,7 @@
         "type-check": "tsc --noEmit"
     },
     "dependencies": {
-        "react-native-web": "^0.19.10",
-        "react-native": "^0.73.0"
+        "react-native-web": "^0.19.10"
     },
     "devDependencies": {
         "@types/minimatch": "^5.1.2",
