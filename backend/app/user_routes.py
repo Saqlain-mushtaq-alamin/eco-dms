@@ -64,7 +64,11 @@ async def update_my_profile(
         wallet_address,
         username=update_data.username,
         bio=update_data.bio,
-        avatar_cid=update_data.avatar_cid
+        avatar_cid=update_data.avatar_cid,
+        cover_photo_cid=update_data.cover_photo_cid,
+        date_of_birth=update_data.date_of_birth,
+        location=update_data.location,
+        profession=update_data.profession
     )
     if not new_cid:
         raise HTTPException(status_code=500, detail="Failed to update profile")

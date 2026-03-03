@@ -16,6 +16,10 @@ class UserProfile(BaseModel):
     username: Optional[str] = Field(None, description="Display name")
     bio: Optional[str] = Field(None, description="User bio")
     avatar_cid: Optional[str] = Field(None, description="IPFS CID of avatar image")
+    cover_photo_cid: Optional[str] = Field(None, description="IPFS CID of cover photo")
+    date_of_birth: Optional[str] = Field(None, description="Date of birth (YYYY-MM-DD)")
+    location: Optional[str] = Field(None, description="User location")
+    profession: Optional[str] = Field(None, description="User profession")
     
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -87,6 +91,10 @@ class ProfileUpdateRequest(BaseModel):
     username: Optional[str] = None
     bio: Optional[str] = None
     avatar_cid: Optional[str] = None
+    cover_photo_cid: Optional[str] = None
+    date_of_birth: Optional[str] = None
+    location: Optional[str] = None
+    profession: Optional[str] = None
 
 #-------------------------this part is for posts models-------------------------#
 class ImageUpload(BaseModel):

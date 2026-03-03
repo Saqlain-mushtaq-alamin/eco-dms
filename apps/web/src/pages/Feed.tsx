@@ -480,7 +480,13 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
                 {/* Left Sidebar */}
                 <aside className="hidden lg:block lg:col-span-3 space-y-4 sticky top-24 self-start max-h-[calc(100vh-7rem)] overflow-y-auto pr-1">
                     <div className="glass-card p-4">
-                        <h3 className="text-lg font-semibold mb-3">Menu</h3>
+                        <h4 className="font-semibold text-gray-900">Account</h4>
+                        <p className="text-sm text-gray-600 mt-1">
+                            Signed in as {address.substring(0, 6)}...{address.substring(38)}
+                        </p>
+                    </div>
+                    <div className="glass-card p-4">
+                        
                         <div className="space-y-2">
                             <button
                                 type="button"
@@ -523,12 +529,7 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
                         </div>
                     </div>
 
-                    <div className="glass-card p-4">
-                        <h4 className="font-semibold text-gray-900">Account</h4>
-                        <p className="text-sm text-gray-600 mt-1">
-                            Signed in as {address.substring(0, 6)}...{address.substring(38)}
-                        </p>
-                    </div>
+                                
                 </aside>
 
                 {/* Middle Main Feed */}

@@ -163,7 +163,17 @@ class UserService:
         
         return None
 
-    async def update_profile(self, wallet_address: str, username: Optional[str]=None, bio: Optional[str]=None, avatar_cid: Optional[str]=None) -> Optional[str]:
+    async def update_profile(
+        self,
+        wallet_address: str,
+        username: Optional[str] = None,
+        bio: Optional[str] = None,
+        avatar_cid: Optional[str] = None,
+        cover_photo_cid: Optional[str] = None,
+        date_of_birth: Optional[str] = None,
+        location: Optional[str] = None,
+        profession: Optional[str] = None,
+    ) -> Optional[str]:
         prof, _ = await self.get_or_create_profile(wallet_address)
         if username is not None: 
             prof.username = username
@@ -171,6 +181,14 @@ class UserService:
             prof.bio = bio
         if avatar_cid is not None: 
             prof.avatar_cid = avatar_cid
+        if cover_photo_cid is not None:
+            prof.cover_photo_cid = cover_photo_cid
+        if date_of_birth is not None:
+            prof.date_of_birth = date_of_birth
+        if location is not None:
+            prof.location = location
+        if profession is not None:
+            prof.profession = profession
         return await self.save_profile(prof)
 
     async def follow_user(self, follower_address: str, following_address: str) -> bool:

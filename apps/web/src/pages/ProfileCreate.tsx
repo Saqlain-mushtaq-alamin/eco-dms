@@ -1,22 +1,93 @@
 import React from 'react'
 import { Button, Card, Input } from '@eco-dms/ui'
-import { API_BASE } from '../api'
+import { useNavigate } from 'react-router-dom'
+import { API_BASE, uploadImage } from '../api'
 
 export function ProfileCreate({ address, onDone }: { address: string; onDone: () => void }) {
+    const navigate = useNavigate()
     const [loading, setLoading] = React.useState(false)
+    const [uploadingAvatar, setUploadingAvatar] = React.useState(false)
+    const [uploadingCover, setUploadingCover] = React.useState(false)
     const [error, setError] = React.useState('')
     const [username, setUsername] = React.useState('')
     const [bio, setBio] = React.useState('')
-    const [errors, setErrors] = React.useState<{ username?: string; bio?: string }>({})
+    const [dateOfBirth, setDateOfBirth] = React.useState('')
+    const [location, setLocation] = React.useState('')
+    const [profession, setProfession] = React.useState('')
+    const [avatarCid, setAvatarCid] = React.useState('')
+    const [coverPhotoCid, setCoverPhotoCid] = React.useState('')
+    const [avatarPreview, setAvatarPreview] = React.useState('')
+    const [coverPreview, setCoverPreview] = React.useState('')
+    const [errors, setErrors] = React.useState<{ username?: string; dateOfBirth?: string }>({})
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
+    const resolveImageUrl = (value: string): string => {
+        if (!value) return ''
+        if (value.startsWith('http://') || value.startsWith('https://')) return value
+        if (value.startsWith('ipfs://')) {
+            return `https://ipfs.io/ipfs/${value.replace('ipfs://', '')}`
+        }
+        return `https://ipfs.io/ipfs/${value.replace('ipfs/', '').replace('/ipfs/', '')}`
+    }
+
+    const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0]
+        if (!file) return
+
+        try {
+            setUploadingAvatar(true)
+            setError('')
+            setAvatarPreview(URL.createObjectURL(file))
+            const result = await uploadImage(file)
+            setAvatarCid(result.cid)
+            const remotePreview = result.url || resolveImageUrl(result.cid)
+            if (remotePreview) {
+                setAvatarPreview(remotePreview)
+            }
+        } catch (err) {
+            console.error('Avatar upload failed:', err)
+            setError('Failed to upload profile photo')
+        } finally {
+            setUploadingAvatar(false)
+            event.target.value = ''
+        }
+    }
+
+    const handleCoverUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0]
+        if (!file) return
+
+        try {
+            setUploadingCover(true)
+            setError('')
+            setCoverPreview(URL.createObjectURL(file))
+            const result = await uploadImage(file)
+            setCoverPhotoCid(result.cid)
+            const remotePreview = result.url || resolveImageUrl(result.cid)
+            if (remotePreview) {
+                setCoverPreview(remotePreview)
+            }
+        } catch (err) {
+            console.error('Cover upload failed:', err)
+            setError('Failed to upload cover photo')
+        } finally {
+            setUploadingCover(false)
+            event.target.value = ''
+        }
+    }
+
+    const handleSave = async () => {
         setLoading(true)
         setError('')
         setErrors({})
 
         if (!username.trim()) {
             setErrors({ username: 'Username is required' })
+            setLoading(false)
+            return
+        }
+
+        if (dateOfBirth && !/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)) {
+            setErrors({ dateOfBirth: 'Date of birth must be in YYYY-MM-DD format' })
             setLoading(false)
             return
         }
@@ -36,16 +107,25 @@ export function ProfileCreate({ address, onDone }: { address: string; onDone: ()
                     'Authorization': `Bearer ${token}`
                 },
                 credentials: 'include',
-                body: JSON.stringify({ username, bio }),
+                body: JSON.stringify({
+                    username: username.trim(),
+                    bio: bio.trim(),
+                    avatar_cid: avatarCid || undefined,
+                    cover_photo_cid: coverPhotoCid || undefined,
+                    date_of_birth: dateOfBirth || undefined,
+                    location: location.trim() || undefined,
+                    profession: profession.trim() || undefined,
+                }),
             })
 
             if (response.ok) {
                 console.log('Profile created successfully')
                 onDone()
+                navigate('/feed', { replace: true })
             } else {
                 const errorData = await response.text()
                 console.error('Failed to create profile:', errorData)
-                setError(`Failed: ${response.status}`)
+                setError(errorData || `Failed: ${response.status}`)
             }
         } catch (error) {
             console.error('Profile update failed:', error)
@@ -62,7 +142,66 @@ export function ProfileCreate({ address, onDone }: { address: string; onDone: ()
 
             {error && <div style={{ color: '#ef4444', marginBottom: 16 }}>{error}</div>}
 
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ marginBottom: 16, borderRadius: 14, overflow: 'hidden', border: '1px solid #e5e7eb', background: '#fff' }}>
+                <div style={{ height: 120, background: '#f3f4f6', position: 'relative' }}>
+                    {coverPreview ? (
+                        <img src={coverPreview} alt="Cover preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af' }}>
+                            Cover photo preview
+                        </div>
+                    )}
+                </div>
+                <div style={{ display: 'flex', gap: 12, padding: 12, alignItems: 'center' }}>
+                    <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#e5e7eb', overflow: 'hidden', flexShrink: 0 }}>
+                        {avatarPreview ? (
+                            <img src={avatarPreview} alt="Avatar preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280', fontWeight: 600 }}>
+                                {username.trim() ? username.charAt(0).toUpperCase() : 'U'}
+                            </div>
+                        )}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, color: '#111827' }}>{username.trim() || 'Your name'}</div>
+                        <div style={{ fontSize: 14, color: '#6b7280' }}>{profession.trim() || 'Profession'}</div>
+                        <div style={{ fontSize: 13, color: '#6b7280' }}>{location.trim() || 'Location'}</div>
+                        <div style={{ fontSize: 13, color: '#6b7280' }}>{dateOfBirth.trim() || 'Date of birth'}</div>
+                    </div>
+                </div>
+            </div>
+
+            <form
+                onSubmit={(e) => {
+                    e.preventDefault()
+                    handleSave()
+                }}
+                style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+            >
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <span style={{ fontSize: 14, fontWeight: 500 }}>Profile photo</span>
+                        <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleAvatarUpload}
+                            disabled={uploadingAvatar || loading}
+                        />
+                        {uploadingAvatar && <span style={{ fontSize: 12, color: '#6b7280' }}>Uploading profile photo...</span>}
+                    </label>
+
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <span style={{ fontSize: 14, fontWeight: 500 }}>Cover photo</span>
+                        <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleCoverUpload}
+                            disabled={uploadingCover || loading}
+                        />
+                        {uploadingCover && <span style={{ fontSize: 12, color: '#6b7280' }}>Uploading cover photo...</span>}
+                    </label>
+                </div>
+
                 <Input
                     label="Username"
                     value={username}
@@ -70,6 +209,7 @@ export function ProfileCreate({ address, onDone }: { address: string; onDone: ()
                     placeholder="Enter username"
                     error={errors.username}
                 />
+
                 <Input
                     label="Bio"
                     value={bio}
@@ -78,10 +218,33 @@ export function ProfileCreate({ address, onDone }: { address: string; onDone: ()
                     multiline
                     numberOfLines={3}
                 />
+
+                <Input
+                    label="Date of birth"
+                    value={dateOfBirth}
+                    onChangeText={setDateOfBirth}
+                    placeholder="YYYY-MM-DD"
+                    error={errors.dateOfBirth}
+                />
+
+                <Input
+                    label="Location"
+                    value={location}
+                    onChangeText={setLocation}
+                    placeholder="City, Country"
+                />
+
+                <Input
+                    label="Profession"
+                    value={profession}
+                    onChangeText={setProfession}
+                    placeholder="Software Engineer"
+                />
+
                 <Button
-                    title={loading ? 'Creating...' : 'Create Profile'}
-                    onPress={handleSubmit}
-                    disabled={loading}
+                    title={loading ? 'Saving...' : 'Save Profile'}
+                    onPress={handleSave}
+                    disabled={loading || uploadingAvatar || uploadingCover}
                     variant="primary"
                 />
             </form>
