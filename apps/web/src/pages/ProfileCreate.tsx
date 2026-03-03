@@ -18,7 +18,30 @@ export function ProfileCreate({ address, onDone }: { address: string; onDone: ()
     const [coverPhotoCid, setCoverPhotoCid] = React.useState('')
     const [avatarPreview, setAvatarPreview] = React.useState('')
     const [coverPreview, setCoverPreview] = React.useState('')
+    const [hasNewAvatarUpload, setHasNewAvatarUpload] = React.useState(false)
+    const [hasNewCoverUpload, setHasNewCoverUpload] = React.useState(false)
     const [errors, setErrors] = React.useState<{ username?: string; dateOfBirth?: string }>({})
+
+    const createMediaPost = async (token: string, mediaCid: string, content: string) => {
+        const response = await fetch(`${API_BASE}/api/posts`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+                author_wallet: address,
+                content,
+                media_cids: [mediaCid],
+                tags: ['profile-update'],
+            }),
+        })
+
+        if (!response.ok) {
+            const errorText = await response.text()
+            throw new Error(errorText || `Failed to create media post: ${response.status}`)
+        }
+    }
 
     const resolveImageUrl = (value: string): string => {
         if (!value) return ''
@@ -39,6 +62,7 @@ export function ProfileCreate({ address, onDone }: { address: string; onDone: ()
             setAvatarPreview(URL.createObjectURL(file))
             const result = await uploadImage(file)
             setAvatarCid(result.cid)
+            setHasNewAvatarUpload(true)
             const remotePreview = result.url || resolveImageUrl(result.cid)
             if (remotePreview) {
                 setAvatarPreview(remotePreview)
@@ -62,6 +86,7 @@ export function ProfileCreate({ address, onDone }: { address: string; onDone: ()
             setCoverPreview(URL.createObjectURL(file))
             const result = await uploadImage(file)
             setCoverPhotoCid(result.cid)
+            setHasNewCoverUpload(true)
             const remotePreview = result.url || resolveImageUrl(result.cid)
             if (remotePreview) {
                 setCoverPreview(remotePreview)
@@ -120,6 +145,26 @@ export function ProfileCreate({ address, onDone }: { address: string; onDone: ()
 
             if (response.ok) {
                 console.log('Profile created successfully')
+
+                const postPromises: Promise<void>[] = []
+                if (hasNewAvatarUpload && avatarCid) {
+                    postPromises.push(createMediaPost(token, avatarCid, 'Updated profile photo'))
+                }
+                if (hasNewCoverUpload && coverPhotoCid) {
+                    postPromises.push(createMediaPost(token, coverPhotoCid, 'Updated cover photo'))
+                }
+
+                if (postPromises.length > 0) {
+                    const postResults = await Promise.allSettled(postPromises)
+                    postResults.forEach((result) => {
+                        if (result.status === 'rejected') {
+                            console.error('Failed to create profile media post:', result.reason)
+                        }
+                    })
+                    setHasNewAvatarUpload(false)
+                    setHasNewCoverUpload(false)
+                }
+
                 onDone()
                 navigate('/feed', { replace: true })
             } else {
