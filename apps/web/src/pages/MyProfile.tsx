@@ -199,10 +199,10 @@ export default function UserProfile({ address, onBack }: UserProfileProps) {
     if (!profile) return <div className="p-6">No profile data found.</div>
 
     return (
-        <div className="p-6 space-y-5">
-            <Card>
+        <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-5">
+            <Card variant="glass" style={{ borderWidth: 0 }}>
                 <div className="relative">
-                    <div className="h-52 w-full rounded-xl bg-gray-100 overflow-hidden">
+                    <div className="h-48 md:h-52 w-full rounded-2xl bg-gray-100 overflow-hidden shadow-sm">
                         {coverPreview ? (
                             <img src={coverPreview} alt="Cover" className="h-full w-full object-cover" />
                         ) : (
@@ -212,7 +212,7 @@ export default function UserProfile({ address, onBack }: UserProfileProps) {
 
                     <div className="mt-4 flex items-start justify-between gap-4">
                         <div className="flex items-start gap-4">
-                            <div className="h-24 w-24 rounded-full overflow-hidden bg-gray-200 border-4 border-white -mt-12 shadow">
+                            <div className="h-24 w-24 rounded-full overflow-hidden bg-gray-200 border-4 border-white -mt-12 shadow-md">
                                 {avatarPreview ? (
                                     <img src={avatarPreview} alt="Profile" className="h-full w-full object-cover" />
                                 ) : (
@@ -244,7 +244,7 @@ export default function UserProfile({ address, onBack }: UserProfileProps) {
             </Card>
 
             {editing && (
-                <Card>
+                <Card variant="glass" style={{ borderWidth: 0 }}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <label className="text-sm text-gray-700">
                             <div className="mb-1 font-medium">Profile photo</div>
@@ -269,14 +269,14 @@ export default function UserProfile({ address, onBack }: UserProfileProps) {
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                 <div className="lg:col-span-4">
-                    <Card>
+                    <Card variant="glass" style={{ borderWidth: 0 }}>
                         <h3 className="text-lg font-semibold mb-3">Profile Info</h3>
                         <div className="space-y-2 text-sm text-gray-700">
                             <div><span className="font-medium">Wallet:</span> <span className="break-all">{profile.wallet_address}</span></div>
                             <div><span className="font-medium">Date of birth:</span> {profile.date_of_birth || '-'}</div>
                             <div><span className="font-medium">Location:</span> {profile.location || '-'}</div>
                         </div>
-                        <div className="mt-4 pt-4 border-t flex gap-6">
+                        <div className="mt-4 pt-4 flex gap-6">
                             <div>
                                 <div className="text-xl font-semibold text-gray-900">{profile.followers?.length || 0}</div>
                                 <div className="text-sm text-gray-500">Followers</div>
@@ -292,7 +292,7 @@ export default function UserProfile({ address, onBack }: UserProfileProps) {
                 <div className="lg:col-span-8 space-y-3">
                     <h3 className="text-lg font-semibold">My Posts</h3>
                     {posts.length === 0 ? (
-                        <Card>
+                        <Card variant="glass" style={{ borderWidth: 0 }}>
                             <div className="text-gray-500">No posts yet.</div>
                         </Card>
                     ) : (
@@ -310,6 +310,11 @@ export default function UserProfile({ address, onBack }: UserProfileProps) {
                                 likes={post.likes_count || 0}
                                 comments={post.comments_count || 0}
                                 isLiked={Boolean(post.liked_by_user)}
+                                style={{
+                                    borderWidth: 0,
+                                    backgroundColor: 'rgba(255,255,255,0.72)',
+                                    shadowOpacity: 0.08,
+                                }}
                             />
                         ))
                     )}
