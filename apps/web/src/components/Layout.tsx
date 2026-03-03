@@ -137,13 +137,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
                             </Link>
 
                             {isAuthenticated && (
-                                <form onSubmit={handleSearchSubmit} className="relative w-full" ref={searchRef}>
+                                <form onSubmit={handleSearchSubmit} className="relative w-48" ref={searchRef}>
                                     <input
                                         type="text"
                                         value={query}
                                         onChange={(event) => setQuery(event.target.value)}
                                         onFocus={() => setShowSearchDropdown(true)}
-                                        placeholder="Search accounts..."
+                                        placeholder=" 🔍 Search accounts..."
                                         className="w-full rounded-full border border-gray-200 bg-white px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-lime-400"
                                     />
 
@@ -173,14 +173,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         </div>
 
                         {isAuthenticated && (
-                            <div className="flex items-center justify-center gap-3">
+                            <div className="flex items-center justify-center gap-5">
                                 {navItems.map((item) => {
                                     const isActive = location.pathname.startsWith(item.to)
                                     return (
                                         <Link
                                             key={item.to}
                                             to={item.to}
-                                            className="h-11 w-11 rounded-full flex items-center justify-center text-xl transition-all"
+                                            className="relative h-11 w-16 rounded-xl flex items-center justify-center text-xl transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
                                             style={{
                                                 backgroundColor: isActive ? '#abca2f' : 'rgba(171,202,47,0.12)',
                                                 color: isActive ? '#010203' : '#5b6d14'
@@ -188,6 +188,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
                                             title={item.label}
                                         >
                                             <span>{item.icon}</span>
+                                            <span
+                                                className="absolute -bottom-1 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-full transition-all duration-200"
+                                                style={{
+                                                    backgroundColor: '#abca2f',
+                                                    opacity: isActive ? 1 : 0
+                                                }}
+                                            />
                                         </Link>
                                     )
                                 })}
@@ -216,46 +223,50 @@ export function Layout({ children }: { children: React.ReactNode }) {
                                 </button>
 
                                 {showProfileDropdown && (
-                                    <div className="absolute top-[72px] right-6 w-64 bg-white border border-gray-200 rounded-xl shadow-xl z-50 p-2">
-                                        <div className="px-3 py-2 border-b border-gray-100">
-                                            <p className="text-sm text-gray-500">Signed in as</p>
-                                            <p className="font-semibold text-gray-900 truncate">{profileName}</p>
-                                        </div>
-
+                                    <div className="absolute top-[72px] right-6 w-72 bg-white border border-gray-200 rounded-2xl shadow-xl z-50 p-3 mt-2">
                                         <button
                                             type="button"
                                             onClick={() => {
                                                 setShowProfileDropdown(false)
                                                 navigate('/profile')
                                             }}
-                                            className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 flex items-center justify-between"
+                                            className="w-full text-left px-3 py-3 mb-2 rounded-xl border border-gray-100 hover:bg-lime-50 hover:text-gray-900 transition-colors flex items-center gap-3"
                                         >
-                                            <span>Profile</span><span>👤</span>
+                                            <span className="h-9 w-9 rounded-full bg-lime-100 text-lime-700 flex items-center justify-center text-base">👤</span>
+                                            <span className="min-w-0">
+                                                <p className="text-sm text-gray-500">Signed in as</p>
+                                                <p className="font-semibold text-gray-900 truncate">{profileName}</p>
+                                            </span>
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-gray-50 hover:text-gray-900 text-gray-700 flex items-center gap-3 justify-start"
+                                        >
+                                            <span className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center">⚙️</span>
+                                            <span>Settings</span>
                                         </button>
                                         <button
                                             type="button"
-                                            className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 flex items-center justify-between"
+                                            className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-gray-50 hover:text-gray-900 text-gray-700 flex items-center gap-3 justify-start"
                                         >
-                                            <span>Settings</span><span>⚙️</span>
+                                            <span className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center">🔒</span>
+                                            <span>Privacy</span>
                                         </button>
                                         <button
                                             type="button"
-                                            className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 flex items-center justify-between"
+                                            className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-gray-50 hover:text-gray-900 text-gray-700 flex items-center gap-3 justify-start"
                                         >
-                                            <span>Privacy</span><span>🔒</span>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 flex items-center justify-between"
-                                        >
-                                            <span>Help & Support</span><span>❓</span>
+                                            <span className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center">❓</span>
+                                            <span>Help & Support</span>
                                         </button>
                                         <button
                                             type="button"
                                             onClick={handleLogout}
-                                            className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 flex items-center justify-between text-red-600"
+                                            className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-red-50 hover:text-red-700 text-red-600 flex items-center gap-3 justify-start"
                                         >
-                                            <span>Logout</span><span>↩️</span>
+                                            <span className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center">↩️</span>
+                                            <span>Logout</span>
                                         </button>
                                     </div>
                                 )}
