@@ -8,6 +8,7 @@ import { CreateProfileRoute } from './routes/CreateProfileRoute'
 import { FeedRoute } from './routes/FeedRoute'
 import { ProfileRoute } from './routes/ProfileRoute'
 import { VisitProfileRoute } from './routes/VisitProfileRoute'
+import { FriendsRoute } from './routes/FriendsRoute'
 import { DashboardRoute } from './routes/DashboardRoute'
 import { useAuthSync } from './hooks/useAuthSync'
 
@@ -58,6 +59,14 @@ function AppRoutes() {
                 element={
                     <ProtectedRoute>
                         <DashboardRoute />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/friends"
+                element={
+                    <ProtectedRoute>
+                        <FriendsRoute />
                     </ProtectedRoute>
                 }
             />

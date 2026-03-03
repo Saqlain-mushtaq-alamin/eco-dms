@@ -11,6 +11,7 @@ import logging
 from .auth_routes import get_current_user
 from .models import UserProfile, ProfileUpdateRequest
 from .services.user_service import user_service
+from .services.user_search_service import user_search_service
 from .services.redis_service import redis_service  # add Redis cache
 
 router = APIRouter(prefix="/api/users", tags=["users"])
@@ -93,6 +94,24 @@ async def get_all_users(
     users = await user_service.get_all_users()
     redis_service.set_json(cache_key, users, ex=CACHE_TTL)
     return {"users": users, "count": len(users)}
+
+
+@router.get("/search", response_model=dict)
+async def search_users(
+    q: str,
+    limit: int = 20,
+    current_user: str = Depends(get_current_user)
+):
+    """
+    Search users by username or wallet address.
+    """
+    query = q.strip()
+    if not query:
+        return {"users": [], "count": 0, "query": q}
+
+    safe_limit = max(1, min(limit, 50))
+    users = await user_search_service.search_users(query, current_user, safe_limit)
+    return {"users": users, "count": len(users), "query": q}
 
 @router.get("/{wallet_address}", response_model=UserProfile)
 async def get_user_profile(

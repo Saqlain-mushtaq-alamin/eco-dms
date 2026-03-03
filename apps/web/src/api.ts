@@ -106,6 +106,26 @@ export async function getAllUsers() {
     return res.json()
 }
 
+export async function searchUserAccounts(query: string, limit: number = 20) {
+    const token = localStorage.getItem('auth_token')
+    if (!token) throw new Error('No authentication token')
+
+    const params = new URLSearchParams({
+        q: query,
+        limit: String(limit)
+    })
+
+    const res = await fetch(`${API_BASE}/api/users/search?${params.toString()}`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    })
+
+    if (!res.ok) throw new Error(`Failed to search users: ${res.status}`)
+    return res.json()
+}
+
 export async function getUserProfile(walletAddress: string) {
     const token = localStorage.getItem('auth_token')
     if (!token) throw new Error('No authentication token')
