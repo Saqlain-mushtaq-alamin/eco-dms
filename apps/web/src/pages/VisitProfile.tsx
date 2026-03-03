@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { getUserProfile, checkFollowStatus, followUser, unfollowUser } from '../api'
-import { Button, Card, LoadingSpinner, ProfileCard } from '@eco-dms/ui'
+import { API_BASE, getUserProfile, checkFollowStatus, followUser, unfollowUser } from '../api'
+import { Button, Card, LoadingSpinner, PostCard } from '@eco-dms/ui'
 
 type UserProfile = {
     wallet_address: string
@@ -9,6 +9,10 @@ type UserProfile = {
     bio?: string
     about?: string
     avatar_cid?: string
+    cover_photo_cid?: string
+    date_of_birth?: string
+    location?: string
+    profession?: string
     followers: string[]
     following: string[]
     created_at?: string
@@ -61,8 +65,6 @@ export default function VisitProfile({ walletAddress, currentUserAddress, onBack
     const [actionLoading, setActionLoading] = useState(false)
     const [error, setError] = useState('')
 
-    const apiBase = import.meta.env.VITE_API_BASE ?? 'http://127.0.0.1:8000'
-
     const fetchProfile = async () => {
         try {
             setLoading(true)
@@ -88,7 +90,7 @@ export default function VisitProfile({ walletAddress, currentUserAddress, onBack
         if (!token) return []
 
         try {
-            const res = await fetch(`${apiBase}/api/posts/${walletAddress}`, {
+            const res = await fetch(`${API_BASE}/api/posts/${walletAddress}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             })
             if (!res.ok) return []
@@ -133,95 +135,107 @@ export default function VisitProfile({ walletAddress, currentUserAddress, onBack
     const isOwnProfile = walletAddress.toLowerCase() === currentUserAddress.toLowerCase()
 
     return (
-        <div className="p-6 space-y-6 max-w-4xl mx-auto">
-            {/* Header with Back Button */}
-            <div className="max-w-[180px]">
-                <Button title="Back to Feed" onPress={onBack} variant="outline" />
-            </div>
+        <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-5">
+            <Card variant="glass" style={{ borderWidth: 0 }}>
+                <div className="relative">
+                    <div className="h-48 md:h-52 w-full rounded-2xl bg-gray-100 overflow-hidden shadow-sm">
+                        {resolveIpfsUrl(profile.cover_photo_cid) ? (
+                            <img src={resolveIpfsUrl(profile.cover_photo_cid)} alt="Cover" className="h-full w-full object-cover" />
+                        ) : (
+                            <div className="h-full w-full flex items-center justify-center text-gray-400">Cover photo</div>
+                        )}
+                    </div>
 
-            {/* Profile Card */}
-            <Card>
-                <ProfileCard
-                    address={profile.wallet_address}
-                    username={getProfileName(profile)}
-                    bio={getProfileBio(profile)}
-                    avatarUri={resolveIpfsUrl(profile.avatar_cid)}
-                    ecoScore={0}
-                    verifiedActions={posts.length}
-                />
-                {!isOwnProfile && (
-                    <div className="mt-4 max-w-[180px]">
-                        <Button
-                            title={actionLoading ? 'Loading...' : isFollowing ? 'Following' : 'Follow'}
-                            onPress={handleFollowToggle}
-                            disabled={actionLoading}
-                            variant={isFollowing ? 'secondary' : 'primary'}
-                        />
-                    </div>
-                )}
-                <div className="mt-4 flex gap-8 pt-4 border-t">
-                    <div className="text-center">
-                        <div className="text-2xl font-bold text-gray-900">{posts.length}</div>
-                        <div className="text-sm text-gray-500">Posts</div>
-                    </div>
-                    <div className="text-center">
-                        <div className="text-2xl font-bold text-gray-900">{profile.followers?.length || 0}</div>
-                        <div className="text-sm text-gray-500">Followers</div>
-                    </div>
-                    <div className="text-center">
-                        <div className="text-2xl font-bold text-gray-900">{profile.following?.length || 0}</div>
-                        <div className="text-sm text-gray-500">Following</div>
+                    <div className="mt-4 flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-4">
+                            <div className="h-24 w-24 rounded-full overflow-hidden bg-gray-200 border-4 border-white -mt-12 shadow-md">
+                                {resolveIpfsUrl(profile.avatar_cid) ? (
+                                    <img src={resolveIpfsUrl(profile.avatar_cid)} alt="Profile" className="h-full w-full object-cover" />
+                                ) : (
+                                    <div className="h-full w-full flex items-center justify-center font-semibold text-gray-600">
+                                        {(getProfileName(profile) || profile.wallet_address).charAt(0).toUpperCase()}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="pt-1">
+                                <h2 className="text-2xl font-semibold text-gray-900">{getProfileName(profile) || 'Unnamed user'}</h2>
+                                <p className="text-gray-600">{profile.profession || 'Profession not set'}</p>
+                                <p className="text-gray-500 text-sm">{profile.location || 'Location not set'}</p>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                            {!isOwnProfile && (
+                                <Button
+                                    title={actionLoading ? 'Loading...' : isFollowing ? 'Following' : 'Follow'}
+                                    onPress={handleFollowToggle}
+                                    disabled={actionLoading}
+                                    variant={isFollowing ? 'secondary' : 'primary'}
+                                />
+                            )}
+                            <Button title="Back to Feed" onPress={onBack} variant="secondary" />
+                        </div>
                     </div>
                 </div>
             </Card>
 
-            {/* Posts Section */}
-            <div>
-                <h3 className="text-xl font-semibold mb-4">Posts</h3>
-                {posts.length === 0 ? (
-                    <Card>
-                        <div className="text-center py-12 bg-gray-50 rounded-lg">
-                            <p className="text-gray-500">No posts yet</p>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                <div className="lg:col-span-4">
+                    <Card variant="glass" style={{ borderWidth: 0 }}>
+                        <h3 className="text-lg font-semibold mb-3">Profile Info</h3>
+                        <div className="space-y-2 text-sm text-gray-700">
+                            <div><span className="font-medium">Wallet:</span> <span className="break-all">{profile.wallet_address}</span></div>
+                            <div><span className="font-medium">Date of birth:</span> {profile.date_of_birth || '-'}</div>
+                            <div><span className="font-medium">Location:</span> {profile.location || '-'}</div>
+                            <div><span className="font-medium">Bio:</span> {getProfileBio(profile) || '-'}</div>
+                        </div>
+                        <div className="mt-4 pt-4 flex gap-6">
+                            <div>
+                                <div className="text-xl font-semibold text-gray-900">{profile.followers?.length || 0}</div>
+                                <div className="text-sm text-gray-500">Followers</div>
+                            </div>
+                            <div>
+                                <div className="text-xl font-semibold text-gray-900">{profile.following?.length || 0}</div>
+                                <div className="text-sm text-gray-500">Following</div>
+                            </div>
+                            <div>
+                                <div className="text-xl font-semibold text-gray-900">{posts.length}</div>
+                                <div className="text-sm text-gray-500">Posts</div>
+                            </div>
                         </div>
                     </Card>
-                ) : (
-                    <div className="space-y-4">
-                        {posts.map((post) => (
-                            <Card key={post.cid ?? post.created_at}>
-                                <div className="text-sm text-gray-500 mb-2">
-                                    {new Date(post.created_at).toLocaleString()}
-                                </div>
-                                <div className="text-gray-900 whitespace-pre-wrap">{post.content}</div>
+                </div>
 
-                                {post.media_cids?.length > 0 && (
-                                    <div className="mt-3 grid grid-cols-2 gap-2">
-                                        {post.media_cids.map((cid, idx) => (
-                                            <img
-                                                key={`${post.cid}-${idx}`}
-                                                src={resolveIpfsUrl(cid)}
-                                                alt="Post image"
-                                                className="w-full rounded border object-cover"
-                                                style={{ maxHeight: '300px' }}
-                                                onError={(e) => {
-                                                    const fallback = `https://gateway.pinata.cloud/ipfs/${cid.replace('ipfs://', '')}`
-                                                    const img = e.target as HTMLImageElement
-                                                    if (!img.src.includes('gateway.pinata.cloud')) {
-                                                        img.src = fallback
-                                                    }
-                                                }}
-                                            />
-                                        ))}
-                                    </div>
-                                )}
-
-                                <div className="mt-3 flex items-center gap-4 border-t pt-3 text-sm text-gray-500">
-                                    <span>❤️ {post.likes_count || 0} likes</span>
-                                    <span>💬 {post.comments_count || 0} comments</span>
-                                </div>
-                            </Card>
-                        ))}
-                    </div>
-                )}
+                <div className="lg:col-span-8 space-y-3">
+                    <h3 className="text-lg font-semibold">Posts</h3>
+                    {posts.length === 0 ? (
+                        <Card variant="glass" style={{ borderWidth: 0 }}>
+                            <div className="text-gray-500">No posts yet.</div>
+                        </Card>
+                    ) : (
+                        posts.map((post) => (
+                            <PostCard
+                                key={post.cid ?? post.created_at}
+                                author={{
+                                    address: profile.wallet_address,
+                                    username: getProfileName(profile),
+                                    avatarUri: resolveIpfsUrl(profile.avatar_cid),
+                                }}
+                                content={post.content || ''}
+                                imageUri={post.media_cids?.[0] ? resolveIpfsUrl(post.media_cids[0]) : undefined}
+                                timestamp={new Date(post.created_at).getTime()}
+                                likes={post.likes_count || 0}
+                                comments={post.comments_count || 0}
+                                isLiked={Boolean(post.liked_by_user)}
+                                style={{
+                                    borderWidth: 0,
+                                    backgroundColor: 'rgba(255,255,255,0.72)',
+                                    shadowOpacity: 0.08,
+                                }}
+                            />
+                        ))
+                    )}
+                </div>
             </div>
         </div>
     )
