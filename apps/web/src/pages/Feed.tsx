@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Button, Input, LoadingSpinner } from '@eco-dms/ui'
 
 type Post = {
@@ -202,6 +202,8 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
     const [uploadingImages, setUploadingImages] = useState(false)
     const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([])
     const [showingFeed, setShowingFeed] = useState(true) // true = feed timeline, false = my posts
+    const [showComposerModal, setShowComposerModal] = useState(false)
+    const quickPhotoInputRef = useRef<HTMLInputElement>(null)
 
     // Configure your API base URL
     const apiBase = import.meta.env.VITE_API_BASE ?? 'http://127.0.0.1:8000'
@@ -318,11 +320,11 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
 
     const onSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!content.trim() && selectedImages.length === 0) return
+        if (!content.trim() && selectedImages.length === 0) return false
         const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') ?? '' : ''
         if (!token) {
             setError('Not authenticated')
-            return
+            return false
         }
         setLoading(true)
         setError(null)
@@ -354,13 +356,26 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
             setSelectedImages([])
             setImagePreviewUrls([])
             await load()
+            return true
         } catch (e: any) {
             console.error('Create post error:', e)
             setError(e.message || 'Failed to create post')
+            return false
         } finally {
             setLoading(false)
             setUploadingImages(false)
         }
+    }
+
+    const openComposer = () => {
+        setShowComposerModal(true)
+    }
+
+    const handleQuickPhotoAction = () => {
+        setShowComposerModal(true)
+        setTimeout(() => {
+            quickPhotoInputRef.current?.click()
+        }, 0)
     }
 
     const handleLike = async (postCid: string, isLiked: boolean) => {
@@ -518,64 +533,60 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
 
                 {/* Middle Main Feed */}
                 <main className="col-span-1 lg:col-span-6 space-y-4">
-                    <h2 className="text-xl font-semibold">Social Feed</h2>
 
-                    {/* Create Post Form */}
+
+                    {/* Create Post Composer */}
                     <div className="glass-card p-4">
-                        <form onSubmit={onSubmit} className="space-y-2">
-                            <Input
-                                value={content}
-                                onChangeText={setContent}
-                                placeholder="What's on your mind?"
-                                multiline
-                                numberOfLines={3}
+                        <div className="flex items-center gap-3">
+                            <button
+                                type="button"
+                                onClick={() => onVisitProfile(address)}
+                                className="h-11 w-11 rounded-full bg-white/80 text-gray-700 font-semibold shadow-sm hover:bg-white transition"
+                                title="Go to profile"
+                            >
+                                {address.substring(2, 3).toUpperCase()}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={openComposer}
+                                className="flex-1 text-left rounded-full bg-white/80 px-4 py-2.5 text-gray-500 hover:bg-white transition shadow-sm"
+                            >
+                                What's on your mind?
+                            </button>
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={handleQuickPhotoAction}
+                                className="px-3 py-2 rounded-lg bg-white/80 hover:bg-white text-gray-700 text-sm font-medium transition shadow-sm"
+                            >
+                                🖼 Photo
+                            </button>
+                            <button
+                                type="button"
+                                onClick={openComposer}
+                                className="px-3 py-2 rounded-lg bg-white/80 hover:bg-white text-gray-700 text-sm font-medium transition shadow-sm"
+                            >
+                                🎬 Video
+                            </button>
+                            <button
+                                type="button"
+                                onClick={openComposer}
+                                className="px-3 py-2 rounded-lg bg-white/80 hover:bg-white text-gray-700 text-sm font-medium transition shadow-sm"
+                            >
+                                📝 Article
+                            </button>
+                            <input
+                                ref={quickPhotoInputRef}
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                onChange={handleImageSelect}
+                                className="hidden"
+                                disabled={loading}
                             />
-
-                            {/* Image Previews */}
-                            {imagePreviewUrls.length > 0 && (
-                                <div className="flex flex-wrap gap-2">
-                                    {imagePreviewUrls.map((url, index) => (
-                                        <div key={index} className="relative">
-                                            <img src={url} alt="Preview" className="w-20 h-20 object-cover rounded" />
-                                            <button
-                                                type="button"
-                                                onClick={() => removeImage(index)}
-                                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold hover:bg-red-600"
-                                            >
-                                                ×
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            <div className="flex gap-2 items-center">
-                                {/* Image Upload Button with Icon */}
-                                <label className="cursor-pointer px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 flex items-center gap-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-                                    </svg>
-                                    <span>Add Image</span>
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        multiple
-                                        onChange={handleImageSelect}
-                                        className="hidden"
-                                        disabled={loading}
-                                    />
-                                </label>
-
-                                <Button
-                                    title={uploadingImages ? 'Uploading Images...' : loading ? 'Posting...' : 'Post'}
-                                    onPress={() => {
-                                        const event = { preventDefault: () => { } } as React.FormEvent
-                                        onSubmit(event)
-                                    }}
-                                    disabled={loading || uploadingImages}
-                                />
-                            </div>
-                        </form>
+                        </div>
                     </div>
 
                     {/* Feed Toggle Tabs */}
@@ -816,6 +827,100 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
                     </div>
                 </aside>
             </div>
+
+            {showComposerModal && (
+                <div
+                    className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+                    onClick={() => setShowComposerModal(false)}
+                >
+                    <div
+                        className="glass-card w-full max-w-2xl p-6"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-semibold text-gray-900">Create Post</h3>
+                            <button
+                                type="button"
+                                onClick={() => setShowComposerModal(false)}
+                                className="h-9 w-9 rounded-full bg-white/80 hover:bg-white text-gray-600"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <form
+                            onSubmit={async (e) => {
+                                const success = await onSubmit(e)
+                                if (success) {
+                                    setShowComposerModal(false)
+                                }
+                            }}
+                            className="space-y-3"
+                        >
+                            <textarea
+                                value={content}
+                                onChange={(e) => setContent(e.target.value)}
+                                placeholder="Write your post content..."
+                                className="w-full min-h-[140px] rounded-xl bg-white/80 px-4 py-3 text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-lime-400"
+                            />
+
+                            {imagePreviewUrls.length > 0 && (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                    {imagePreviewUrls.map((url, index) => (
+                                        <div key={index} className="relative rounded-lg overflow-hidden">
+                                            <img src={url} alt="Preview" className="w-full h-28 object-cover" />
+                                            <button
+                                                type="button"
+                                                onClick={() => removeImage(index)}
+                                                className="absolute top-1 right-1 bg-black/60 text-white rounded-full w-6 h-6 text-xs"
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                                <div className="flex items-center gap-2">
+                                    <label className="cursor-pointer px-3 py-2 rounded-lg bg-white/80 hover:bg-white text-sm font-medium text-gray-700 shadow-sm transition">
+                                        🖼 Photo
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            multiple
+                                            onChange={handleImageSelect}
+                                            className="hidden"
+                                            disabled={loading}
+                                        />
+                                    </label>
+                                    <button
+                                        type="button"
+                                        className="px-3 py-2 rounded-lg bg-white/80 text-sm font-medium text-gray-500 shadow-sm"
+                                    >
+                                        🎬 Video
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="px-3 py-2 rounded-lg bg-white/80 text-sm font-medium text-gray-500 shadow-sm"
+                                    >
+                                        📝 Article
+                                    </button>
+                                </div>
+
+                                <Button
+                                    title={uploadingImages ? 'Uploading Images...' : loading ? 'Posting...' : 'Post'}
+                                    onPress={() => {
+                                        const event = { preventDefault: () => { } } as React.FormEvent
+                                        onSubmit(event)
+                                    }}
+                                    disabled={loading || uploadingImages}
+                                />
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             {/* Verification Details Modal */}
             {verificationModal.isOpen && (
