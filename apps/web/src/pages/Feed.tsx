@@ -165,6 +165,11 @@ type User = {
     following_count: number
 }
 
+type CurrentUserProfile = {
+    username?: string
+    avatar_cid?: string
+}
+
 function resolveIpfsUrl(value?: string): string | undefined {
     if (!value) return undefined
     if (value.startsWith('http://') || value.startsWith('https://')) return value
@@ -203,6 +208,7 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
     const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([])
     const [showingFeed, setShowingFeed] = useState(true) // true = feed timeline, false = my posts
     const [showComposerModal, setShowComposerModal] = useState(false)
+    const [currentUserProfile, setCurrentUserProfile] = useState<CurrentUserProfile | null>(null)
     const quickPhotoInputRef = useRef<HTMLInputElement>(null)
 
     // Configure your API base URL
@@ -270,6 +276,30 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
         }
     }
 
+    const loadCurrentUserProfile = async () => {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') ?? '' : ''
+        if (!token) return
+
+        try {
+            const res = await fetch(`${apiBase}/api/users/me`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            })
+
+            if (!res.ok) return
+            const data = await res.json()
+            setCurrentUserProfile({
+                username: data?.username,
+                avatar_cid: data?.avatar_cid
+            })
+        } catch (err) {
+            console.error('Failed to load current user profile:', err)
+        }
+    }
+
     const load = () => {
         if (showingFeed) {
             loadFeed()
@@ -281,6 +311,7 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
     useEffect(() => {
         load()
         loadUsers()
+        loadCurrentUserProfile()
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [address, showingFeed])
 
@@ -480,13 +511,37 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
                 {/* Left Sidebar */}
                 <aside className="hidden lg:block lg:col-span-3 space-y-4 sticky top-24 self-start max-h-[calc(100vh-7rem)] overflow-y-auto pr-1">
                     <div className="glass-card p-4">
-                        <h4 className="font-semibold text-gray-900">Account</h4>
-                        <p className="text-sm text-gray-600 mt-1">
-                            Signed in as {address.substring(0, 6)}...{address.substring(38)}
-                        </p>
+                        <div className="flex items-center gap-3">
+                            <button
+                                type="button"
+                                onClick={() => onVisitProfile(address)}
+                                className="h-12 w-12 rounded-full overflow-hidden bg-gray-200 shadow-sm"
+                                title="Open profile"
+                            >
+                                {resolveIpfsUrl(currentUserProfile?.avatar_cid) ? (
+                                    <img
+                                        src={resolveIpfsUrl(currentUserProfile?.avatar_cid)}
+                                        alt="Profile"
+                                        className="h-full w-full object-cover"
+                                    />
+                                ) : (
+                                    <span className="flex h-full w-full items-center justify-center font-semibold text-gray-700">
+                                        {(currentUserProfile?.username?.charAt(0) || address.substring(2, 3)).toUpperCase()}
+                                    </span>
+                                )}
+                            </button>
+                            <div className="min-w-0">
+                                <h4 className="font-semibold text-gray-900 truncate">
+                                    {currentUserProfile?.username?.trim() || 'Your Profile'}
+                                </h4>
+                                <p className="text-xs text-gray-500 truncate">
+                                    {address.substring(0, 6)}...{address.substring(38)}
+                                </p>
+                            </div>
+                        </div>
                     </div>
                     <div className="glass-card p-4">
-                        
+
                         <div className="space-y-2">
                             <button
                                 type="button"
@@ -529,7 +584,7 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
                         </div>
                     </div>
 
-                                
+
                 </aside>
 
                 {/* Middle Main Feed */}

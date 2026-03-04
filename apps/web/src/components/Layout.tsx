@@ -23,14 +23,25 @@ export function Layout({ children }: { children: React.ReactNode }) {
     const [showSearchDropdown, setShowSearchDropdown] = useState(false)
     const [showProfileDropdown, setShowProfileDropdown] = useState(false)
     const [profileName, setProfileName] = useState('My Profile')
+    const [profileAvatarUri, setProfileAvatarUri] = useState('')
     const searchRef = useRef<HTMLFormElement>(null)
     const profileRef = useRef<HTMLDivElement>(null)
+
+    const resolveIpfsUrl = (value?: string): string => {
+        if (!value) return ''
+        if (value.startsWith('http://') || value.startsWith('https://')) return value
+        if (value.startsWith('ipfs://')) {
+            return `https://ipfs.io/ipfs/${value.replace('ipfs://', '')}`
+        }
+        const clean = value.replace('ipfs/', '').replace('/ipfs/', '')
+        return `https://ipfs.io/ipfs/${clean}`
+    }
 
     const navItems: NavItem[] = useMemo(() => ([
         { to: '/feed', icon: '🏠', label: 'Feed' },
         { to: '/dashboard', icon: '📊', label: 'Dashboard' },
         { to: '/friends', icon: '👥', label: 'Friends' }
-        
+
     ]), [])
 
     useEffect(() => {
@@ -41,10 +52,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 const profile = await getMe()
                 const username = (profile?.username || '').trim()
                 const wallet = (profile?.wallet_address || '').trim()
+                const avatar = resolveIpfsUrl(profile?.avatar_cid)
                 if (username) {
                     setProfileName(username)
                 } else if (wallet) {
                     setProfileName(`${wallet.slice(0, 6)}...${wallet.slice(-4)}`)
+                }
+                if (avatar) {
+                    setProfileAvatarUri(avatar)
                 }
             } catch (error) {
                 console.error('Failed to load profile name:', error)
@@ -216,11 +231,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
                                 <button
                                     type="button"
                                     onClick={() => setShowProfileDropdown((prev) => !prev)}
-                                    className="h-11 w-11 rounded-full flex items-center justify-center text-lg"
+                                    className="h-11 w-11 rounded-full flex items-center justify-center text-lg overflow-hidden"
                                     style={{ backgroundColor: '#abca2f', color: '#010203' }}
                                     title="Profile menu"
                                 >
-                                    👤
+                                    {profileAvatarUri ? (
+                                        <img src={profileAvatarUri} alt="Profile" className="h-full w-full object-cover" />
+                                    ) : (
+                                        <span className="font-semibold">{profileName.charAt(0).toUpperCase() || 'U'}</span>
+                                    )}
                                 </button>
 
                                 {showProfileDropdown && (
@@ -233,7 +252,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
                                             }}
                                             className="w-full text-left px-3 py-3 mb-2 rounded-xl border border-gray-100 hover:bg-lime-50 hover:text-gray-900 transition-colors flex items-center gap-3"
                                         >
-                                            <span className="h-9 w-9 rounded-full bg-lime-100 text-lime-700 flex items-center justify-center text-base">👤</span>
+                                            <span className="h-9 w-9 rounded-full bg-lime-100 text-lime-700 flex items-center justify-center text-base overflow-hidden">
+                                                {profileAvatarUri ? (
+                                                    <img src={profileAvatarUri} alt="Profile" className="h-full w-full object-cover" />
+                                                ) : (
+                                                    <span className="font-semibold">{profileName.charAt(0).toUpperCase() || 'U'}</span>
+                                                )}
+                                            </span>
                                             <span className="min-w-0">
                                                 <p className="text-sm text-gray-500">Signed in as</p>
                                                 <p className="font-semibold text-gray-900 truncate">{profileName}</p>
