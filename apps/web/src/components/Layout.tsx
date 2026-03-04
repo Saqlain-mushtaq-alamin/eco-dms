@@ -13,6 +13,8 @@ interface NavItem {
     label: string
 }
 
+type ThemeMode = 'light' | 'dark'
+
 export function Layout({ children }: { children: React.ReactNode }) {
     const navigate = useNavigate()
     const location = useLocation()
@@ -24,6 +26,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     const [showProfileDropdown, setShowProfileDropdown] = useState(false)
     const [profileName, setProfileName] = useState('My Profile')
     const [profileAvatarUri, setProfileAvatarUri] = useState('')
+    const [themeMode, setThemeMode] = useState<ThemeMode>('light')
     const searchRef = useRef<HTMLFormElement>(null)
     const profileRef = useRef<HTMLDivElement>(null)
 
@@ -43,6 +46,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
         { to: '/friends', icon: '👥', label: 'Friends' }
 
     ]), [])
+
+    useEffect(() => {
+        const storedTheme = localStorage.getItem('theme_mode') as ThemeMode | null
+        if (storedTheme === 'dark' || storedTheme === 'light') {
+            setThemeMode(storedTheme)
+            return
+        }
+
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        setThemeMode(prefersDark ? 'dark' : 'light')
+    }, [])
+
+    useEffect(() => {
+        const root = document.documentElement
+        root.classList.toggle('theme-dark', themeMode === 'dark')
+        root.classList.toggle('theme-light', themeMode === 'light')
+        localStorage.setItem('theme_mode', themeMode)
+    }, [themeMode])
 
     useEffect(() => {
         if (!isAuthenticated) return
@@ -130,13 +151,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
         navigate(`/profile/${walletAddress}`)
     }
 
+    const handleThemeToggle = () => {
+        setThemeMode((previous) => (previous === 'light' ? 'dark' : 'light'))
+    }
+
+    const isDarkMode = themeMode === 'dark'
+
     return (
         <div className="min-h-screen" style={{
-            background: 'linear-gradient(135deg, #ffffff 0%, #f1f1f1 100%)',
+            background: isDarkMode
+                ? 'linear-gradient(135deg, #0f172a 0%, #111827 100%)'
+                : 'linear-gradient(135deg, #ffffff 0%, #f1f1f1 100%)',
             minHeight: '100vh'
         }}>
             <nav className="glass" style={{
-                borderBottom: '1px solid rgba(255, 255, 255, 0.18)',
+                borderBottom: isDarkMode ? '1px solid rgba(148, 163, 184, 0.2)' : '1px solid rgba(255, 255, 255, 0.18)',
                 position: 'sticky',
                 top: 0,
                 zIndex: 50
@@ -160,11 +189,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
                                         onChange={(event) => setQuery(event.target.value)}
                                         onFocus={() => setShowSearchDropdown(true)}
                                         placeholder=" 🔍 Search accounts..."
-                                        className="w-full rounded-full border border-gray-200 bg-white px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-lime-400"
+                                        className={`w-full rounded-full border px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-lime-400 ${isDarkMode
+                                            ? 'border-slate-600 bg-slate-900/70 text-slate-100 placeholder:text-slate-400'
+                                            : 'border-gray-200 bg-white text-gray-900'
+                                            }`}
                                     />
 
                                     {showSearchDropdown && query.trim().length >= 2 && (
-                                        <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-72 overflow-y-auto">
+                                        <div className={`absolute left-0 right-0 mt-2 border rounded-xl shadow-lg z-50 max-h-72 overflow-y-auto ${isDarkMode
+                                            ? 'bg-slate-900 border-slate-700'
+                                            : 'bg-white border-gray-200'
+                                            }`}>
                                             {searching ? (
                                                 <div className="px-4 py-3 text-sm text-gray-500">Searching...</div>
                                             ) : searchResults.length === 0 ? (
@@ -175,7 +210,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                                                         key={user.wallet_address}
                                                         type="button"
                                                         onClick={() => handleSearchResultClick(user.wallet_address)}
-                                                        className="w-full px-4 py-3 text-left hover:bg-gray-50"
+                                                        className={`w-full px-4 py-3 text-left ${isDarkMode ? 'hover:bg-slate-800' : 'hover:bg-gray-50'}`}
                                                     >
                                                         <div className="text-sm font-medium text-gray-900">{user.username || 'Unnamed user'}</div>
                                                         <div className="text-xs text-gray-500 break-all">{user.wallet_address}</div>
@@ -199,7 +234,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                                             className="relative h-11 w-24 rounded-xl flex items-center justify-center text-xl transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
                                             style={{
                                                 backgroundColor: isActive ? '#abca2f' : 'rgba(171,202,47,0.12)',
-                                                color: isActive ? '#010203' : '#5b6d14'
+                                                color: isActive ? '#010203' : isDarkMode ? '#d3f26a' : '#5b6d14'
                                             }}
                                             title={item.label}
                                         >
@@ -222,7 +257,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
                                 <button
                                     type="button"
                                     className="h-11 w-11 rounded-full flex items-center justify-center text-lg"
-                                    style={{ backgroundColor: 'rgba(171,202,47,0.12)', color: '#5b6d14' }}
+                                    style={{
+                                        backgroundColor: isDarkMode ? 'rgba(163, 230, 53, 0.18)' : 'rgba(171,202,47,0.12)',
+                                        color: isDarkMode ? '#d3f26a' : '#5b6d14'
+                                    }}
                                     title="Notifications"
                                 >
                                     🔔
@@ -243,7 +281,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
                                 </button>
 
                                 {showProfileDropdown && (
-                                    <div className="absolute top-[72px] right-6 w-72 bg-white border border-gray-200 rounded-2xl shadow-xl z-50 p-3 mt-2">
+                                    <div className={`absolute top-[72px] right-6 w-72 border rounded-2xl shadow-xl z-50 p-3 mt-2 ${isDarkMode
+                                        ? 'bg-slate-900 border-slate-700'
+                                        : 'bg-white border-gray-200'
+                                        }`}>
                                         <button
                                             type="button"
                                             onClick={() => {
@@ -267,24 +308,44 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
                                         <button
                                             type="button"
-                                            className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-gray-50 hover:text-gray-900 text-gray-700 flex items-center gap-3 justify-start"
+                                            className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 justify-start ${isDarkMode
+                                                ? 'hover:bg-slate-800 hover:text-slate-100 text-slate-300'
+                                                : 'hover:bg-gray-50 hover:text-gray-900 text-gray-700'
+                                                }`}
                                         >
-                                            <span className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center">⚙️</span>
+                                            <span className={`h-8 w-8 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-slate-800' : 'bg-gray-100'}`}>⚙️</span>
                                             <span>Settings</span>
                                         </button>
                                         <button
                                             type="button"
-                                            className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-gray-50 hover:text-gray-900 text-gray-700 flex items-center gap-3 justify-start"
+                                            className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 justify-start ${isDarkMode
+                                                ? 'hover:bg-slate-800 hover:text-slate-100 text-slate-300'
+                                                : 'hover:bg-gray-50 hover:text-gray-900 text-gray-700'
+                                                }`}
                                         >
-                                            <span className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center">🔒</span>
+                                            <span className={`h-8 w-8 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-slate-800' : 'bg-gray-100'}`}>🔒</span>
                                             <span>Privacy</span>
                                         </button>
                                         <button
                                             type="button"
-                                            className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-gray-50 hover:text-gray-900 text-gray-700 flex items-center gap-3 justify-start"
+                                            className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 justify-start ${isDarkMode
+                                                ? 'hover:bg-slate-800 hover:text-slate-100 text-slate-300'
+                                                : 'hover:bg-gray-50 hover:text-gray-900 text-gray-700'
+                                                }`}
                                         >
-                                            <span className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center">❓</span>
+                                            <span className={`h-8 w-8 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-slate-800' : 'bg-gray-100'}`}>❓</span>
                                             <span>Help & Support</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleThemeToggle}
+                                            className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 justify-start ${isDarkMode
+                                                ? 'hover:bg-slate-800 hover:text-slate-100 text-slate-300'
+                                                : 'hover:bg-gray-50 hover:text-gray-900 text-gray-700'
+                                                }`}
+                                        >
+                                            <span className={`h-8 w-8 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-slate-800' : 'bg-gray-100'}`}>🌓</span>
+                                            <span>{isDarkMode ? 'Display & Accessibility (Switch to Light)' : 'Display & Accessibility (Switch to Dark)'}</span>
                                         </button>
                                         <button
                                             type="button"

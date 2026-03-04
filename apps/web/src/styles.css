@@ -48,6 +48,93 @@ body {
     min-height: 100vh;
 }
 
+html.theme-dark,
+html.theme-dark body {
+    background: linear-gradient(135deg, #0f172a 0%, #111827 100%);
+    color: #e5e7eb;
+}
+
+html.theme-dark .signin-vibe-bg {
+    background:
+        radial-gradient(circle at 12% 10%, rgba(171, 202, 47, 0.14), transparent 30%),
+        radial-gradient(circle at 88% 88%, rgba(101, 196, 255, 0.16), transparent 32%),
+        linear-gradient(135deg, #0f172a 0%, #111827 100%);
+}
+
+html.theme-dark .glass {
+    background: rgba(15, 23, 42, 0.72);
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.35);
+}
+
+html.theme-dark .glass-card {
+    background: rgba(15, 23, 42, 0.66);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+html.theme-dark .bg-white {
+    background-color: rgba(15, 23, 42, 0.9) !important;
+}
+
+html.theme-dark .text-gray-900 {
+    color: #f8fafc !important;
+}
+
+html.theme-dark .text-gray-700 {
+    color: #cbd5e1 !important;
+}
+
+html.theme-dark .text-gray-600,
+html.theme-dark .text-gray-500 {
+    color: #94a3b8 !important;
+}
+
+html.theme-dark .border-gray-200,
+html.theme-dark .border-gray-100 {
+    border-color: rgba(148, 163, 184, 0.24) !important;
+}
+
+html.theme-dark .hover\:bg-gray-50:hover {
+    background-color: rgba(30, 41, 59, 0.85) !important;
+}
+
+html.theme-dark .hover\:bg-red-50:hover {
+    background-color: rgba(127, 29, 29, 0.28) !important;
+}
+
+html.theme-dark .bg-gray-100 {
+    background-color: rgba(30, 41, 59, 0.9) !important;
+}
+
+html.theme-dark .bg-red-100 {
+    background-color: rgba(127, 29, 29, 0.4) !important;
+}
+
+html.theme-dark .text-red-600 {
+    color: #fca5a5 !important;
+}
+
+html.theme-dark input,
+html.theme-dark textarea,
+html.theme-dark select {
+    background: rgba(15, 23, 42, 0.8);
+    color: #e2e8f0;
+    border-color: rgba(148, 163, 184, 0.35);
+}
+
+html.theme-dark ::-webkit-scrollbar-track {
+    background: #0f172a;
+}
+
+html.theme-dark ::-webkit-scrollbar-thumb {
+    background: #84cc16;
+}
+
+html.theme-dark ::-webkit-scrollbar-thumb:hover {
+    background: #a3e635;
+}
+
 .signin-vibe-bg {
     background:
         radial-gradient(circle at 12% 10%, rgba(171, 202, 47, 0.12), transparent 28%),
