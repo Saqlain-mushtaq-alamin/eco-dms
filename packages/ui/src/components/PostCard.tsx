@@ -25,6 +25,7 @@ export interface PostCardProps {
     onLike?: () => void;
     onComment?: () => void;
     onAuthorPress?: () => void;
+    headerRight?: React.ReactNode;
     style?: ViewStyle;
     testID?: string;
 }
@@ -41,10 +42,13 @@ export const PostCard: React.FC<PostCardProps> = ({
     onLike,
     onComment,
     onAuthorPress,
+    headerRight,
     style,
     testID,
 }) => {
     const theme = useTheme();
+    const [likeHovered, setLikeHovered] = React.useState(false);
+    const [commentHovered, setCommentHovered] = React.useState(false);
 
     const formatTimestamp = (ts: number) => {
         const now = Date.now();
@@ -70,25 +74,30 @@ export const PostCard: React.FC<PostCardProps> = ({
     return (
         <Card style={cardStyle as ViewStyle} padding="md" testID={testID}>
             {/* Author Header */}
-            <RNTouchableOpacity
-                style={styles.header}
-                onPress={onAuthorPress}
-                disabled={!onAuthorPress}
-            >
-                <Avatar
-                    uri={author.avatarUri}
-                    name={author.username || author.address}
-                    size="sm"
-                />
-                <RNView style={[styles.authorInfo, { marginLeft: theme.spacing.sm }]}>
-                    <RNText style={[styles.username, { color: theme.colors.text }]}>
-                        {author.username || formatAddress(author.address)}
-                    </RNText>
-                    <RNText style={[styles.timestamp, { color: theme.colors.textSecondary }]}>
-                        {formatTimestamp(timestamp)}
-                    </RNText>
-                </RNView>
-            </RNTouchableOpacity>
+            <RNView style={styles.headerRow}>
+                <RNTouchableOpacity
+                    style={[styles.header, { flex: 1 }]}
+                    onPress={onAuthorPress}
+                    disabled={!onAuthorPress}
+                >
+                    <Avatar
+                        uri={author.avatarUri}
+                        name={author.username || author.address}
+                        size="sm"
+                    />
+                    <RNView style={[styles.authorInfo, { marginLeft: theme.spacing.sm }]}>
+                        <RNText style={[styles.username, { color: theme.colors.text }]}>
+                            {author.username || formatAddress(author.address)}
+                        </RNText>
+                        <RNText style={[styles.timestamp, { color: theme.colors.textSecondary }]}>
+                            {formatTimestamp(timestamp)}
+                        </RNText>
+                    </RNView>
+                </RNTouchableOpacity>
+                {headerRight ? (
+                    <RNView style={[styles.headerRight, { marginLeft: theme.spacing.sm }]}>{headerRight}</RNView>
+                ) : null}
+            </RNView>
 
             {/* Content */}
             <RNText style={[styles.content, { color: theme.colors.text, marginTop: theme.spacing.md }]}>
@@ -107,9 +116,22 @@ export const PostCard: React.FC<PostCardProps> = ({
             {/* Actions */}
             <RNView style={[styles.actions, { marginTop: theme.spacing.md }]}>
                 <RNTouchableOpacity
-                    style={styles.action}
+                    style={[
+                        styles.action,
+                        styles.actionPill,
+                        {
+                            backgroundColor: isLiked
+                                ? (likeHovered ? 'rgba(254, 226, 226, 1)' : 'rgba(254, 226, 226, 0.82)')
+                                : (likeHovered ? 'rgba(243, 244, 246, 1)' : 'rgba(255,255,255,0.84)'),
+                            borderColor: isLiked ? 'rgba(252,165,165,0.9)' : 'rgba(226,232,240,0.8)',
+                            transform: [{ scale: likeHovered ? 1.03 : 1 }],
+                        },
+                    ]}
                     onPress={onLike}
                     disabled={!onLike}
+                    onMouseEnter={() => setLikeHovered(true)}
+                    onMouseLeave={() => setLikeHovered(false)}
+                    activeOpacity={0.9}
                     accessibilityRole="button"
                     accessibilityLabel={isLiked ? 'Unlike' : 'Like'}
                 >
@@ -120,9 +142,21 @@ export const PostCard: React.FC<PostCardProps> = ({
                 </RNTouchableOpacity>
 
                 <RNTouchableOpacity
-                    style={[styles.action, { marginLeft: theme.spacing.lg }]}
+                    style={[
+                        styles.action,
+                        styles.actionPill,
+                        {
+                            marginLeft: theme.spacing.lg,
+                            backgroundColor: commentHovered ? 'rgba(243,244,246,1)' : 'rgba(255,255,255,0.84)',
+                            borderColor: 'rgba(226,232,240,0.8)',
+                            transform: [{ scale: commentHovered ? 1.03 : 1 }],
+                        },
+                    ]}
                     onPress={onComment}
                     disabled={!onComment}
+                    onMouseEnter={() => setCommentHovered(true)}
+                    onMouseLeave={() => setCommentHovered(false)}
+                    activeOpacity={0.9}
                     accessibilityRole="button"
                     accessibilityLabel="Comment"
                 >
@@ -137,9 +171,18 @@ export const PostCard: React.FC<PostCardProps> = ({
 };
 
 const styles = StyleSheet.create({
+    headerRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
+    },
+    headerRight: {
+        alignItems: 'flex-end',
+        justifyContent: 'center',
     },
     authorInfo: {
         flex: 1,
@@ -167,6 +210,12 @@ const styles = StyleSheet.create({
     action: {
         flexDirection: 'row',
         alignItems: 'center',
+    },
+    actionPill: {
+        borderWidth: 1,
+        borderRadius: 999,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
     },
     actionText: {
         fontSize: 14,

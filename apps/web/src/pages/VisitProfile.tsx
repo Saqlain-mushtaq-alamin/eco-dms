@@ -32,6 +32,14 @@ type Post = {
     liked_by_user?: boolean
 }
 
+type Comment = {
+    cid: string
+    post_cid: string
+    author_wallet: string
+    content: string
+    created_at: string
+}
+
 interface VisitProfileProps {
     walletAddress: string
     currentUserAddress: string
@@ -61,9 +69,107 @@ export default function VisitProfile({ walletAddress, currentUserAddress, onBack
     const [profile, setProfile] = useState<UserProfile | null>(null)
     const [posts, setPosts] = useState<Post[]>([])
     const [isFollowing, setIsFollowing] = useState(false)
+    const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set())
+    const [comments, setComments] = useState<Record<string, Comment[]>>({})
+    const [commentInputs, setCommentInputs] = useState<Record<string, string>>({})
     const [loading, setLoading] = useState(true)
     const [actionLoading, setActionLoading] = useState(false)
     const [error, setError] = useState('')
+
+    const fetchComments = async (postCid: string) => {
+        const token = localStorage.getItem('auth_token')
+        if (!token) return []
+
+        try {
+            const response = await fetch(`${API_BASE}/api/posts/${postCid}/comments`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            if (!response.ok) return []
+            const data = await response.json()
+            return data.comments || []
+        } catch (err) {
+            console.error('Failed to fetch comments:', err)
+            return []
+        }
+    }
+
+    const handleLike = async (postCid: string, isLiked: boolean) => {
+        const token = localStorage.getItem('auth_token')
+        if (!token) return
+
+        try {
+            const response = await fetch(`${API_BASE}/api/posts/${postCid}/like`, {
+                method: isLiked ? 'DELETE' : 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            if (!response.ok) return
+            const data = await response.json()
+
+            setPosts((prev) => prev.map((post) =>
+                post.cid === postCid
+                    ? {
+                        ...post,
+                        liked_by_user: !isLiked,
+                        likes_count: data.likes_count,
+                    }
+                    : post,
+            ))
+        } catch (err) {
+            console.error('Like/unlike failed:', err)
+        }
+    }
+
+    const handleToggleComments = async (postCid: string) => {
+        if (expandedComments.has(postCid)) {
+            const next = new Set(expandedComments)
+            next.delete(postCid)
+            setExpandedComments(next)
+            return
+        }
+
+        const postComments = await fetchComments(postCid)
+        setComments((prev) => ({ ...prev, [postCid]: postComments }))
+        const next = new Set(expandedComments)
+        next.add(postCid)
+        setExpandedComments(next)
+    }
+
+    const handleAddComment = async (postCid: string) => {
+        const token = localStorage.getItem('auth_token')
+        if (!token) return
+
+        const content = (commentInputs[postCid] || '').trim()
+        if (!content) return
+
+        try {
+            const response = await fetch(`${API_BASE}/api/posts/${postCid}/comments`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    post_cid: postCid,
+                    author_wallet: currentUserAddress,
+                    content,
+                }),
+            })
+            if (!response.ok) return
+
+            const result = await response.json()
+            setCommentInputs((prev) => ({ ...prev, [postCid]: '' }))
+
+            const refreshed = await fetchComments(postCid)
+            setComments((prev) => ({ ...prev, [postCid]: refreshed }))
+            setPosts((prev) => prev.map((post) =>
+                post.cid === postCid
+                    ? { ...post, comments_count: result.comments_count }
+                    : post,
+            ))
+        } catch (err) {
+            console.error('Add comment failed:', err)
+        }
+    }
 
     const fetchProfile = async () => {
         try {
@@ -214,25 +320,75 @@ export default function VisitProfile({ walletAddress, currentUserAddress, onBack
                         </Card>
                     ) : (
                         posts.map((post) => (
-                            <PostCard
-                                key={post.cid ?? post.created_at}
-                                author={{
-                                    address: profile.wallet_address,
-                                    username: getProfileName(profile),
-                                    avatarUri: resolveIpfsUrl(profile.avatar_cid),
-                                }}
-                                content={post.content || ''}
-                                imageUri={post.media_cids?.[0] ? resolveIpfsUrl(post.media_cids[0]) : undefined}
-                                timestamp={new Date(post.created_at).getTime()}
-                                likes={post.likes_count || 0}
-                                comments={post.comments_count || 0}
-                                isLiked={Boolean(post.liked_by_user)}
-                                style={{
-                                    borderWidth: 0,
-                                    backgroundColor: 'rgba(255,255,255,0.72)',
-                                    shadowOpacity: 0.08,
-                                }}
-                            />
+                            <div key={post.cid ?? post.created_at} className="space-y-3">
+                                <PostCard
+                                    author={{
+                                        address: profile.wallet_address,
+                                        username: getProfileName(profile),
+                                        avatarUri: resolveIpfsUrl(profile.avatar_cid),
+                                    }}
+                                    content={post.content || ''}
+                                    imageUri={post.media_cids?.[0] ? resolveIpfsUrl(post.media_cids[0]) : undefined}
+                                    timestamp={new Date(post.created_at).getTime()}
+                                    likes={post.likes_count || 0}
+                                    comments={post.comments_count || 0}
+                                    isLiked={Boolean(post.liked_by_user)}
+                                    onLike={post.cid ? () => handleLike(post.cid!, post.liked_by_user ?? false) : undefined}
+                                    onComment={post.cid ? () => handleToggleComments(post.cid!) : undefined}
+                                    style={{
+                                        borderWidth: 0,
+                                        backgroundColor: 'rgba(255,255,255,0.72)',
+                                        shadowOpacity: 0.08,
+                                    }}
+                                />
+
+                                {post.cid && expandedComments.has(post.cid) && (
+                                    <Card variant="glass" style={{ borderWidth: 0 }}>
+                                        <div className="space-y-3">
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="text"
+                                                    value={commentInputs[post.cid] || ''}
+                                                    onChange={(e) => setCommentInputs((prev) => ({ ...prev, [post.cid!]: e.target.value }))}
+                                                    placeholder="Write a comment..."
+                                                    className="flex-1 rounded-xl px-3 py-2.5 text-sm bg-white border border-gray-200 focus:outline-none focus:ring-2 focus:ring-lime-300"
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                                            e.preventDefault()
+                                                            handleAddComment(post.cid!)
+                                                        }
+                                                    }}
+                                                />
+                                                <button
+                                                    onClick={() => handleAddComment(post.cid!)}
+                                                    className="px-4 py-2.5 bg-lime-500 text-gray-900 rounded-xl text-sm font-semibold hover:bg-lime-400"
+                                                >
+                                                    Post
+                                                </button>
+                                            </div>
+
+                                            <div className="space-y-3">
+                                                {(comments[post.cid] || []).length === 0 && (
+                                                    <p className="text-sm text-gray-500 italic">No comments yet</p>
+                                                )}
+
+                                                {(comments[post.cid] || []).map((comment) => (
+                                                    <div key={comment.cid} className="bg-white/85 rounded-xl p-3 border border-gray-100 shadow-sm">
+                                                        <div className="text-xs text-gray-500 mb-1">
+                                                            <span className="font-medium text-gray-700">
+                                                                {comment.author_wallet.substring(0, 6)}...{comment.author_wallet.substring(38)}
+                                                            </span>
+                                                            {' · '}
+                                                            {new Date(comment.created_at).toLocaleString()}
+                                                        </div>
+                                                        <div className="text-sm text-gray-900">{comment.content}</div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </Card>
+                                )}
+                            </div>
                         ))
                     )}
                 </div>
