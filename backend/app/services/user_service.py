@@ -259,6 +259,8 @@ class UserService:
                                 "username": profile_data.get("username", ""),
                                 "bio": profile_data.get("bio", ""),
                                 "avatar_cid": profile_data.get("avatar_cid", ""),
+                                "cover_photo_cid": profile_data.get("cover_photo_cid", ""),
+                                "profession": profile_data.get("profession", ""),
                                 "followers_count": len(profile_data.get("followers", [])),
                                 "following_count": len(profile_data.get("following", []))
                             })
@@ -271,6 +273,8 @@ class UserService:
                                     "username": cached_profile.get("username", ""),
                                     "bio": cached_profile.get("bio", ""),
                                     "avatar_cid": cached_profile.get("avatar_cid", ""),
+                                    "cover_photo_cid": cached_profile.get("cover_photo_cid", ""),
+                                    "profession": cached_profile.get("profession", ""),
                                     "followers_count": len(cached_profile.get("followers", [])),
                                     "following_count": len(cached_profile.get("following", []))
                                 })

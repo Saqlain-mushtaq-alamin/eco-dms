@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { API_BASE, searchUserAccounts } from '../api'
+import { API_BASE, searchUserAccounts, checkFollowStatus, followUser, unfollowUser } from '../api'
 
 interface FriendUser {
     wallet_address: string
     username?: string
     bio?: string
+    avatar_cid?: string
+    cover_photo_cid?: string
+    profession?: string
     followers_count?: number
     following_count?: number
 }
@@ -41,6 +44,69 @@ export function Friends({ query }: FriendsProps) {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string>('')
     const [users, setUsers] = useState<FriendUser[]>([])
+    const [followStatus, setFollowStatus] = useState<Record<string, boolean>>({})
+    const [followLoading, setFollowLoading] = useState<Record<string, boolean>>({})
+
+    const resolveIpfsUrl = (value?: string): string | undefined => {
+        if (!value) return undefined
+        if (value.startsWith('http://') || value.startsWith('https://')) return value
+        if (value.startsWith('ipfs://')) {
+            return `https://ipfs.io/ipfs/${value.replace('ipfs://', '')}`
+        }
+        const clean = value.replace('ipfs/', '').replace('/ipfs/', '')
+        return `https://ipfs.io/ipfs/${clean}`
+    }
+
+    const loadFollowStatuses = async (loadedUsers: FriendUser[]) => {
+        if (loadedUsers.length === 0) {
+            setFollowStatus({})
+            return
+        }
+
+        const statusEntries = await Promise.all(
+            loadedUsers.map(async (user) => {
+                try {
+                    const result = await checkFollowStatus(user.wallet_address)
+                    return [user.wallet_address, Boolean(result?.is_following)] as const
+                } catch {
+                    return [user.wallet_address, false] as const
+                }
+            }),
+        )
+
+        setFollowStatus(Object.fromEntries(statusEntries))
+    }
+
+    const handleFollowToggle = async (walletAddress: string, isFollowing: boolean, event: React.MouseEvent) => {
+        event.stopPropagation()
+
+        try {
+            setFollowLoading((prev) => ({ ...prev, [walletAddress]: true }))
+
+            if (isFollowing) {
+                await unfollowUser(walletAddress)
+                setFollowStatus((prev) => ({ ...prev, [walletAddress]: false }))
+            } else {
+                await followUser(walletAddress)
+                setFollowStatus((prev) => ({ ...prev, [walletAddress]: true }))
+            }
+
+            setUsers((prev) => prev.map((user) => {
+                if (user.wallet_address !== walletAddress) return user
+                const currentFollowers = user.followers_count || 0
+                return {
+                    ...user,
+                    followers_count: isFollowing
+                        ? Math.max(0, currentFollowers - 1)
+                        : currentFollowers + 1,
+                }
+            }))
+        } catch (err) {
+            console.error('Follow toggle failed:', err)
+        } finally {
+            setFollowLoading((prev) => ({ ...prev, [walletAddress]: false }))
+        }
+    }
 
     useEffect(() => {
         const loadUsers = async () => {
@@ -50,10 +116,14 @@ export function Friends({ query }: FriendsProps) {
 
                 if (query.trim()) {
                     const res: UsersResponse = await searchUserAccounts(query.trim())
-                    setUsers(res?.users || [])
+                    const loadedUsers = res?.users || []
+                    setUsers(loadedUsers)
+                    await loadFollowStatuses(loadedUsers)
                 } else {
                     const res: UsersResponse = await fetchAllUsers()
-                    setUsers(res?.users || [])
+                    const loadedUsers = res?.users || []
+                    setUsers(loadedUsers)
+                    await loadFollowStatuses(loadedUsers)
                 }
             } catch (err: any) {
                 console.error('Failed to load users:', err)
@@ -88,24 +158,70 @@ export function Friends({ query }: FriendsProps) {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {users.map((user) => (
-                        <button
+                        <div
                             key={user.wallet_address}
-                            className="bg-white rounded-lg shadow p-4 text-left hover:shadow-md transition"
+                            className="glass-card rounded-2xl overflow-hidden cursor-pointer hover:shadow-xl transition-all duration-200 hover:-translate-y-0.5"
                             onClick={() => navigate(`/profile/${user.wallet_address}`)}
                         >
-                            <div className="flex items-center justify-between mb-2">
-                                <h3 className="font-semibold text-gray-900 truncate">
-                                    {user.username || 'Unnamed user'}
-                                </h3>
-                                <span className="text-lg">👤</span>
+                            <div className="h-24 bg-gradient-to-r from-lime-100 to-sky-100 relative">
+                                {resolveIpfsUrl(user.cover_photo_cid) ? (
+                                    <img
+                                        src={resolveIpfsUrl(user.cover_photo_cid)}
+                                        alt="Cover"
+                                        className="h-full w-full object-cover"
+                                    />
+                                ) : null}
+
+                                <div className="absolute -bottom-7 left-4 h-14 w-14 rounded-full overflow-hidden border-4 border-white bg-gray-200 shadow-md">
+                                    {resolveIpfsUrl(user.avatar_cid) ? (
+                                        <img
+                                            src={resolveIpfsUrl(user.avatar_cid)}
+                                            alt="Avatar"
+                                            className="h-full w-full object-cover"
+                                        />
+                                    ) : (
+                                        <div className="h-full w-full flex items-center justify-center text-sm font-bold text-gray-700">
+                                            {(user.username?.charAt(0) || user.wallet_address.charAt(2)).toUpperCase()}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                            <p className="text-xs text-gray-500 break-all mb-3">{user.wallet_address}</p>
-                            <p className="text-sm text-gray-600 line-clamp-2 min-h-[40px]">{user.bio || 'No bio yet'}</p>
-                            <div className="mt-3 text-xs text-gray-500 flex gap-3">
-                                <span>Followers: {user.followers_count || 0}</span>
-                                <span>Following: {user.following_count || 0}</span>
+
+                            <div className="p-4 pt-9">
+                                <div className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0">
+                                        <h3 className="font-semibold text-gray-900 truncate text-base">
+                                            {user.username || 'Unnamed user'}
+                                        </h3>
+                                        <p className="text-xs text-gray-500 truncate">{user.profession || 'Member'}</p>
+                                    </div>
+                                </div>
+
+                                <p className="text-xs text-gray-500 break-all mt-2">{user.wallet_address}</p>
+                                <p className="text-sm text-gray-600 line-clamp-2 min-h-[40px] mt-2">{user.bio || 'No bio yet'}</p>
+
+                                <div className="mt-3 text-xs text-gray-500 flex items-center gap-4">
+                                    <span><strong className="text-gray-700">{user.followers_count || 0}</strong> Followers</span>
+                                    <span><strong className="text-gray-700">{user.following_count || 0}</strong> Following</span>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={(event) => handleFollowToggle(user.wallet_address, Boolean(followStatus[user.wallet_address]), event)}
+                                    disabled={Boolean(followLoading[user.wallet_address])}
+                                    className={`mt-4 w-full rounded-xl px-3 py-2.5 text-sm font-semibold transition ${followStatus[user.wallet_address]
+                                        ? 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                                        : 'bg-lime-400 text-gray-900 hover:bg-lime-300'
+                                        }`}
+                                >
+                                    {followLoading[user.wallet_address]
+                                        ? 'Please wait...'
+                                        : followStatus[user.wallet_address]
+                                            ? 'Following'
+                                            : 'Follow'}
+                                </button>
                             </div>
-                        </button>
+                        </div>
                     ))}
                 </div>
             )}
