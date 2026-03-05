@@ -179,15 +179,19 @@ async def list_author_posts(
                             post["verified"] = verdict_data.get("eco", False)
                             post["eco_score"] = verdict_data.get("confidence", 0.0)
                             post["signed_verdict_cid"] = verdict_data.get("verdict_cid")
+                            post["verification_status"] = "verified"
                         else:
                             post["verified"] = False
                             post["eco_score"] = 0.0
+                            post["verification_status"] = "pending" if post.get("media_cids") else "none"
                     else:
                         post["verified"] = False
                         post["eco_score"] = 0.0
+                        post["verification_status"] = "pending" if post.get("media_cids") else "none"
                 except Exception:
                     post["verified"] = False
                     post["eco_score"] = 0.0
+                    post["verification_status"] = "pending" if post.get("media_cids") else "none"
                 
                 return post
             return None
@@ -281,15 +285,19 @@ async def get_feed_timeline(
                                 post["verified"] = verdict_data.get("eco", False)
                                 post["eco_score"] = verdict_data.get("confidence", 0.0)
                                 post["signed_verdict_cid"] = verdict_data.get("verdict_cid")
+                                post["verification_status"] = "verified"
                             else:
                                 post["verified"] = False
                                 post["eco_score"] = 0.0
+                                post["verification_status"] = "pending" if post.get("media_cids") else "none"
                         else:
                             post["verified"] = False
                             post["eco_score"] = 0.0
+                            post["verification_status"] = "pending" if post.get("media_cids") else "none"
                     except Exception:
                         post["verified"] = False
                         post["eco_score"] = 0.0
+                        post["verification_status"] = "pending" if post.get("media_cids") else "none"
                     
                     return post
                 return None

@@ -18,6 +18,7 @@ type Post = {
     signed_verdict_cid?: string
     verifier_address?: string
     verified_at?: string
+    verification_status?: 'pending' | 'verified' | 'none'
 }
 
 type VerificationDetails = {
@@ -213,6 +214,7 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
     const [showingFeed, setShowingFeed] = useState(true) // true = feed timeline, false = my posts
     const [showComposerModal, setShowComposerModal] = useState(false)
     const [currentUserProfile, setCurrentUserProfile] = useState<CurrentUserProfile | null>(null)
+    const [mlPollingActive, setMlPollingActive] = useState(false)
     const quickPhotoInputRef = useRef<HTMLInputElement>(null)
 
     // Configure your API base URL
@@ -318,6 +320,27 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
         loadCurrentUserProfile()
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [address, showingFeed])
+ 
+
+    //! ML Polling Logic - If there are any posts with pending verification, we start a polling interval to refresh the feed every 8 seconds until all are resolved (either verified or failed). This ensures users see updated verification statuses without needing to manually refresh.
+    useEffect(() => {
+        if (!showingFeed) {
+            setMlPollingActive(false)
+            return
+        }
+
+        const hasPendingVerification = posts.some((post) => post.verification_status === 'pending')
+        setMlPollingActive(hasPendingVerification)
+
+        if (!hasPendingVerification) return
+
+        const interval = setInterval(() => {
+            loadFeed()
+        }, 8000)
+
+        return () => clearInterval(interval)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [posts, showingFeed])
 
     const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || [])
@@ -722,6 +745,12 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
 
                     {error && <div className="text-red-600">{error}</div>}
                     {loading && !error && <div><LoadingSpinner /></div>}
+                    {mlPollingActive && !loading && (
+                        <div className="text-xs text-amber-700 bg-amber-50/80 border border-amber-200 rounded-lg px-3 py-2 inline-flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                            <span>ML verification in progress. Feed auto-refreshes every few seconds.</span>
+                        </div>
+                    )}
 
                     <div className="space-y-4">
                         {posts.length === 0 && !loading && <p>No posts yet.</p>}
@@ -733,14 +762,15 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
                                         username: getAuthorForPost(p.author_wallet).displayName,
                                         avatarUri: getAuthorForPost(p.author_wallet).avatarUri,
                                     }}
-                                    headerRight={p.signed_verdict_cid ? (
+                                    headerRight={p.verification_status === 'verified' ? (
                                         <button
-                                            onClick={() => handleShowVerification(p.signed_verdict_cid!)}
+                                            onClick={() => p.signed_verdict_cid && handleShowVerification(p.signed_verdict_cid)}
                                             className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all duration-200 hover:scale-[1.02] hover:shadow-md ${p.verified
                                                 ? 'border-emerald-200 bg-white/90 text-emerald-700'
                                                 : 'border-rose-200 bg-white/90 text-rose-700'
                                                 }`}
-                                            title="View verification details"
+                                            title={p.signed_verdict_cid ? 'View verification details' : 'Verification completed'}
+                                            disabled={!p.signed_verdict_cid}
                                         >
                                             <span
                                                 className={`h-2 w-2 rounded-full ${p.verified ? 'bg-emerald-500' : 'bg-rose-500'
@@ -753,6 +783,11 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
                                                 </span>
                                             )}
                                         </button>
+                                    ) : p.verification_status === 'pending' ? (
+                                        <span className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50/90 px-3.5 py-1.5 text-xs font-semibold text-amber-700">
+                                            <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                                            <span>ML Analyzing...</span>
+                                        </span>
                                     ) : undefined}
                                     content={p.content}
                                     imageUri={p.media_cids?.[0] ? resolveIpfsUrl(p.media_cids[0]) : undefined}
