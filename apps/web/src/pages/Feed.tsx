@@ -320,7 +320,7 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
         loadCurrentUserProfile()
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [address, showingFeed])
- 
+
 
     //! ML Polling Logic - If there are any posts with pending verification, we start a polling interval to refresh the feed every 8 seconds until all are resolved (either verified or failed). This ensures users see updated verification statuses without needing to manually refresh.
     useEffect(() => {
@@ -673,10 +673,18 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
                             <button
                                 type="button"
                                 onClick={() => onVisitProfile(address)}
-                                className="h-11 w-11 rounded-full bg-white/80 text-gray-700 font-semibold shadow-sm hover:bg-white transition"
+                                className="h-11 w-11 rounded-full bg-white/80 text-gray-700 font-semibold shadow-sm hover:bg-white transition overflow-hidden"
                                 title="Go to profile"
                             >
-                                {address.substring(2, 3).toUpperCase()}
+                                {resolveIpfsUrl(currentUserProfile?.avatar_cid) ? (
+                                    <img
+                                        src={resolveIpfsUrl(currentUserProfile?.avatar_cid)}
+                                        alt="Profile"
+                                        className="h-full w-full object-cover"
+                                    />
+                                ) : (
+                                    <span>{(currentUserProfile?.username?.charAt(0) || address.substring(2, 3)).toUpperCase()}</span>
+                                )}
                             </button>
                             <button
                                 type="button"

@@ -109,6 +109,7 @@ export const PostCard: React.FC<PostCardProps> = ({
                 <RNImage
                     source={{ uri: imageUri }}
                     style={[styles.image, { marginTop: theme.spacing.md, borderRadius: theme.borderRadius.md }]}
+                    //resizeMode="contain"
                     resizeMode="cover"
                 />
             )}
@@ -200,6 +201,10 @@ const styles = StyleSheet.create({
         lineHeight: 24,
     },
     image: {
+        //width: '100%',
+        //minHeight: 260,
+        //height: 320,
+        //backgroundColor: 'rgba(148, 163, 184, 0.12)',
         width: '100%',
         height: 200,
     },

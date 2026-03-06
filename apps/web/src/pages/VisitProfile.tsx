@@ -290,10 +290,10 @@ export default function VisitProfile({ walletAddress, currentUserAddress, onBack
                     <Card variant="glass" style={{ borderWidth: 0 }}>
                         <h3 className="text-lg font-semibold mb-3">Profile Info</h3>
                         <div className="space-y-2 text-sm text-gray-700">
-                            <div><span className="font-medium">Wallet:</span> <span className="break-all">{profile.wallet_address}</span></div>
-                            <div><span className="font-medium">Date of birth:</span> {profile.date_of_birth || '-'}</div>
-                            <div><span className="font-medium">Location:</span> {profile.location || '-'}</div>
-                            <div><span className="font-medium">Bio:</span> {getProfileBio(profile) || '-'}</div>
+                            <div><span className="font-medium">🗃️:</span> <span className="break-all">{profile.wallet_address}</span></div>
+                            <div><span className="font-medium">🎂:</span> {profile.date_of_birth || '-'}</div>
+                            <div><span className="font-medium">📍:</span> {profile.location || '-'}</div>
+                            <div><span className="font-medium">📝:</span> {getProfileBio(profile) || '-'}</div>
                         </div>
                         <div className="mt-4 pt-4 flex gap-6">
                             <div>
