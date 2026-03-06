@@ -21,6 +21,8 @@ export function ProfileCreate({ address, onDone }: { address: string; onDone: ()
     const [hasNewAvatarUpload, setHasNewAvatarUpload] = React.useState(false)
     const [hasNewCoverUpload, setHasNewCoverUpload] = React.useState(false)
     const [errors, setErrors] = React.useState<{ username?: string; dateOfBirth?: string }>({})
+    const avatarInputRef = React.useRef<HTMLInputElement>(null)
+    const coverInputRef = React.useRef<HTMLInputElement>(null)
 
     const createMediaPost = async (token: string, mediaCid: string, content: string) => {
         const response = await fetch(`${API_BASE}/api/posts`, {
@@ -196,9 +198,35 @@ export function ProfileCreate({ address, onDone }: { address: string; onDone: ()
                             Cover photo preview
                         </div>
                     )}
+
+                    <button
+                        type="button"
+                        onClick={() => coverInputRef.current?.click()}
+                        disabled={uploadingCover || loading}
+                        title="Upload cover photo"
+                        style={{
+                            position: 'absolute',
+                            right: 10,
+                            top: 10,
+                            width: 34,
+                            height: 34,
+                            borderRadius: 999,
+                            border: '1px solid rgba(255,255,255,0.8)',
+                            background: 'rgba(17,24,39,0.62)',
+                            color: '#ffffff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 14,
+                            fontWeight: 700,
+                            boxShadow: '0 6px 14px rgba(0,0,0,0.24)',
+                        }}
+                    >
+                        📸
+                    </button>
                 </div>
                 <div style={{ display: 'flex', gap: 12, padding: 12, alignItems: 'center' }}>
-                    <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#e5e7eb', overflow: 'hidden', flexShrink: 0 }}>
+                    <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#e5e7eb', overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
                         {avatarPreview ? (
                             <img src={avatarPreview} alt="Avatar preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
@@ -206,6 +234,33 @@ export function ProfileCreate({ address, onDone }: { address: string; onDone: ()
                                 {username.trim() ? username.charAt(0).toUpperCase() : 'U'}
                             </div>
                         )}
+
+                        <button
+                            type="button"
+                            onClick={() => avatarInputRef.current?.click()}
+                            disabled={uploadingAvatar || loading}
+                            title="Upload profile photo"
+                            style={{
+                                position: 'absolute',
+                                right: 0,
+                                bottom: 0,
+                                width: 22,
+                                height: 22,
+                                borderRadius: 999,
+                                border: '1px solid #ffffff',
+                                background: '#111827',
+                                color: '#ffffff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: 12,
+                                fontWeight: 700,
+                                boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
+                                padding: 0,
+                            }}
+                        >
+                            📸
+                        </button>
                     </div>
                     <div style={{ minWidth: 0 }}>
                         <div style={{ fontWeight: 600, color: '#111827' }}>{username.trim() || 'Your name'}</div>
@@ -216,6 +271,24 @@ export function ProfileCreate({ address, onDone }: { address: string; onDone: ()
                 </div>
             </div>
 
+            <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarUpload}
+                disabled={uploadingAvatar || loading}
+                style={{ display: 'none' }}
+            />
+
+            <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleCoverUpload}
+                disabled={uploadingCover || loading}
+                style={{ display: 'none' }}
+            />
+
             <form
                 onSubmit={(e) => {
                     e.preventDefault()
@@ -223,28 +296,17 @@ export function ProfileCreate({ address, onDone }: { address: string; onDone: ()
                 }}
                 style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
             >
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    <label style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        <span style={{ fontSize: 14, fontWeight: 500 }}>Profile photo</span>
-                        <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleAvatarUpload}
-                            disabled={uploadingAvatar || loading}
-                        />
-                        {uploadingAvatar && <span style={{ fontSize: 12, color: '#6b7280' }}>Uploading profile photo...</span>}
-                    </label>
-
-                    <label style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        <span style={{ fontSize: 14, fontWeight: 500 }}>Cover photo</span>
-                        <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleCoverUpload}
-                            disabled={uploadingCover || loading}
-                        />
-                        {uploadingCover && <span style={{ fontSize: 12, color: '#6b7280' }}>Uploading cover photo...</span>}
-                    </label>
+                <div style={{
+                    border: '1px solid #e5e7eb',
+                    borderRadius: 12,
+                    padding: 12,
+                    background: 'linear-gradient(140deg, #ffffff 0%, #f8fafc 100%)',
+                    color: '#4b5563',
+                    fontSize: 13,
+                }}>
+                    Use the <strong>+</strong> icons on the cover and profile placeholders to upload images.
+                    {uploadingAvatar && <div style={{ marginTop: 6 }}>Uploading profile photo...</div>}
+                    {uploadingCover && <div style={{ marginTop: 6 }}>Uploading cover photo...</div>}
                 </div>
 
                 <Input
@@ -264,13 +326,25 @@ export function ProfileCreate({ address, onDone }: { address: string; onDone: ()
                     numberOfLines={3}
                 />
 
-                <Input
-                    label="Date of birth"
-                    value={dateOfBirth}
-                    onChangeText={setDateOfBirth}
-                    placeholder="YYYY-MM-DD"
-                    error={errors.dateOfBirth}
-                />
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <span style={{ fontSize: 14, fontWeight: 500, color: '#111827' }}>Date of birth</span>
+                    <input
+                        type="date"
+                        value={dateOfBirth}
+                        onChange={(event) => setDateOfBirth(event.target.value)}
+                        max={new Date().toISOString().split('T')[0]}
+                        style={{
+                            height: 44,
+                            borderRadius: 10,
+                            border: errors.dateOfBirth ? '1px solid #ef4444' : '1px solid #d1d5db',
+                            padding: '0 12px',
+                            fontSize: 14,
+                            color: '#111827',
+                            background: 'linear-gradient(180deg, #ffffff 0%, #f9fafb 100%)',
+                        }}
+                    />
+                    {errors.dateOfBirth ? <span style={{ fontSize: 12, color: '#ef4444' }}>{errors.dateOfBirth}</span> : null}
+                </label>
 
                 <Input
                     label="Location"

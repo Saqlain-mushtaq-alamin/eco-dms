@@ -50,6 +50,8 @@ export default function UserProfile({ address, onBack }: UserProfileProps) {
     const [uploadingCover, setUploadingCover] = useState(false)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
+    const avatarInputRef = React.useRef<HTMLInputElement>(null)
+    const coverInputRef = React.useRef<HTMLInputElement>(null)
 
     const resolveIpfsUrl = (value?: string): string | undefined => {
         if (!value) return undefined
@@ -208,17 +210,41 @@ export default function UserProfile({ address, onBack }: UserProfileProps) {
                         ) : (
                             <div className="h-full w-full flex items-center justify-center text-gray-400">Cover photo</div>
                         )}
+
+                        {editing && (
+                            <button
+                                type="button"
+                                onClick={() => coverInputRef.current?.click()}
+                                disabled={uploadingCover || saving}
+                                className="absolute top-3 right-3 h-9 w-9 rounded-full bg-black/60 text-white border border-white/70 shadow-md"
+                                title="Upload cover photo"
+                            >
+                                📸
+                            </button>
+                        )}
                     </div>
 
                     <div className="mt-4 flex items-start justify-between gap-4">
                         <div className="flex items-start gap-4">
-                            <div className="h-24 w-24 rounded-full overflow-hidden bg-gray-200 border-4 border-white -mt-12 shadow-md">
+                            <div className="h-24 w-24 rounded-full overflow-hidden bg-gray-200 border-4 border-white -mt-12 shadow-md relative">
                                 {avatarPreview ? (
                                     <img src={avatarPreview} alt="Profile" className="h-full w-full object-cover" />
                                 ) : (
                                     <div className="h-full w-full flex items-center justify-center font-semibold text-gray-600">
                                         {(username || address).charAt(0).toUpperCase()}
                                     </div>
+                                )}
+
+                                {editing && (
+                                    <button
+                                        type="button"
+                                        onClick={() => avatarInputRef.current?.click()}
+                                        disabled={uploadingAvatar || saving}
+                                        className="absolute bottom-0 right-0 h-7 w-7 rounded-full bg-black text-white border border-white shadow-md text-xs"
+                                        title="Upload profile photo"
+                                    >
+                                        📸
+                                    </button>
                                 )}
                             </div>
                             <div className="pt-1">
@@ -245,24 +271,43 @@ export default function UserProfile({ address, onBack }: UserProfileProps) {
 
             {editing && (
                 <Card variant="glass" style={{ borderWidth: 0 }}>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <label className="text-sm text-gray-700">
-                            <div className="mb-1 font-medium">Profile photo</div>
-                            <input type="file" accept="image/*" onChange={handleAvatarUpload} disabled={uploadingAvatar || saving} />
-                            {uploadingAvatar && <div className="text-xs text-gray-500 mt-1">Uploading...</div>}
-                        </label>
-                        <label className="text-sm text-gray-700">
-                            <div className="mb-1 font-medium">Cover photo</div>
-                            <input type="file" accept="image/*" onChange={handleCoverUpload} disabled={uploadingCover || saving} />
-                            {uploadingCover && <div className="text-xs text-gray-500 mt-1">Uploading...</div>}
-                        </label>
+                    <input
+                        ref={avatarInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAvatarUpload}
+                        disabled={uploadingAvatar || saving}
+                        className="hidden"
+                    />
+                    <input
+                        ref={coverInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleCoverUpload}
+                        disabled={uploadingCover || saving}
+                        className="hidden"
+                    />
+
+                    <div className="rounded-xl border border-gray-200 bg-white/70 p-3 text-sm text-gray-600">
+                        Use the <strong>+</strong> icons on cover and profile photo to upload.
+                        {uploadingAvatar && <div className="text-xs text-gray-500 mt-1">Uploading profile photo...</div>}
+                        {uploadingCover && <div className="text-xs text-gray-500 mt-1">Uploading cover photo...</div>}
                     </div>
                     <div className="mt-4 space-y-3">
                         <Input label="Username" value={username} onChangeText={setUsername} placeholder="Username" />
                         <Input label="Bio" value={bio} onChangeText={setBio} placeholder="Bio" multiline numberOfLines={4} />
                         <Input label="Profession" value={profession} onChangeText={setProfession} placeholder="Profession" />
                         <Input label="Location" value={location} onChangeText={setLocation} placeholder="Location" />
-                        <Input label="Date of birth" value={dateOfBirth} onChangeText={setDateOfBirth} placeholder="YYYY-MM-DD" />
+                        <label className="text-sm text-gray-700 block">
+                            <div className="mb-1 font-medium">Date of birth</div>
+                            <input
+                                type="date"
+                                value={dateOfBirth}
+                                onChange={(event) => setDateOfBirth(event.target.value)}
+                                max={new Date().toISOString().split('T')[0]}
+                                className="w-full h-11 rounded-xl border border-gray-300 px-3 bg-white text-gray-900"
+                            />
+                        </label>
                     </div>
                 </Card>
             )}
