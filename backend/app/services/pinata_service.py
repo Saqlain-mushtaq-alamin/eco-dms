@@ -77,6 +77,41 @@ class PinataService:
             print(f"❌ File pin failed: {e}")
             return None
     
+    def get_latest_cid_by_name(self, name: str) -> Optional[str]:
+        """
+        Query Pinata pin list and return the CID of the most recently pinned
+        item whose metadata name matches `name` exactly.
+
+        Used as a last-resort recovery when Redis is wiped: as long as data
+        was pinned to Pinata with a deterministic name, we can always find it.
+        """
+        if not self.jwt:
+            return None
+        try:
+            response = requests.get(
+                f"{self.base_url}/data/pinList",
+                headers=self.headers,
+                params={
+                    "metadata[name]": name,
+                    "pageLimit": 1,
+                    "pageOffset": 0,
+                    "status": "pinned",
+                    "sort": "date_pinned",
+                    "order": "DESC",
+                },
+                timeout=15,
+            )
+            response.raise_for_status()
+            rows = response.json().get("rows", [])
+            if rows:
+                cid = rows[0].get("ipfs_pin_hash")
+                if cid:
+                    print(f"🔍 Recovered CID by Pinata name '{name}': {cid}")
+                    return cid
+        except Exception as e:
+            print(f"⚠️ Pinata name lookup failed for '{name}': {e}")
+        return None
+
     def pin_by_cid(self, cid: str, name: Optional[str] = None) -> bool:
         """Pin existing IPFS content."""
         if not self.jwt:

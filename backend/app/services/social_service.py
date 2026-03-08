@@ -122,13 +122,15 @@ class SocialService:
         if not author:
             print(f"⚠️ Cannot set likes index: unknown author for post {post_cid}")
             return
-        
+
         social_data = await self._get_social_data_for_author(author)
         if post_cid not in social_data:
             social_data[post_cid] = {}
         social_data[post_cid]["likes_index_cid"] = index_cid
-        
+
         await self._update_social_data_for_author(author, social_data)
+        # Invalidate cache so next read fetches the freshly-written OrbitDB address.
+        self._social_data_cache.pop(author, None)
     
     async def _get_comments_index_cid(self, post_cid: str) -> Optional[str]:
         """Get comments index CID from post author's OrbitDB."""
@@ -147,13 +149,15 @@ class SocialService:
         if not author:
             print(f"⚠️ Cannot set comments index: unknown author for post {post_cid}")
             return
-        
+
         social_data = await self._get_social_data_for_author(author)
         if post_cid not in social_data:
             social_data[post_cid] = {}
         social_data[post_cid]["comments_index_cid"] = index_cid
-        
+
         await self._update_social_data_for_author(author, social_data)
+        # Invalidate cache so next read fetches the freshly-written OrbitDB address.
+        self._social_data_cache.pop(author, None)
     
     async def _get_user_likes_index_cid(self, wallet: str) -> Optional[str]:
         """Get user likes index CID from their own OrbitDB."""
@@ -167,6 +171,8 @@ class SocialService:
         social_data = await self._get_social_data_for_author(wallet)
         social_data["user_likes_index"] = index_cid
         await self._update_social_data_for_author(wallet, social_data)
+        # Invalidate cache so next read fetches the freshly-written OrbitDB address.
+        self._social_data_cache.pop(wallet, None)
     
     # ==================== LIKES ====================
     
@@ -221,8 +227,6 @@ class SocialService:
             
             print(f"👍 Like added to IPFS (decentralized): {wallet} → {post_cid} ({len(likes)} total)")
             return True
-            
-            return False
         except Exception as e:
             print(f"❌ Error adding like: {e}")
             return False

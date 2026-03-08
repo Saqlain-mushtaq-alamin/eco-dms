@@ -15,6 +15,7 @@ OrbitDB Types:
 """
 import asyncio
 import json
+import os
 import subprocess
 import time
 from typing import Optional, List, Dict, Any
@@ -51,6 +52,12 @@ class OrbitDBService:
         # IPFS backup key for OrbitDB address registry
         self._ipfs_registry_key = "orbitdb:registry"
         self._registry_cache: Optional[Dict] = None
+
+        # Local file backup for the registry CID pointer.
+        # Survives Redis restarts — breaks the "Redis is the only way to find IPFS" chain.
+        self._registry_file = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "orbitdb_registry.json"
+        )
         
     def _cache_key(self, wallet: str, db_type: str) -> str:
         """Redis cache key for OrbitDB address."""
@@ -64,32 +71,51 @@ class OrbitDBService:
         """
         Get OrbitDB address for user's database.
         db_type: 'profile', 'posts', 'social'
-        
-        Tries:
-        1. Redis cache (fast)
-        2. IPFS backup registry (permanent, decentralized)
-        3. Returns None if not found (will create new)
+
+        Fallback order:
+          1. Redis cache (fast, TTL 90 days)
+          2. IPFS backup registry (permanent, CID found via Redis OR local file)
+          3. Pinata pin-name lookup — works even after a full Redis wipe (social only)
+          4. Returns None → caller will create a new DB
         """
         cache_key = self._cache_key(wallet, db_type)
-        
-        # Try Redis first (fast)
+
+        # 1. Redis
         address = redis_service.get_str(cache_key)
         if address:
             return address
-        
-        # Try IPFS backup registry (permanent backup)
+
+        # 2. IPFS registry (registry CID found via Redis or local file backup)
         try:
             registry = await self._get_address_registry()
             wallet_key = f"{wallet.lower()}:{db_type}"
             if wallet_key in registry:
                 address = registry[wallet_key]
-                # Restore to Redis cache
+                # Restore to Redis
                 redis_service.set_str(cache_key, address, ex=90*24*3600)
                 print(f"🔄 Restored OrbitDB address from IPFS backup: {address}")
                 return address
         except Exception as e:
             print(f"⚠️ Failed to check IPFS registry backup: {e}")
-        
+
+        # 3. Pinata name-based recovery (social db only).
+        #    Even if Redis and the IPFS registry pointer are both gone, as long as
+        #    the social data was pinned with a deterministic name it can be found.
+        if db_type == "social":
+            try:
+                from backend.app.services.pinata_service import pinata_service
+                pin_name = f"social-index:{wallet.lower()}"
+                cid = pinata_service.get_latest_cid_by_name(pin_name)
+                if cid:
+                    db_name = f"{wallet.lower()}.social"
+                    address = f"/orbitdb/{cid}/{db_name}"
+                    # Restore into all layers so future reads are fast
+                    await self.set_db_address(wallet, db_type, address)
+                    print(f"🔄 Recovered social OrbitDB address from Pinata: {address}")
+                    return address
+            except Exception as e:
+                print(f"⚠️ Pinata name-based recovery failed for {wallet}: {e}")
+
         return None
     
     async def set_db_address(self, wallet: str, db_type: str, address: str):
@@ -365,75 +391,126 @@ class OrbitDBService:
         """
         Update social interactions in user's OrbitDB.
         social_data format: {post_cid: {"likes_index_cid": "...", "comments_index_cid": "..."}}
+
+        Pins with a deterministic name so Pinata can recover the latest CID
+        even after a full Redis wipe (see get_db_address fallback #3).
         """
         identity = self._wallet_to_identity(wallet)
-        
+
         updated_data = {
             "type": "keyvalue",
             "owner": identity,
             "updated_at": asyncio.get_event_loop().time(),
             "data": social_data
         }
-        
+
         from backend.app.posts_manage.ipfs_post_service import ipfs_service
-        new_cid = await ipfs_service.pin_json(updated_data)
-        
+        from backend.app.services.pinata_service import pinata_service
+        from backend.app.config import settings
+
+        new_cid: Optional[str] = None
+
+        # Pin with a deterministic Pinata name so recovery is possible without Redis.
+        if settings.PINATA_JWT:
+            pin_name = f"social-index:{wallet.lower()}"
+            new_cid = pinata_service.pin_json(updated_data, name=pin_name)
+
+        # Fall back to regular IPFS pin if Pinata was not used / failed
+        if not new_cid:
+            new_cid = await ipfs_service.pin_json(updated_data)
+
         if new_cid:
             db_name = f"{wallet.lower()}.social"
             new_address = f"/orbitdb/{new_cid}/{db_name}"
-            
+
             await self.set_db_address(wallet, "social", new_address)
             print(f"✅ Updated OrbitDB social data for {wallet}")
             return True
-        
+
         return False
     
     # ==================== IPFS REGISTRY BACKUP ====================
     # Permanent backup of OrbitDB addresses to prevent data loss
-    
+
+    def _load_registry_cid_from_file(self) -> Optional[str]:
+        """Read the IPFS registry CID from the local file backup."""
+        try:
+            if os.path.exists(self._registry_file):
+                with open(self._registry_file, "r") as f:
+                    data = json.load(f)
+                return data.get("registry_cid")
+        except Exception as e:
+            print(f"⚠️ Failed to read registry file: {e}")
+        return None
+
+    def _save_registry_cid_to_file(self, cid: str):
+        """Persist the IPFS registry CID to disk so it survives Redis wipes."""
+        try:
+            with open(self._registry_file, "w") as f:
+                json.dump({"registry_cid": cid, "updated_at": time.time()}, f)
+        except Exception as e:
+            print(f"⚠️ Failed to save registry CID to file: {e}")
+
     async def _get_address_registry(self) -> Dict[str, str]:
         """
         Get the OrbitDB address registry from IPFS.
-        Registry format: {\"wallet:db_type\": \"orbitdb_address\", ...}
+        Registry format: {"wallet:db_type": "orbitdb_address", ...}
+
+        Fallback order:
+          1. In-memory cache (fastest)
+          2. Redis (fast)
+          3. Local file backup (survives Redis restart)  ← NEW
+          4. Empty dict (first ever start)
         """
-        # Check memory cache first
+        # 1. In-memory cache — always return a copy to prevent mutation bugs
         if self._registry_cache is not None:
-            return self._registry_cache
-        
-        # Try to get from Redis
+            return self._registry_cache.copy()
+
+        # 2. Redis
         registry_cid = redis_service.get_str(self._ipfs_registry_key)
-        
+
+        # 3. Local file backup — this is the key fix for "after some days" data loss
+        if not registry_cid:
+            registry_cid = self._load_registry_cid_from_file()
+            if registry_cid:
+                # Restore the pointer back into Redis
+                redis_service.set_str(self._ipfs_registry_key, registry_cid, ex=365*24*3600)
+                print("🔄 Restored registry CID from local file backup into Redis")
+
         if registry_cid:
             from backend.app.posts_manage.ipfs_post_service import ipfs_service
             registry = await ipfs_service.get_json(registry_cid)
             if registry:
                 self._registry_cache = registry
-                return registry
-        
+                return registry.copy()
+
         # No registry exists yet
         return {}
     
     async def _backup_address_to_ipfs(self, wallet: str, db_type: str, address: str):
         """
         Backup OrbitDB address to IPFS registry.
-        This ensures addresses are never lost even if Redis cleared.
+        Also writes the registry CID to a local file so it survives Redis wipes.
         """
-        # Get current registry
+        # Get current registry (returns a copy — safe to mutate)
         registry = await self._get_address_registry()
-        
+
         # Update registry
         wallet_key = f"{wallet.lower()}:{db_type}"
         registry[wallet_key] = address
-        
+
         # Pin updated registry to IPFS
         from backend.app.posts_manage.ipfs_post_service import ipfs_service
         new_registry_cid = await ipfs_service.pin_json(registry)
-        
+
         if new_registry_cid:
-            # Update Redis pointer to latest registry
-            redis_service.set_str(self._ipfs_registry_key, new_registry_cid, ex=365*24*3600)  # 1 year
-            self._registry_cache = registry
-            print(f"💾 Backed up OrbitDB address to IPFS registry: {wallet}:{db_type}")
+            # Persist the new CID in Redis
+            redis_service.set_str(self._ipfs_registry_key, new_registry_cid, ex=365*24*3600)
+            # Persist to local file — survives Redis restarts
+            self._save_registry_cid_to_file(new_registry_cid)
+            # Update in-memory cache with a fresh copy (prevents shared-reference mutations)
+            self._registry_cache = registry.copy()
+            print(f"💾 Backed up OrbitDB address to IPFS registry + local file: {wallet}:{db_type}")
         else:
             print(f"⚠️ Failed to backup address to IPFS registry")
     
