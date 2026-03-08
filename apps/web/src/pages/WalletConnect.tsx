@@ -8,6 +8,50 @@ export default function WalletConnect({ onConnected }: { onConnected: (address: 
     const [error, setError] = useState('')
     const [provider, setProvider] = useState<any>(null)
 
+    const getTargetChainId = () => Number(import.meta.env.VITE_CHAIN_ID ?? 31337)
+
+    const getProviderChainId = async (walletProvider: any) => {
+        const rawChainId = await walletProvider.request({ method: 'eth_chainId' })
+        return parseInt(String(rawChainId), 16)
+    }
+
+    const ensureConfiguredChain = async (walletProvider: any) => {
+        const targetChainId = getTargetChainId()
+        const targetHex = `0x${targetChainId.toString(16)}`
+        const currentChainId = await getProviderChainId(walletProvider)
+
+        if (currentChainId === targetChainId) return targetChainId
+
+        try {
+            await walletProvider.request({
+                method: 'wallet_switchEthereumChain',
+                params: [{ chainId: targetHex }],
+            })
+        } catch (switchError: any) {
+            const message = String(switchError?.message || '').toLowerCase()
+            if (switchError?.code === 4902 || message.includes('unknown chain') || message.includes('unrecognized chain')) {
+                await walletProvider.request({
+                    method: 'wallet_addEthereumChain',
+                    params: [{
+                        chainId: targetHex,
+                        chainName: 'Hardhat Local',
+                        nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+                        rpcUrls: [import.meta.env.VITE_RPC_URL ?? 'http://127.0.0.1:8545'],
+                        blockExplorerUrls: [],
+                    }],
+                })
+                await walletProvider.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: targetHex }],
+                })
+            } else {
+                throw switchError
+            }
+        }
+
+        return getProviderChainId(walletProvider)
+    }
+
     const connectMetaMask = async () => {
         if (!(window as any).ethereum) {
             throw new Error('MetaMask not installed')
@@ -19,9 +63,14 @@ export default function WalletConnect({ onConnected }: { onConnected: (address: 
     }
 
     const connectWalletConnect = async () => {
+        const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID
+        if (!projectId) {
+            throw new Error('WalletConnect project ID missing (set VITE_WALLETCONNECT_PROJECT_ID)')
+        }
+
         const wcProvider = await EthereumProvider.init({
-            projectId: 'YOUR_WALLETCONNECT_PROJECT_ID', // Replace with your project ID
-            chains: [1], // Ethereum mainnet
+            projectId,
+            chains: [getTargetChainId()],
             showQrModal: true,
         })
 
@@ -47,8 +96,11 @@ export default function WalletConnect({ onConnected }: { onConnected: (address: 
             const { nonce } = await getNonce()
             console.log('Got nonce:', nonce)
 
+            const chainId = await ensureConfiguredChain(walletProvider)
+            console.log('Using chain ID:', chainId)
+
             // Prepare SIWE message
-            const { message } = await prepareMessage(address, 1, nonce)
+            const { message } = await prepareMessage(address, chainId, nonce)
             console.log('Got message to sign')
 
             // Sign message

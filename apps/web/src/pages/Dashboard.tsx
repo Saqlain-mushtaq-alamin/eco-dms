@@ -157,7 +157,13 @@ export function Dashboard({ address, onBack }: DashboardProps) {
                 return
             }
 
-            const payloadRes = await fetch(`${apiBase}/api/verify/claim-payload/${postCid}`)
+            const latestBlock = await provider.getBlock('latest')
+            const chainTimestamp = latestBlock?.timestamp ? Number(latestBlock.timestamp) : undefined
+            const claimUrl = chainTimestamp
+                ? `${apiBase}/api/verify/claim-payload/${postCid}?chain_timestamp=${encodeURIComponent(String(chainTimestamp))}`
+                : `${apiBase}/api/verify/claim-payload/${postCid}`
+
+            const payloadRes = await fetch(claimUrl)
             if (!payloadRes.ok) {
                 const text = await payloadRes.text()
                 throw new Error(text || `Failed to get claim payload: ${payloadRes.status}`)

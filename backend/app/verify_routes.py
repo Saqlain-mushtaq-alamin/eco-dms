@@ -2,16 +2,20 @@
 Eco Verification API Routes
 Endpoints for ML-based eco verification of social media posts
 """
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Query
 from pydantic import BaseModel, Field
 from typing import Optional, Dict
 import httpx
+import os
+import json
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from ..ml.worker import get_verification_status, celery_app
 from ..ml.inference import get_verifier
 from ..ml.signer import VerdictSigner
 from .services.orbitdb_service import orbitdb_service
+from .posts_manage.ipfs_post_service import ipfs_service
 from .deps import get_current_user
 
 try:
@@ -20,6 +24,30 @@ except ImportError:
     get_verdict_for_post = None
 
 router = APIRouter(prefix="/api/verify", tags=["verification"])
+
+
+def _upsert_verdict_mapping(post_cid: str, updates: Dict) -> None:
+    """Persist additional fields for an existing verdict mapping entry."""
+    base_dir = Path(__file__).resolve().parent.parent  # backend directory
+    storage_dir = Path(os.getenv('VERDICT_STORAGE_DIR', str(base_dir / 'ml_verdicts')))
+    mapping_file = storage_dir / 'verdicts.json'
+    if not mapping_file.exists():
+        return
+
+    try:
+        with open(mapping_file, 'r', encoding='utf-8') as f:
+            mappings = json.load(f)
+    except Exception:
+        return
+
+    current = mappings.get(post_cid)
+    if not isinstance(current, dict):
+        return
+
+    current.update(updates)
+    mappings[post_cid] = current
+    with open(mapping_file, 'w', encoding='utf-8') as f:
+        json.dump(mappings, f, indent=2)
 
 
 class VerifyRequest(BaseModel):
@@ -165,7 +193,7 @@ async def get_signed_verdict(verdict_cid: str):
 
 
 @router.get("/claim-payload/{post_cid}")
-async def get_claim_payload(post_cid: str):
+async def get_claim_payload(post_cid: str, chain_timestamp: int | None = Query(default=None)):
     """
     Get contract-ready EIP-712 claim payload for a verified post.
 
@@ -204,8 +232,55 @@ async def get_claim_payload(post_cid: str):
             except Exception:
                 pass
 
+        # Always generate a fresh claim signature so timestamp stays within contract expiry window.
+        # This also auto-heals legacy verdict entries missing chain payload/signature.
+        try:
+            author_wallet = None
+            if isinstance(chain_verdict, dict):
+                author_wallet = chain_verdict.get('wallet')
+
+            if not author_wallet:
+                post_json = await ipfs_service.get_json(post_cid)
+                if isinstance(post_json, dict):
+                    author_wallet = post_json.get('author') or post_json.get('author_wallet')
+
+            if author_wallet:
+                signer = VerdictSigner()
+                regenerated = signer.sign_verdict({
+                    'post_id': post_cid,
+                    'ipfs_cid': post_cid,
+                    'author_wallet': author_wallet,
+                    'is_eco': bool(verdict_data.get('eco', False)),
+                    'confidence': float(verdict_data.get('confidence', 0.0)),
+                    'verified_at': verdict_data.get('verified_at'),
+                    'chain_timestamp': chain_timestamp,
+                })
+
+                chain_verdict = regenerated.get('chain_verdict')
+                signature = regenerated.get('signature')
+                verifier_address = regenerated.get('verifier_address')
+                eip712_domain = regenerated.get('eip712_domain')
+                eip712_types = regenerated.get('eip712_types')
+
+                if chain_verdict and signature:
+                    _upsert_verdict_mapping(post_cid, {
+                        'chain_verdict': chain_verdict,
+                        'signature': signature,
+                        'verifier_address': verifier_address,
+                        'eip712_domain': eip712_domain,
+                        'eip712_types': eip712_types,
+                    })
+        except Exception:
+            pass
+
         if not chain_verdict or not signature:
-            raise HTTPException(status_code=422, detail="Verdict is not claimable (missing chain payload/signature)")
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "Verdict is not claimable (missing chain payload/signature). "
+                    "Re-run ML verification for this post or ensure post author metadata exists."
+                ),
+            )
 
         return {
             "post_cid": post_cid,

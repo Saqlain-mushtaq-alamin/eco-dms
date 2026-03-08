@@ -7,8 +7,8 @@ import os
 import json
 import hashlib
 from datetime import datetime
-from pathlib import Path
 from typing import Dict, Optional
+import requests
 from eth_account import Account
 from eth_account.messages import encode_typed_data
 from web3 import Web3
@@ -36,35 +36,20 @@ class VerdictSigner:
             self._init_local_key()
     
     def _init_local_key(self):
-        """Initialize with local private key (development/testing)."""
+        """Initialize with private key from environment variables."""
         private_key = os.getenv('VERIFIER_PRIVATE_KEY')
 
-        # Keep one stable verifier key even if env var is missing.
+        # Local dev fallback can use explicit HARDHAT_DEPLOYER_PRIVATE_KEY from env.
         if not private_key:
-            default_key_path = Path(__file__).resolve().parent.parent / 'ml_verifier_private_key.txt'
-            key_path = Path(os.getenv('VERIFIER_PRIVATE_KEY_PATH', str(default_key_path)))
-            hardhat_default_key = os.getenv(
-                'HARDHAT_DEPLOYER_PRIVATE_KEY',
-                '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
-            )
             chain_id = int(os.getenv('CHAIN_ID', os.getenv('VITE_CHAIN_ID', '31337')))
+            if chain_id == 31337:
+                private_key = os.getenv('HARDHAT_DEPLOYER_PRIVATE_KEY')
 
-            if key_path.exists():
-                private_key = key_path.read_text(encoding='utf-8').strip()
-                print(f"Loaded verifier private key from {key_path}")
-            else:
-                if chain_id == 31337:
-                    private_key = hardhat_default_key
-                    account = Account.from_key(private_key)
-                    print("WARNING: No VERIFIER_PRIVATE_KEY found. Using Hardhat deployer key for local dev.")
-                else:
-                    print("WARNING: No VERIFIER_PRIVATE_KEY found. Generating stable local key...")
-                    account = Account.create()
-                    private_key = account.key.hex()
-                key_path.write_text(private_key, encoding='utf-8')
-                print(f"Generated verifier private key and saved to {key_path}")
-                print(f"Verifier address: {account.address}")
-                print("IMPORTANT: Add this key to .env as VERIFIER_PRIVATE_KEY for production")
+        if not private_key:
+            raise RuntimeError(
+                "Missing verifier key. Set VERIFIER_PRIVATE_KEY in backend/.env "
+                "(or HARDHAT_DEPLOYER_PRIVATE_KEY for local chain 31337)."
+            )
         
         self.account = Account.from_key(private_key)
         self.verifier_address = self.account.address
@@ -131,7 +116,15 @@ class VerdictSigner:
             # Contract requires >= 80; clamp eco-positive verdicts to claimable floor.
             confidence_pct = 80
 
-        timestamp_unix = int(datetime.utcnow().timestamp())
+        provided_chain_ts = verdict_data.get('chain_timestamp')
+        timestamp_unix: int
+        if provided_chain_ts is not None:
+            try:
+                timestamp_unix = int(provided_chain_ts)
+            except Exception:
+                timestamp_unix = self._get_reference_timestamp()
+        else:
+            timestamp_unix = self._get_reference_timestamp()
         # Keep nonce within JS safe integer range so frontend serialization stays exact.
         nonce = int.from_bytes(os.urandom(6), byteorder='big', signed=False)
 
@@ -143,6 +136,41 @@ class VerdictSigner:
             'nonce': nonce,
             'wallet': Web3.to_checksum_address(wallet),
         }
+
+    def _get_reference_timestamp(self) -> int:
+        """
+        Use chain latest block timestamp when available.
+        Falls back to local UTC timestamp if RPC is unavailable.
+        """
+        rpc_url = (
+            os.getenv('RPC_URL')
+            or os.getenv('HARDHAT_RPC_URL')
+            or os.getenv('WEB3_RPC_URL')
+            or os.getenv('VITE_RPC_URL')
+            or 'http://127.0.0.1:8545'
+        )
+
+        try:
+            response = requests.post(
+                rpc_url,
+                json={
+                    'jsonrpc': '2.0',
+                    'method': 'eth_getBlockByNumber',
+                    'params': ['latest', False],
+                    'id': 1,
+                },
+                timeout=3,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            result = payload.get('result') or {}
+            ts_hex = result.get('timestamp')
+            if isinstance(ts_hex, str) and ts_hex.startswith('0x'):
+                return int(ts_hex, 16)
+        except Exception:
+            pass
+
+        return int(datetime.utcnow().timestamp())
 
     def sign_verdict(self, verdict_data: Dict) -> Dict:
         """
