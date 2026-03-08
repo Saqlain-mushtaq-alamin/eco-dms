@@ -164,6 +164,66 @@ async def get_signed_verdict(verdict_cid: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/claim-payload/{post_cid}")
+async def get_claim_payload(post_cid: str):
+    """
+    Get contract-ready EIP-712 claim payload for a verified post.
+
+    Returns chain_verdict + signature + domain/types for verifyAndReward.
+    """
+    try:
+        if not get_verdict_for_post:
+            raise HTTPException(status_code=503, detail="Verdict lookup unavailable")
+
+        verdict_data = get_verdict_for_post(post_cid)
+        if not verdict_data:
+            raise HTTPException(status_code=404, detail="No verdict found for post")
+
+        chain_verdict = verdict_data.get('chain_verdict')
+        signature = verdict_data.get('signature')
+        verifier_address = verdict_data.get('verifier_address')
+        eip712_domain = verdict_data.get('eip712_domain')
+        eip712_types = verdict_data.get('eip712_types')
+
+        # Backfill from signed verdict CID if local mapping is missing fields.
+        verdict_cid = verdict_data.get('verdict_cid')
+        if verdict_cid and (not chain_verdict or not signature):
+            try:
+                import os
+                ipfs_gateway = os.getenv('IPFS_GATEWAY_URL', 'http://localhost:8080')
+                async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
+                    response = await client.get(f"{ipfs_gateway}/ipfs/{verdict_cid}")
+                    response.raise_for_status()
+                    signed_verdict = response.json()
+
+                chain_verdict = signed_verdict.get('chain_verdict')
+                signature = signed_verdict.get('signature')
+                verifier_address = signed_verdict.get('verifier_address')
+                eip712_domain = signed_verdict.get('eip712_domain')
+                eip712_types = signed_verdict.get('eip712_types')
+            except Exception:
+                pass
+
+        if not chain_verdict or not signature:
+            raise HTTPException(status_code=422, detail="Verdict is not claimable (missing chain payload/signature)")
+
+        return {
+            "post_cid": post_cid,
+            "verdict_cid": verdict_cid,
+            "eco": verdict_data.get('eco', False),
+            "confidence": verdict_data.get('confidence', 0.0),
+            "chain_verdict": chain_verdict,
+            "signature": signature,
+            "verifier_address": verifier_address,
+            "eip712_domain": eip712_domain,
+            "eip712_types": eip712_types,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/sign-verdict")
 async def sign_verdict(request: SignVerdictRequest):
     """

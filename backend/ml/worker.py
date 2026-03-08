@@ -163,7 +163,13 @@ def verify_eco_content(
         )
         
         # Store verdict indexed by both media CID and post ID
-        _store_verdict_mapping(ipfs_cid, signed_cid, verdict, post_id)
+        _store_verdict_mapping(
+            ipfs_cid,
+            signed_cid,
+            verdict,
+            post_id,
+            signed_verdict=signed_verdict,
+        )
         
         # Return result
         result = {
@@ -235,7 +241,8 @@ def _store_verdict_mapping(
     media_cid: str, 
     verdict_cid: Optional[str], 
     verdict: Dict,
-    post_id: Optional[str] = None
+    post_id: Optional[str] = None,
+    signed_verdict: Optional[Dict] = None,
 ) -> None:
     """
     Store mapping of media/post CID to verdict CID in a JSON file.
@@ -275,6 +282,13 @@ def _store_verdict_mapping(
         'confidence': verdict.get('confidence', 0.0),
         'verified_at': datetime.utcnow().isoformat(),
     }
+
+    if signed_verdict:
+        verdict_data['signature'] = signed_verdict.get('signature')
+        verdict_data['verifier_address'] = signed_verdict.get('verifier_address')
+        verdict_data['chain_verdict'] = signed_verdict.get('chain_verdict')
+        verdict_data['eip712_domain'] = signed_verdict.get('eip712_domain')
+        verdict_data['eip712_types'] = signed_verdict.get('eip712_types')
     
     # Store by media CID (always)
     mappings[media_cid] = verdict_data

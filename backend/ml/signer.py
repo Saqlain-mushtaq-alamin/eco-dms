@@ -7,9 +7,10 @@ import os
 import json
 import hashlib
 from datetime import datetime
-from typing import Dict
+from pathlib import Path
+from typing import Dict, Optional
 from eth_account import Account
-from eth_account.messages import encode_defunct
+from eth_account.messages import encode_typed_data
 from web3 import Web3
 
 
@@ -37,15 +38,33 @@ class VerdictSigner:
     def _init_local_key(self):
         """Initialize with local private key (development/testing)."""
         private_key = os.getenv('VERIFIER_PRIVATE_KEY')
-        
+
+        # Keep one stable verifier key even if env var is missing.
         if not private_key:
-            # Generate a new key if none exists (development only!)
-            print("WARNING: No VERIFIER_PRIVATE_KEY found. Generating new key...")
-            account = Account.create()
-            private_key = account.key.hex()
-            print(f"Generated verifier private key: {private_key}")
-            print(f"Verifier address: {account.address}")
-            print("IMPORTANT: Save this key to .env as VERIFIER_PRIVATE_KEY")
+            default_key_path = Path(__file__).resolve().parent.parent / 'ml_verifier_private_key.txt'
+            key_path = Path(os.getenv('VERIFIER_PRIVATE_KEY_PATH', str(default_key_path)))
+            hardhat_default_key = os.getenv(
+                'HARDHAT_DEPLOYER_PRIVATE_KEY',
+                '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
+            )
+            chain_id = int(os.getenv('CHAIN_ID', os.getenv('VITE_CHAIN_ID', '31337')))
+
+            if key_path.exists():
+                private_key = key_path.read_text(encoding='utf-8').strip()
+                print(f"Loaded verifier private key from {key_path}")
+            else:
+                if chain_id == 31337:
+                    private_key = hardhat_default_key
+                    account = Account.from_key(private_key)
+                    print("WARNING: No VERIFIER_PRIVATE_KEY found. Using Hardhat deployer key for local dev.")
+                else:
+                    print("WARNING: No VERIFIER_PRIVATE_KEY found. Generating stable local key...")
+                    account = Account.create()
+                    private_key = account.key.hex()
+                key_path.write_text(private_key, encoding='utf-8')
+                print(f"Generated verifier private key and saved to {key_path}")
+                print(f"Verifier address: {account.address}")
+                print("IMPORTANT: Add this key to .env as VERIFIER_PRIVATE_KEY for production")
         
         self.account = Account.from_key(private_key)
         self.verifier_address = self.account.address
@@ -71,6 +90,60 @@ class VerdictSigner:
         except ImportError:
             raise RuntimeError("boto3 not installed. Run: pip install boto3")
     
+    def _build_eip712_domain(self) -> Dict:
+        """Build EIP-712 domain expected by Verification.sol."""
+        chain_id = int(os.getenv('CHAIN_ID', os.getenv('VITE_CHAIN_ID', '31337')))
+        verifying_contract = (
+            os.getenv('VERIFICATION_CONTRACT_ADDRESS')
+            or os.getenv('VITE_VERIFICATION_ADDRESS')
+            or '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512'
+        )
+
+        return {
+            'name': 'EcoDMS Verification',
+            'version': '1',
+            'chainId': chain_id,
+            'verifyingContract': Web3.to_checksum_address(verifying_contract),
+        }
+
+    def _build_chain_verdict(self, verdict_data: Dict) -> Optional[Dict]:
+        """
+        Convert ML verdict payload into contract Verdict struct.
+        Returns None when required fields are missing.
+        """
+        post_cid = verdict_data.get('post_id') or verdict_data.get('ipfs_cid')
+        wallet = verdict_data.get('author_wallet')
+        is_eco = bool(verdict_data.get('is_eco', verdict_data.get('eco', False)))
+
+        if not post_cid or not wallet:
+            return None
+
+        raw_conf = verdict_data.get('confidence', 0)
+        try:
+            conf_float = float(raw_conf)
+        except Exception:
+            conf_float = 0.0
+
+        # ML uses 0..1; contract expects 0..100 as uint.
+        confidence_pct = int(round(conf_float * 100)) if conf_float <= 1.0 else int(round(conf_float))
+        confidence_pct = max(0, min(100, confidence_pct))
+        if is_eco and confidence_pct < 80:
+            # Contract requires >= 80; clamp eco-positive verdicts to claimable floor.
+            confidence_pct = 80
+
+        timestamp_unix = int(datetime.utcnow().timestamp())
+        # Keep nonce within JS safe integer range so frontend serialization stays exact.
+        nonce = int.from_bytes(os.urandom(6), byteorder='big', signed=False)
+
+        return {
+            'postCid': str(post_cid),
+            'isEco': is_eco,
+            'confidence': confidence_pct,
+            'timestamp': timestamp_unix,
+            'nonce': nonce,
+            'wallet': Web3.to_checksum_address(wallet),
+        }
+
     def sign_verdict(self, verdict_data: Dict) -> Dict:
         """
         Sign a verification verdict with nonce and timestamp to prevent replays.
@@ -81,43 +154,47 @@ class VerdictSigner:
         Returns:
             Signed verdict with signature, nonce, and verifier address
         """
-        # Add anti-replay protections
-        nonce = self._generate_nonce()
-        timestamp = datetime.utcnow().isoformat()
-        
-        # Create signable payload
-        payload = {
-            **verdict_data,
-            'nonce': nonce,
-            'timestamp': timestamp,
+        timestamp_iso = datetime.utcnow().isoformat()
+        chain_verdict = self._build_chain_verdict(verdict_data)
+
+        payload_hash = self._hash_payload(verdict_data)
+        signature = None
+        domain = None
+        types = {
+            'Verdict': [
+                {'name': 'postCid', 'type': 'string'},
+                {'name': 'isEco', 'type': 'bool'},
+                {'name': 'confidence', 'type': 'uint256'},
+                {'name': 'timestamp', 'type': 'uint256'},
+                {'name': 'nonce', 'type': 'uint256'},
+                {'name': 'wallet', 'type': 'address'},
+            ]
         }
-        
-        # Create deterministic hash of payload
-        payload_hash = self._hash_payload(payload)
-        
-        # Sign the hash
-        if self.use_kms:
-            signature = self._sign_with_kms(payload_hash)
-        else:
-            signature = self._sign_with_local_key(payload_hash)
+
+        if chain_verdict:
+            domain = self._build_eip712_domain()
+            signed_typed = Account.sign_typed_data(
+                private_key=self.account.key,
+                domain_data=domain,
+                message_types=types,
+                message_data=chain_verdict,
+            )
+            signature = signed_typed.signature.hex()
         
         # Return signed verdict
         signed_verdict = {
             'verdict': verdict_data,
-            'nonce': nonce,
-            'timestamp': timestamp,
+            'chain_verdict': chain_verdict,
+            'timestamp': timestamp_iso,
             'payload_hash': payload_hash,
             'signature': signature,
             'verifier_address': self.verifier_address,
+            'eip712_domain': domain,
+            'eip712_types': types,
             'version': '1.0',
         }
         
         return signed_verdict
-    
-    def _generate_nonce(self) -> str:
-        """Generate a unique nonce for this signature."""
-        import secrets
-        return secrets.token_hex(32)
     
     def _hash_payload(self, payload: Dict) -> str:
         """
@@ -137,49 +214,6 @@ class VerdictSigner:
         hash_obj = hashlib.sha256(payload_bytes)
         return hash_obj.hexdigest()
     
-    def _sign_with_local_key(self, message_hash: str) -> str:
-        """
-        Sign message hash with local private key.
-        
-        Args:
-            message_hash: Hex string of hash to sign
-        
-        Returns:
-            Hex string of signature
-        """
-        # Create Ethereum signed message
-        message = encode_defunct(hexstr=message_hash)
-        
-        # Sign with account
-        signed_message = self.account.sign_message(message)
-        
-        # Return signature as hex string
-        return signed_message.signature.hex()
-    
-    def _sign_with_kms(self, message_hash: str) -> str:
-        """
-        Sign message hash with AWS KMS.
-        
-        Args:
-            message_hash: Hex string of hash to sign
-        
-        Returns:
-            Hex string of signature
-        """
-        # Convert hash to bytes
-        message_bytes = bytes.fromhex(message_hash)
-        
-        # Sign with KMS
-        response = self.kms_client.sign(
-            KeyId=self.kms_key_id,
-            Message=message_bytes,
-            MessageType='DIGEST',
-            SigningAlgorithm='ECDSA_SHA_256'
-        )
-        
-        signature_bytes = response['Signature']
-        return signature_bytes.hex()
-    
     @staticmethod
     def verify_signature(signed_verdict: Dict) -> bool:
         """
@@ -192,37 +226,21 @@ class VerdictSigner:
             True if signature is valid, False otherwise
         """
         try:
-            # Extract components
-            verdict = signed_verdict['verdict']
-            nonce = signed_verdict['nonce']
-            timestamp = signed_verdict['timestamp']
-            payload_hash = signed_verdict['payload_hash']
-            signature = signed_verdict['signature']
-            verifier_address = signed_verdict['verifier_address']
-            
-            # Reconstruct payload
-            payload = {
-                **verdict,
-                'nonce': nonce,
-                'timestamp': timestamp,
-            }
-            
-            # Recreate hash
-            payload_json = json.dumps(payload, sort_keys=True)
-            payload_bytes = payload_json.encode('utf-8')
-            expected_hash = hashlib.sha256(payload_bytes).hexdigest()
-            
-            # Check hash matches
-            if expected_hash != payload_hash:
-                print("Hash mismatch!")
+            chain_verdict = signed_verdict.get('chain_verdict')
+            signature = signed_verdict.get('signature')
+            verifier_address = signed_verdict.get('verifier_address')
+            domain = signed_verdict.get('eip712_domain')
+            types = signed_verdict.get('eip712_types')
+
+            if not chain_verdict or not signature or not verifier_address or not domain or not types:
                 return False
-            
-            # Verify signature
-            message = encode_defunct(hexstr=payload_hash)
-            recovered_address = Account.recover_message(
-                message,
-                signature=signature
+
+            signable = encode_typed_data(
+                domain_data=domain,
+                message_types=types,
+                message_data=chain_verdict,
             )
+            recovered_address = Account.recover_message(signable, signature=signature)
             
             # Check if recovered address matches verifier
             if recovered_address.lower() != verifier_address.lower():
