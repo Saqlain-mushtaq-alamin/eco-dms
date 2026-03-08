@@ -292,5 +292,41 @@
     "eco": false,
     "confidence": 0.227,
     "verified_at": "2026-03-05T16:36:02.636773"
+  },
+  "QmatMdAWmL7ejErrDyBK4ZGrzCzo6bJjXbammorc3Ne2Eh": {
+    "verdict_cid": "QmZ5uPgMTEQ5WiXy93Mp2pnzS52LpAgzMsSGoGDL5FkRBh",
+    "eco": true,
+    "confidence": 0.252,
+    "verified_at": "2026-03-08T10:20:08.501130"
+  },
+  "QmdusziDsh3vPMNkD4jpguWPUSHokp8s9R2wBr6hiieyJk": {
+    "verdict_cid": "QmZ5uPgMTEQ5WiXy93Mp2pnzS52LpAgzMsSGoGDL5FkRBh",
+    "eco": true,
+    "confidence": 0.252,
+    "verified_at": "2026-03-08T10:20:08.501130"
+  },
+  "QmYcLZuwDziFPJuLPAFdWp7oxAzZgoEkGuFQquCGEz9eci": {
+    "verdict_cid": "QmV2R3Pgk43oQWTK3rvnnzSSgBuf5MBTLBLmyoXrRHc2W5",
+    "eco": true,
+    "confidence": 0.238,
+    "verified_at": "2026-03-08T10:22:39.245380"
+  },
+  "QmZ8Ny7tvwA8HdcHC7XyZYNA9TJCP6FaeZdSxTRwn64xtS": {
+    "verdict_cid": "QmV2R3Pgk43oQWTK3rvnnzSSgBuf5MBTLBLmyoXrRHc2W5",
+    "eco": true,
+    "confidence": 0.238,
+    "verified_at": "2026-03-08T10:22:39.245380"
+  },
+  "QmPZ3zVuS8nwrLTMgFpteHUgg8xAhUU5w9kbST27JWomd6": {
+    "verdict_cid": "QmYr2pX8eDVpWdHBo7Pt6mDux5LbfpVdt2teatbsYkx9ij",
+    "eco": true,
+    "confidence": 0.252,
+    "verified_at": "2026-03-08T10:51:02.268790"
+  },
+  "QmbZp7dJvp4rDpPU88GdP1TxG8hXdv6BUmsaz3xSxF91TM": {
+    "verdict_cid": "QmYr2pX8eDVpWdHBo7Pt6mDux5LbfpVdt2teatbsYkx9ij",
+    "eco": true,
+    "confidence": 0.252,
+    "verified_at": "2026-03-08T10:51:02.268790"
   }
 }

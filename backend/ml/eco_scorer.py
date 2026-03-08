@@ -51,7 +51,7 @@ class EcoScorer:
     ]
     
     def __init__(self):
-        self.eco_threshold = 0.8  # Minimum score to be marked as eco
+        self.eco_threshold = 0.2  # Minimum score to be marked as eco
     
     def calculate_yolo_score(self, detections: List[Dict]) -> Tuple[float, List[str]]:
         """

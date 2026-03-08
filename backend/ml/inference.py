@@ -110,7 +110,13 @@ class EcoVerifier:
         # Load EfficientNet
         if EFFICIENTNET_AVAILABLE and models is not None and transforms is not None:
             print("Loading EfficientNet...")
-            self.efficientnet_model = models.efficientnet_b0(pretrained=True)
+            # Use modern torchvision weights API when available; keep a legacy fallback.
+            try:
+                self.efficientnet_model = models.efficientnet_b0(
+                    weights=models.EfficientNet_B0_Weights.DEFAULT
+                )
+            except Exception:
+                self.efficientnet_model = models.efficientnet_b0(pretrained=True)
             self.efficientnet_model.eval()
             self.efficientnet_model.to(self.device)
             
@@ -147,7 +153,10 @@ class EcoVerifier:
         # Fetch image from IPFS
         image_url = f"{ipfs_gateway}/ipfs/{ipfs_cid}"
         
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(connect=10.0, read=35.0, write=10.0, pool=10.0),
+            follow_redirects=True,
+        ) as client:
             response = await client.get(image_url)
             response.raise_for_status()
             image_bytes = response.content

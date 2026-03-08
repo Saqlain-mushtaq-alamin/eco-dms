@@ -11,7 +11,13 @@ from datetime import datetime, timedelta
 from ..ml.worker import get_verification_status, celery_app
 from ..ml.inference import get_verifier
 from ..ml.signer import VerdictSigner
+from .services.orbitdb_service import orbitdb_service
 from .deps import get_current_user
+
+try:
+    from backend.ml.worker import get_verdict_for_post
+except ImportError:
+    get_verdict_for_post = None
 
 router = APIRouter(prefix="/api/verify", tags=["verification"])
 
@@ -53,7 +59,7 @@ async def verify_content(request: VerifyRequest):
         if request.async_mode:
             # Submit to Celery worker queue
             task = celery_app.send_task(
-                'app.ml.worker.verify_eco_content',
+                'verify_eco_content',
                 kwargs={
                     'ipfs_cid': request.ipfs_cid,
                     'text_content': request.text_content,
@@ -259,7 +265,7 @@ async def get_earnings(wallet_address: str):
     # Normalize wallet address
     wallet_address = wallet_address.lower()
     
-    # Get earnings from storage (or return defaults)
+    # Get explicit claim earnings from storage (or return defaults)
     wallet_earnings = earnings_storage.get(wallet_address, {
         "lifetime_earned": "0",
         "total_claims": 0,
@@ -277,13 +283,61 @@ async def get_earnings(wallet_address: str):
     ]
     
     today_earned = sum(float(claim["amount"]) for claim in today_claims)
+
+    # Fallback mode: derive earnings directly from verified eco posts.
+    # This keeps dashboard rewards useful even before full on-chain claim wiring.
+    derived_lifetime = 0.0
+    derived_today = 0.0
+    derived_total_claims = 0
+    derived_last_claim_time = None
+
+    if get_verdict_for_post:
+        try:
+            post_cids = await orbitdb_service.get_user_posts(wallet_address) or []
+            for post_cid in post_cids:
+                verdict = get_verdict_for_post(post_cid)
+                if not verdict or not verdict.get("eco", False):
+                    continue
+
+                derived_total_claims += 1
+                derived_lifetime += 5.0
+
+                verified_at_raw = verdict.get("verified_at")
+                if isinstance(verified_at_raw, str):
+                    try:
+                        verified_at = datetime.fromisoformat(verified_at_raw)
+                        if verified_at > today_start:
+                            derived_today += 5.0
+                        if derived_last_claim_time is None or verified_at > derived_last_claim_time:
+                            derived_last_claim_time = verified_at
+                    except ValueError:
+                        # Ignore malformed timestamps and continue with count-based totals.
+                        pass
+        except Exception:
+            # Keep API resilient even if OrbitDB/IPFS lookups fail.
+            pass
+
+    stored_lifetime = float(wallet_earnings.get("lifetime_earned", "0") or 0)
+    stored_total_claims = int(wallet_earnings.get("total_claims", 0) or 0)
+    stored_last_claim_time = wallet_earnings.get("last_claim_time")
+
+    # Use whichever source has more data so existing claim history is preserved.
+    use_derived = derived_total_claims > stored_total_claims
+
+    final_lifetime = derived_lifetime if use_derived else stored_lifetime
+    final_today = derived_today if use_derived else today_earned
+    final_claims = derived_total_claims if use_derived else stored_total_claims
+    final_last_claim = (
+        derived_last_claim_time.isoformat() if use_derived and derived_last_claim_time else stored_last_claim_time
+    )
     
     return {
         "wallet_address": wallet_address,
-        "lifetime_earned": wallet_earnings.get("lifetime_earned", "0"),
-        "today_earned": str(today_earned),
-        "total_claims": wallet_earnings.get("total_claims", 0),
-        "last_claim_time": wallet_earnings.get("last_claim_time"),
+        "lifetime_earned": str(final_lifetime),
+        "today_earned": str(final_today),
+        "total_claims": final_claims,
+        "last_claim_time": final_last_claim,
+        "source": "derived_from_verified_posts" if use_derived else "claims_storage",
     }
 
 
