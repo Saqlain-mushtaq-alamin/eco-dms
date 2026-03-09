@@ -6,7 +6,8 @@ Supports AWS KMS and local key storage
 import os
 import json
 import hashlib
-from datetime import datetime
+import time
+from datetime import datetime, timezone
 from typing import Dict, Optional
 import requests
 from eth_account import Account
@@ -139,9 +140,31 @@ class VerdictSigner:
 
     def _get_reference_timestamp(self) -> int:
         """
-        Use chain latest block timestamp when available.
-        Falls back to local UTC timestamp if RPC is unavailable.
+        Return a timestamp safe to embed in a chain verdict.
+
+        The contract enforces:
+          verdict.timestamp <= block.timestamp
+          block.timestamp - verdict.timestamp <= 1 hour
+
+        We want a timestamp that is:
+          1. <= the pending block's timestamp (so it's not "in future")
+          2. Within 1 hour of the pending block's timestamp (so it's not "expired")
+
+        Hardhat's pending block uses max(latest_block_ts + 1, system_clock).
+        When the chain hasn't mined a block for a long time, latest_block_ts can
+        be hours in the past while system_clock is current. Using only the RPC
+        value would produce a stale timestamp that the contract rejects.
+
+        Fix: return max(rpc_latest_block_ts, utcnow). This ensures:
+          - Stale chain (no new blocks) → utcnow wins, always within 1hr window.
+          - Fast-forwarded chain (e.g. hardhat_mine) → rpc_ts wins, stays consistent.
+
+        NOTE: time.time() is used instead of datetime.utcnow().timestamp() because
+        utcnow() returns a naive datetime and .timestamp() interprets it as local time,
+        producing an incorrect value on UTC+ machines (hours behind true Unix time).
         """
+        wall_clock = int(time.time())  # always correct UTC Unix epoch
+
         rpc_url = (
             os.getenv('RPC_URL')
             or os.getenv('HARDHAT_RPC_URL')
@@ -166,11 +189,13 @@ class VerdictSigner:
             result = payload.get('result') or {}
             ts_hex = result.get('timestamp')
             if isinstance(ts_hex, str) and ts_hex.startswith('0x'):
-                return int(ts_hex, 16)
+                rpc_ts = int(ts_hex, 16)
+                # Use whichever is higher so we are always "fresh"
+                return max(wall_clock, rpc_ts)
         except Exception:
             pass
 
-        return int(datetime.utcnow().timestamp())
+        return wall_clock
 
     def sign_verdict(self, verdict_data: Dict) -> Dict:
         """
@@ -182,7 +207,7 @@ class VerdictSigner:
         Returns:
             Signed verdict with signature, nonce, and verifier address
         """
-        timestamp_iso = datetime.utcnow().isoformat()
+        timestamp_iso = datetime.now(timezone.utc).isoformat()
         chain_verdict = self._build_chain_verdict(verdict_data)
 
         payload_hash = self._hash_payload(verdict_data)

@@ -2,14 +2,18 @@
 Eco Verification API Routes
 Endpoints for ML-based eco verification of social media posts
 """
+import logging
+import time
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Query
 from pydantic import BaseModel, Field
 from typing import Optional, Dict
 import httpx
 import os
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 from ..ml.worker import get_verification_status, celery_app
 from ..ml.inference import get_verifier
@@ -217,7 +221,6 @@ async def get_claim_payload(post_cid: str, chain_timestamp: int | None = Query(d
         verdict_cid = verdict_data.get('verdict_cid')
         if verdict_cid and (not chain_verdict or not signature):
             try:
-                import os
                 ipfs_gateway = os.getenv('IPFS_GATEWAY_URL', 'http://localhost:8080')
                 async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
                     response = await client.get(f"{ipfs_gateway}/ipfs/{verdict_cid}")
@@ -229,8 +232,8 @@ async def get_claim_payload(post_cid: str, chain_timestamp: int | None = Query(d
                 verifier_address = signed_verdict.get('verifier_address')
                 eip712_domain = signed_verdict.get('eip712_domain')
                 eip712_types = signed_verdict.get('eip712_types')
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("IPFS backfill failed for verdict %s (cid=%s): %s", post_cid, verdict_cid, exc)
 
         # Always generate a fresh claim signature so timestamp stays within contract expiry window.
         # This also auto-heals legacy verdict entries missing chain payload/signature.
@@ -253,7 +256,11 @@ async def get_claim_payload(post_cid: str, chain_timestamp: int | None = Query(d
                     'is_eco': bool(verdict_data.get('eco', False)),
                     'confidence': float(verdict_data.get('confidence', 0.0)),
                     'verified_at': verdict_data.get('verified_at'),
-                    'chain_timestamp': chain_timestamp,
+                    # NOTE: chain_timestamp intentionally omitted.
+                    # _build_chain_verdict() will call _get_reference_timestamp()
+                    # to fetch the CURRENT block timestamp from the RPC so the
+                    # resulting signature is always fresh and never rejected as
+                    # "verdict expired" by the contract.
                 })
 
                 chain_verdict = regenerated.get('chain_verdict')
@@ -270,8 +277,32 @@ async def get_claim_payload(post_cid: str, chain_timestamp: int | None = Query(d
                         'eip712_domain': eip712_domain,
                         'eip712_types': eip712_types,
                     })
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Fresh signature generation failed for %s: %s", post_cid, exc)
+            # Fall through to the stale chain_verdict from storage; staleness is
+            # checked below before returning it to the client.
+
+        # Guard: reject any signature whose timestamp is already outside the
+        # contract's 1-hour expiry window (with a 60-second safety buffer).
+        # This surfaces a clear 422 instead of letting the on-chain call revert.
+        if chain_verdict and signature and isinstance(chain_verdict, dict):
+            verdict_ts = chain_verdict.get('timestamp')
+            if verdict_ts is not None:
+                age_seconds = int(time.time()) - int(verdict_ts)
+                if age_seconds > 3540:  # 59 min — 1 min before the 1-hour on-chain limit
+                    logger.error(
+                        "Stale verdict for %s: timestamp %s is %d seconds old — "
+                        "cannot produce a fresh signature (regeneration failed above). "
+                        "Re-run ML verification for this post.",
+                        post_cid, verdict_ts, age_seconds,
+                    )
+                    raise HTTPException(
+                        status_code=422,
+                        detail=(
+                            "Verdict signature has expired (older than 1 hour) and could not be "
+                            "refreshed automatically. Please re-submit the post for ML verification."
+                        ),
+                    )
 
         if not chain_verdict or not signature:
             raise HTTPException(
