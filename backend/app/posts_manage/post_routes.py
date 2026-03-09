@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Header, UploadFile, File
 from datetime import datetime
 from typing import Dict, List
+import asyncio
 from ..models import PostCreate, CommentCreate, LikeCreate, ImageUpload
 from ..auth_routes import get_current_user
 # Use posts IPFS service for pin/get
@@ -11,6 +12,7 @@ from backend.app.services.orbitdb_service import orbitdb_service
 from backend.app.services.social_service import social_service
 # User service for follow relationships
 from backend.app.services.user_service import user_service
+from backend.app.services.notification_service import notification_service
 # ML verification (async Celery task)
 try:
     from backend.ml.worker import verify_eco_content, get_verdict_for_post
@@ -21,6 +23,66 @@ except ImportError:
     get_verdict_for_post = None
 
 router = APIRouter(prefix="/api/posts", tags=["posts"])
+
+
+async def _get_post_author_wallet(post_cid: str) -> str | None:
+    post_data = await ipfs_service.get_json(post_cid)
+    if isinstance(post_data, dict):
+        author = post_data.get("author_wallet") or post_data.get("author")
+        if isinstance(author, str) and author:
+            return author.lower()
+    return None
+
+
+@router.get("/by-cid/{post_cid}", response_model=Dict)
+async def get_post_by_cid(
+    post_cid: str,
+    authorization: str | None = Header(default=None),
+):
+    current_user = await get_current_user(authorization)
+
+    post = await ipfs_service.get_json(post_cid)
+    if not isinstance(post, dict):
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    author = post.get("author") or post.get("author_wallet")
+    if author:
+        social_service.set_post_author(post_cid, str(author))
+
+    likes_count, comments_count, liked_by_user = await asyncio.gather(
+        social_service.get_likes_count(post_cid),
+        social_service.get_comments_count(post_cid),
+        social_service.has_user_liked(post_cid, current_user),
+        return_exceptions=True,
+    )
+
+    post["cid"] = post_cid
+    post["likes_count"] = 0 if isinstance(likes_count, (Exception, BaseException)) else (likes_count or 0)
+    post["comments_count"] = 0 if isinstance(comments_count, (Exception, BaseException)) else (comments_count or 0)
+    post["liked_by_user"] = False if isinstance(liked_by_user, (Exception, BaseException)) else bool(liked_by_user)
+
+    try:
+        if ML_AVAILABLE and get_verdict_for_post:
+            verdict_data = get_verdict_for_post(post_cid)
+            if verdict_data:
+                post["verified"] = verdict_data.get("eco", False)
+                post["eco_score"] = verdict_data.get("confidence", 0.0)
+                post["signed_verdict_cid"] = verdict_data.get("verdict_cid")
+                post["verification_status"] = "verified"
+            else:
+                post["verified"] = False
+                post["eco_score"] = 0.0
+                post["verification_status"] = "pending" if post.get("media_cids") else "none"
+        else:
+            post["verified"] = False
+            post["eco_score"] = 0.0
+            post["verification_status"] = "pending" if post.get("media_cids") else "none"
+    except Exception:
+        post["verified"] = False
+        post["eco_score"] = 0.0
+        post["verification_status"] = "pending" if post.get("media_cids") else "none"
+
+    return {"post": post}
 
 @router.post("/upload-image", response_model=ImageUpload)
 async def upload_image(
@@ -336,6 +398,22 @@ async def like_post(
         success = await social_service.add_like(post_cid, wallet_address)
         if success:
             likes_count = await social_service.get_likes_count(post_cid)
+
+            # Notify post author for new like (skip self-likes)
+            try:
+                post_author = await _get_post_author_wallet(post_cid)
+                if post_author and post_author != wallet_address.lower():
+                    await notification_service.create_notification(
+                        recipient_wallet=post_author,
+                        event_type="like",
+                        message=f"{wallet_address[:6]}...{wallet_address[-4:]} liked your post",
+                        actor_wallet=wallet_address,
+                        post_cid=post_cid,
+                        metadata={"likes_count": likes_count},
+                    )
+            except Exception as notify_error:
+                print(f"⚠️ Failed to emit like notification: {notify_error}")
+
             return {
                 "success": True,
                 "post_cid": post_cid,
@@ -410,6 +488,26 @@ async def create_comment(
         
         if comment_cid:
             comments_count = await social_service.get_comments_count(post_cid)
+
+            # Notify post author for new comment (skip self-comments)
+            try:
+                post_author = await _get_post_author_wallet(post_cid)
+                if post_author and post_author != wallet_address.lower():
+                    await notification_service.create_notification(
+                        recipient_wallet=post_author,
+                        event_type="comment",
+                        message=f"{wallet_address[:6]}...{wallet_address[-4:]} commented on your post",
+                        actor_wallet=wallet_address,
+                        post_cid=post_cid,
+                        metadata={
+                            "comment_cid": comment_cid,
+                            "comment_preview": payload.content[:120],
+                            "comments_count": comments_count,
+                        },
+                    )
+            except Exception as notify_error:
+                print(f"⚠️ Failed to emit comment notification: {notify_error}")
+
             return {
                 "success": True,
                 "comment_cid": comment_cid,

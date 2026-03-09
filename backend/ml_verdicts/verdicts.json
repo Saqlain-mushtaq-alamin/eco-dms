@@ -1072,14 +1072,14 @@
     "eco": true,
     "confidence": 0.273,
     "verified_at": "2026-03-09T10:02:06.953783",
-    "signature": "0x9e82c963cd3592dd103c3c4ca1c1ce426dfa1f80410b31be73bf176fb69f920065dc163141c463b8d45880b628504c5f5a888e3bfd0b645ba4843b309a8708fa1b",
+    "signature": "0x896b7216e69c093f1e37612eee9d382bda558b3b4095fe675f335bbe2de72a1a4ec69b7fd288b8c4cd126cf258af6f78ccac5a86a6ce7ec8f5c813982ddf809a1b",
     "verifier_address": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
     "chain_verdict": {
       "postCid": "QmdcBcDM5PAQsiQaaPXaWSTg3xF3pL9Tbj8UuyQXxXnKBi",
       "isEco": true,
       "confidence": 80,
-      "timestamp": 1773076357,
-      "nonce": 23755449584088,
+      "timestamp": 1773092237,
+      "nonce": 247126879671759,
       "wallet": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
     },
     "eip712_domain": {

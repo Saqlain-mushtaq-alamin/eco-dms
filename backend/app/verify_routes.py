@@ -20,6 +20,7 @@ from ..ml.inference import get_verifier
 from ..ml.signer import VerdictSigner
 from .services.orbitdb_service import orbitdb_service
 from .posts_manage.ipfs_post_service import ipfs_service
+from .services.notification_service import notification_service
 from .deps import get_current_user
 
 try:
@@ -552,6 +553,18 @@ async def record_claim(
         "tx_hash": tx_hash,
         "timestamp": datetime.utcnow().isoformat()
     })
+
+    try:
+        await notification_service.create_notification(
+            recipient_wallet=wallet_address,
+            event_type="reward",
+            message=f"Reward claimed: {amount} ECO",
+            actor_wallet=wallet_address,
+            post_cid=post_cid,
+            metadata={"tx_hash": tx_hash, "amount": amount},
+        )
+    except Exception as notify_error:
+        logger.warning("Failed to emit reward notification: %s", notify_error)
     
     return {
         "success": True,
