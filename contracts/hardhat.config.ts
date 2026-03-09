@@ -13,7 +13,7 @@ const config: HardhatUserConfig = {
   },
   networks: {
     hardhat: {
-      hardfork: "cancun",   // contracts compiled with evmVersion: "cancun" — node must match
+      hardfork: "cancun",   // must match evmVersion — OZ 5.x uses mcopy (Cancun)
     },
     sepolia: {
       url: process.env.SEPOLIA_RPC_URL || "",
