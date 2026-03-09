@@ -97,12 +97,26 @@ export default function VisitProfile({ walletAddress, currentUserAddress, onBack
         const token = localStorage.getItem('auth_token')
         if (!token) return
 
+        const previousPost = posts.find((post) => post.cid === postCid)
+        if (!previousPost) return
+
+        const optimisticLikes = Math.max(0, (previousPost.likes_count || 0) + (isLiked ? -1 : 1))
+        setPosts((prev) => prev.map((post) =>
+            post.cid === postCid
+                ? {
+                    ...post,
+                    liked_by_user: !isLiked,
+                    likes_count: optimisticLikes,
+                }
+                : post,
+        ))
+
         try {
             const response = await fetch(`${API_BASE}/api/posts/${postCid}/like`, {
                 method: isLiked ? 'DELETE' : 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             })
-            if (!response.ok) return
+            if (!response.ok) throw new Error('Like request failed')
             const data = await response.json()
 
             setPosts((prev) => prev.map((post) =>
@@ -116,6 +130,17 @@ export default function VisitProfile({ walletAddress, currentUserAddress, onBack
             ))
         } catch (err) {
             console.error('Like/unlike failed:', err)
+
+            // Roll back optimistic like if backend fails
+            setPosts((prev) => prev.map((post) =>
+                post.cid === postCid
+                    ? {
+                        ...post,
+                        liked_by_user: previousPost.liked_by_user,
+                        likes_count: previousPost.likes_count,
+                    }
+                    : post,
+            ))
         }
     }
 
@@ -141,6 +166,27 @@ export default function VisitProfile({ walletAddress, currentUserAddress, onBack
         const content = (commentInputs[postCid] || '').trim()
         if (!content) return
 
+        const tempCommentId = `temp-comment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+        const optimisticComment: Comment = {
+            cid: tempCommentId,
+            post_cid: postCid,
+            author_wallet: currentUserAddress,
+            content,
+            created_at: new Date().toISOString(),
+        }
+
+        const previousComments = comments[postCid] || []
+        const previousInput = commentInputs[postCid] || ''
+        const previousCount = posts.find((post) => post.cid === postCid)?.comments_count || 0
+
+        setCommentInputs((prev) => ({ ...prev, [postCid]: '' }))
+        setComments((prev) => ({ ...prev, [postCid]: [...(prev[postCid] || []), optimisticComment] }))
+        setPosts((prev) => prev.map((post) =>
+            post.cid === postCid
+                ? { ...post, comments_count: previousCount + 1 }
+                : post,
+        ))
+
         try {
             const response = await fetch(`${API_BASE}/api/posts/${postCid}/comments`, {
                 method: 'POST',
@@ -154,20 +200,28 @@ export default function VisitProfile({ walletAddress, currentUserAddress, onBack
                     content,
                 }),
             })
-            if (!response.ok) return
+            if (!response.ok) throw new Error('Comment request failed')
 
-            const result = await response.json()
-            setCommentInputs((prev) => ({ ...prev, [postCid]: '' }))
+            await response.json()
 
             const refreshed = await fetchComments(postCid)
             setComments((prev) => ({ ...prev, [postCid]: refreshed }))
             setPosts((prev) => prev.map((post) =>
                 post.cid === postCid
-                    ? { ...post, comments_count: result.comments_count }
+                    ? { ...post, comments_count: refreshed.length }
                     : post,
             ))
         } catch (err) {
             console.error('Add comment failed:', err)
+
+            // Roll back optimistic comment if backend fails
+            setCommentInputs((prev) => ({ ...prev, [postCid]: previousInput }))
+            setComments((prev) => ({ ...prev, [postCid]: previousComments }))
+            setPosts((prev) => prev.map((post) =>
+                post.cid === postCid
+                    ? { ...post, comments_count: previousCount }
+                    : post,
+            ))
         }
     }
 
@@ -215,20 +269,36 @@ export default function VisitProfile({ walletAddress, currentUserAddress, onBack
     }, [walletAddress])
 
     const handleFollowToggle = async () => {
+        const wasFollowing = isFollowing
+        const previousFollowers = profile?.followers || []
+
+        // Optimistic follow UI update
+        setIsFollowing(!wasFollowing)
+        setProfile((prev) => {
+            if (!prev) return prev
+            const followerSet = new Set(prev.followers || [])
+            if (wasFollowing) {
+                followerSet.delete(currentUserAddress)
+            } else {
+                followerSet.add(currentUserAddress)
+            }
+            return { ...prev, followers: Array.from(followerSet) }
+        })
+
         try {
             setActionLoading(true)
-            if (isFollowing) {
+            if (wasFollowing) {
                 await unfollowUser(walletAddress)
-                setIsFollowing(false)
             } else {
                 await followUser(walletAddress)
-                setIsFollowing(true)
             }
-            // Refresh profile to update follower count
-            await fetchProfile()
         } catch (err: any) {
             console.error('Follow/Unfollow error:', err)
             setError(err.message || 'Failed to update follow status')
+
+            // Roll back optimistic follow update
+            setIsFollowing(wasFollowing)
+            setProfile((prev) => (prev ? { ...prev, followers: previousFollowers } : prev))
         } finally {
             setActionLoading(false)
         }

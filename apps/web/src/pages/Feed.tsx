@@ -3,6 +3,7 @@ import { Button, Input, LoadingSpinner, PostCard } from '@eco-dms/ui'
 
 type Post = {
     cid?: string
+    client_temp_id?: string
     type: 'post'
     version: number
     author_wallet: string
@@ -19,6 +20,8 @@ type Post = {
     verifier_address?: string
     verified_at?: string
     verification_status?: 'pending' | 'verified' | 'none'
+    local_image_uri?: string
+    isOptimistic?: boolean
 }
 
 type VerificationDetails = {
@@ -384,6 +387,32 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
             setError('Not authenticated')
             return false
         }
+
+        const draftContent = content.trim()
+        const draftPreview = imagePreviewUrls[0]
+        const optimisticId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+        const optimisticPost: Post = {
+            client_temp_id: optimisticId,
+            type: 'post',
+            version: 1,
+            author_wallet: address,
+            content: draftContent,
+            media_cids: [],
+            tags: [],
+            created_at: new Date().toISOString(),
+            likes_count: 0,
+            comments_count: 0,
+            liked_by_user: false,
+            verification_status: selectedImages.length > 0 ? 'pending' : 'none',
+            local_image_uri: draftPreview,
+            isOptimistic: true,
+        }
+
+        setPosts((prev) => [optimisticPost, ...prev])
+        setShowComposerModal(false)
+        setContent('')
+        setSelectedImages([])
+        setImagePreviewUrls([])
         setLoading(true)
         setError(null)
         try {
@@ -408,16 +437,27 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
                 setUploadingImages(false)
             }
 
-            const result = await createPost(apiBase, token, address, content.trim(), mediaCids)
+            const result = await createPost(apiBase, token, address, draftContent, mediaCids)
             console.log('Post created successfully:', result)
-            setContent('')
-            setSelectedImages([])
-            setImagePreviewUrls([])
-            await load()
+
+            setPosts((prev) => prev.map((post) =>
+                post.client_temp_id === optimisticId
+                    ? {
+                        ...post,
+                        cid: result.cid,
+                        media_cids: mediaCids,
+                        local_image_uri: mediaCids[0] ? undefined : post.local_image_uri,
+                        isOptimistic: false,
+                    }
+                    : post,
+            ))
             return true
         } catch (e: any) {
             console.error('Create post error:', e)
             setError(e.message || 'Failed to create post')
+
+            // Roll back failed optimistic post
+            setPosts((prev) => prev.filter((post) => post.client_temp_id !== optimisticId))
             return false
         } finally {
             setLoading(false)
@@ -440,15 +480,36 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
         const token = localStorage.getItem('auth_token') ?? ''
         if (!token) return
 
+        const previousPost = posts.find((p) => p.cid === postCid)
+        if (!previousPost) return
+
+        const optimisticLikes = Math.max(0, (previousPost.likes_count || 0) + (isLiked ? -1 : 1))
+        setPosts((prev) => prev.map((p) =>
+            p.cid === postCid
+                ? { ...p, liked_by_user: !isLiked, likes_count: optimisticLikes }
+                : p,
+        ))
+
         try {
             const result = await toggleLike(apiBase, token, postCid, isLiked)
-            setPosts(posts.map(p =>
+            setPosts((prev) => prev.map((p) =>
                 p.cid === postCid
                     ? { ...p, liked_by_user: !isLiked, likes_count: result.likes_count }
-                    : p
+                    : p,
             ))
         } catch (e: any) {
             console.error('Like error:', e)
+
+            // Roll back optimistic like state on failure
+            setPosts((prev) => prev.map((p) =>
+                p.cid === postCid
+                    ? {
+                        ...p,
+                        liked_by_user: previousPost.liked_by_user,
+                        likes_count: previousPost.likes_count,
+                    }
+                    : p,
+            ))
         }
     }
 
@@ -482,22 +543,51 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
         const commentText = commentInputs[postCid]?.trim()
         if (!commentText) return
 
+        const tempCommentId = `temp-comment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+        const optimisticComment: Comment = {
+            cid: tempCommentId,
+            type: 'comment',
+            post_cid: postCid,
+            author_wallet: address,
+            content: commentText,
+            created_at: new Date().toISOString(),
+        }
+
+        const previousComments = comments[postCid] || []
+        const previousInput = commentInputs[postCid] || ''
+        const previousCount = posts.find((p) => p.cid === postCid)?.comments_count || 0
+
+        setCommentInputs((prev) => ({ ...prev, [postCid]: '' }))
+        setComments((prev) => ({ ...prev, [postCid]: [...(prev[postCid] || []), optimisticComment] }))
+        setPosts((prev) => prev.map((p) =>
+            p.cid === postCid
+                ? { ...p, comments_count: previousCount + 1 }
+                : p,
+        ))
+
         try {
-            const result = await addComment(apiBase, token, postCid, address, commentText)
-            console.log('Comment added:', result)
+            await addComment(apiBase, token, postCid, address, commentText)
+            console.log('Comment added')
 
-            setCommentInputs({ ...commentInputs, [postCid]: '' })
-
+            // Replace optimistic entry with authoritative backend list
             const data = await fetchComments(apiBase, token, postCid)
-            setComments({ ...comments, [postCid]: data.comments })
-
-            setPosts(posts.map(p =>
+            setComments((prev) => ({ ...prev, [postCid]: data.comments }))
+            setPosts((prev) => prev.map((p) =>
                 p.cid === postCid
-                    ? { ...p, comments_count: result.comments_count }
-                    : p
+                    ? { ...p, comments_count: data.count }
+                    : p,
             ))
         } catch (e: any) {
             console.error('Add comment error:', e)
+
+            // Roll back optimistic comment on failure
+            setCommentInputs((prev) => ({ ...prev, [postCid]: previousInput }))
+            setComments((prev) => ({ ...prev, [postCid]: previousComments }))
+            setPosts((prev) => prev.map((p) =>
+                p.cid === postCid
+                    ? { ...p, comments_count: previousCount }
+                    : p,
+            ))
         }
     }
     const handleShowVerification = async (signedVerdictCid: string) => {
@@ -798,11 +888,12 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
                                         </span>
                                     ) : undefined}
                                     content={p.content}
-                                    imageUri={p.media_cids?.[0] ? resolveIpfsUrl(p.media_cids[0]) : undefined}
+                                    imageUri={p.local_image_uri || (p.media_cids?.[0] ? resolveIpfsUrl(p.media_cids[0]) : undefined)}
                                     timestamp={new Date(p.created_at).getTime()}
                                     likes={p.likes_count || 0}
                                     comments={p.comments_count || 0}
                                     isLiked={Boolean(p.liked_by_user)}
+                                    isOptimistic={Boolean(p.isOptimistic)}
                                     onAuthorPress={() => onVisitProfile(p.author_wallet)}
                                     onLike={p.cid ? () => handleLike(p.cid!, p.liked_by_user ?? false) : undefined}
                                     onComment={p.cid ? () => handleToggleComments(p.cid!) : undefined}

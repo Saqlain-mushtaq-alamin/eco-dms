@@ -80,29 +80,42 @@ export function Friends({ query }: FriendsProps) {
     const handleFollowToggle = async (walletAddress: string, isFollowing: boolean, event: React.MouseEvent) => {
         event.stopPropagation()
 
+        // Optimistic UI update
+        setFollowStatus((prev) => ({ ...prev, [walletAddress]: !isFollowing }))
+        setUsers((prev) => prev.map((user) => {
+            if (user.wallet_address !== walletAddress) return user
+            const currentFollowers = user.followers_count || 0
+            return {
+                ...user,
+                followers_count: isFollowing
+                    ? Math.max(0, currentFollowers - 1)
+                    : currentFollowers + 1,
+            }
+        }))
+
         try {
             setFollowLoading((prev) => ({ ...prev, [walletAddress]: true }))
 
             if (isFollowing) {
                 await unfollowUser(walletAddress)
-                setFollowStatus((prev) => ({ ...prev, [walletAddress]: false }))
             } else {
                 await followUser(walletAddress)
-                setFollowStatus((prev) => ({ ...prev, [walletAddress]: true }))
             }
+        } catch (err) {
+            console.error('Follow toggle failed:', err)
 
+            // Roll back optimistic update
+            setFollowStatus((prev) => ({ ...prev, [walletAddress]: isFollowing }))
             setUsers((prev) => prev.map((user) => {
                 if (user.wallet_address !== walletAddress) return user
                 const currentFollowers = user.followers_count || 0
                 return {
                     ...user,
                     followers_count: isFollowing
-                        ? Math.max(0, currentFollowers - 1)
-                        : currentFollowers + 1,
+                        ? currentFollowers + 1
+                        : Math.max(0, currentFollowers - 1),
                 }
             }))
-        } catch (err) {
-            console.error('Follow toggle failed:', err)
         } finally {
             setFollowLoading((prev) => ({ ...prev, [walletAddress]: false }))
         }
