@@ -42,18 +42,31 @@ class IPFSService:
 
         if self.api_url:
             try:
-                # Simple ping
-                r = requests.post(f"{self.api_url}/version", timeout=2)
+                # Kubo exposes a root-level /version endpoint (plain text, no auth
+                # required even in Kubo 0.27+ security mode) that we use for the
+                # startup connectivity check.  The actual RPC calls go through
+                # api_url which should include /api/v0.
+                _ping_base = self.api_url.rstrip('/')
+                if _ping_base.endswith('/api/v0'):
+                    _ping_base = _ping_base[:-7]  # strip /api/v0 for the ping
+
+                r = requests.post(f"{_ping_base}/version", timeout=3)
                 if r.ok:
-                    ver = r.json().get("Version", "unknown")
+                    # Response may be JSON ({"Version": "0.39.0", ...}) or
+                    # plain text ("Client Version: kubo/0.39.0/...") depending
+                    # on Kubo version — handle both without crashing.
+                    try:
+                        ver = r.json().get("Version", "?")
+                    except Exception:
+                        ver = r.text.split("kubo/")[1].split("/")[0] if "kubo/" in r.text else "?"
                     self.client = True
-                    print(f"✅ Connected to IPFS API ({ver}) at {self.api_url}")
+                    print(f"✅ Connected to IPFS (kubo/{ver}) at {self.api_url}")
                 else:
                     self.pinata_only = True
-                    print("⚠️ IPFS API not responding, falling back to Pinata")
-            except Exception:
+                    print(f"⚠️ IPFS API not responding (HTTP {r.status_code}), falling back to Pinata")
+            except Exception as exc:
                 self.pinata_only = True
-                print("⚠️ Could not connect to IPFS API, falling back to Pinata")
+                print(f"⚠️ Could not connect to IPFS API ({exc}), falling back to Pinata")
         else:
             self.pinata_only = True
             print("📌 Pinata-only mode enabled (no IPFS_API_URL)")

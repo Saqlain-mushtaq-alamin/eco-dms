@@ -2,6 +2,20 @@ version: "3.9"
 services:
   ipfs:
     image: ipfs/kubo:latest
+    # Override entrypoint so we can patch the config on every startup.
+    # This fixes two common issues:
+    #   1. API bound to 127.0.0.1 inside the container (Docker can't forward to it)
+    #   2. CORS headers missing, causing 403 on /api/v0/* from Python clients
+    entrypoint: |
+      /bin/sh -c "
+        [ ! -f /data/ipfs/config ] && ipfs init --profile=server;
+        ipfs config Addresses.API /ip4/0.0.0.0/tcp/5001;
+        ipfs config Addresses.Gateway /ip4/0.0.0.0/tcp/8080;
+        ipfs config --json API.HTTPHeaders.Access-Control-Allow-Origin '[\"*\"]';
+        ipfs config --json API.HTTPHeaders.Access-Control-Allow-Methods '[\"PUT\", \"POST\", \"GET\"]';
+        ipfs config --json API.HTTPHeaders.Access-Control-Allow-Headers '[\"Authorization\", \"X-Requested-With\"]';
+        exec ipfs daemon --migrate=true
+      "
     ports:
       - "5001:5001"
       - "8080:8080"
