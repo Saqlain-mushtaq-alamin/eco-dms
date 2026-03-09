@@ -1,4 +1,3 @@
-// filepath: d:\canvas\eco-dms\eco-dms\apps\web\src\api.ts
 export const API_BASE = 'http://localhost:8000'
 
 export async function getNonce(): Promise<{ nonce: string }> {
@@ -26,8 +25,6 @@ export async function verifySignature(message: string, signature: string) {
     if (!r.ok) throw new Error('verify failed')
 
     const data = await r.json()
-
-    // Store the JWT token from response
     if (data.token) {
         localStorage.setItem('auth_token', data.token)
         console.log('✅ Token stored')
@@ -201,99 +198,99 @@ export async function getFeedTimeline() {
 
     if (!res.ok) throw new Error(`Failed to fetch feed: ${res.status}`)
     return res.json()
+}
 
-    export interface AppNotification {
-        id: string
-        type: 'like' | 'comment' | 'reward' | string
-        message: string
-        recipient_wallet: string
-        actor_wallet?: string | null
-        post_cid?: string | null
-        metadata?: Record<string, unknown>
-        read: boolean
-        created_at: string
-    }
+export interface AppNotification {
+    id: string
+    type: 'like' | 'comment' | 'reward' | string
+    message: string
+    recipient_wallet: string
+    actor_wallet?: string | null
+    post_cid?: string | null
+    metadata?: Record<string, unknown>
+    read: boolean
+    created_at: string
+}
 
-    export interface NotificationListResponse {
-        notifications: AppNotification[]
-        count: number
-        unread_count: number
-    }
+export interface NotificationListResponse {
+    notifications: AppNotification[]
+    count: number
+    unread_count: number
+}
 
-    export async function getNotifications(limit: number = 20): Promise<NotificationListResponse> {
-        const token = localStorage.getItem('auth_token')
-        if (!token) throw new Error('No authentication token')
+export async function getNotifications(limit: number = 20): Promise<NotificationListResponse> {
+    const token = localStorage.getItem('auth_token')
+    if (!token) throw new Error('No authentication token')
 
-        const params = new URLSearchParams({ limit: String(limit) })
-        const res = await fetch(`${API_BASE}/api/notifications?${params.toString()}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        })
+    const params = new URLSearchParams({ limit: String(limit) })
+    const res = await fetch(`${API_BASE}/api/notifications?${params.toString()}`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    })
 
-        if (!res.ok) throw new Error(`Failed to fetch notifications: ${res.status}`)
-        return res.json()
-    }
+    if (!res.ok) throw new Error(`Failed to fetch notifications: ${res.status}`)
+    return res.json()
+}
 
-    export async function markNotificationRead(notificationId: string): Promise<{ success: boolean }> {
-        const token = localStorage.getItem('auth_token')
-        if (!token) throw new Error('No authentication token')
+export async function markNotificationRead(notificationId: string): Promise<{ success: boolean }> {
+    const token = localStorage.getItem('auth_token')
+    if (!token) throw new Error('No authentication token')
 
-        const res = await fetch(`${API_BASE}/api/notifications/${notificationId}/read`, {
-            method: 'PATCH',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        })
+    const res = await fetch(`${API_BASE}/api/notifications/${notificationId}/read`, {
+        method: 'PATCH',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    })
 
-        if (!res.ok) throw new Error(`Failed to mark notification as read: ${res.status}`)
-        return res.json()
-    }
+    if (!res.ok) throw new Error(`Failed to mark notification as read: ${res.status}`)
+    return res.json()
+}
 
-    export async function markAllNotificationsRead(): Promise<{ success: boolean }> {
-        const token = localStorage.getItem('auth_token')
-        if (!token) throw new Error('No authentication token')
+export async function markAllNotificationsRead(): Promise<{ success: boolean }> {
+    const token = localStorage.getItem('auth_token')
+    if (!token) throw new Error('No authentication token')
 
-        const res = await fetch(`${API_BASE}/api/notifications/read-all`, {
-            method: 'PATCH',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        })
+    const res = await fetch(`${API_BASE}/api/notifications/read-all`, {
+        method: 'PATCH',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    })
 
-        if (!res.ok) throw new Error(`Failed to mark all notifications as read: ${res.status}`)
-        return res.json()
-    }
+    if (!res.ok) throw new Error(`Failed to mark all notifications as read: ${res.status}`)
+    return res.json()
+}
 
-    export interface NotificationPost {
-        cid?: string
-        author_wallet?: string
-        author?: string
-        content?: string
-        media_cids?: string[]
-        created_at?: string
-        likes_count?: number
-        comments_count?: number
-        verification_status?: 'pending' | 'verified' | 'none' | string
-        verified?: boolean
-        eco_score?: number
-    }
+export interface NotificationPost {
+    cid?: string
+    author_wallet?: string
+    author?: string
+    content?: string
+    media_cids?: string[]
+    created_at?: string
+    likes_count?: number
+    comments_count?: number
+    verification_status?: 'pending' | 'verified' | 'none' | string
+    verified?: boolean
+    eco_score?: number
+}
 
-    export async function getPostByCid(postCid: string): Promise<{ post: NotificationPost }> {
-        const token = localStorage.getItem('auth_token')
-        if (!token) throw new Error('No authentication token')
+export async function getPostByCid(postCid: string): Promise<{ post: NotificationPost }> {
+    const token = localStorage.getItem('auth_token')
+    if (!token) throw new Error('No authentication token')
 
-        const res = await fetch(`${API_BASE}/api/posts/by-cid/${postCid}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        })
+    const res = await fetch(`${API_BASE}/api/posts/by-cid/${postCid}`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    })
 
-        if (!res.ok) throw new Error(`Failed to fetch post by cid: ${res.status}`)
-        return res.json()
-    }
+    if (!res.ok) throw new Error(`Failed to fetch post by cid: ${res.status}`)
+    return res.json()
 }
