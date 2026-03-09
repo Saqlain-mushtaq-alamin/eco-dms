@@ -2,6 +2,13 @@
 Main FastAPI application with IPFS integration.
 No database - everything stored in IPFS!
 """
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load backend/.env using an absolute path so env vars are available
+# regardless of the process working directory (e.g. when started from repo root).
+load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=False)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware

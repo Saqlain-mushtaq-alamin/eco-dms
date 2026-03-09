@@ -1,6 +1,10 @@
+from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List, Union
 from pydantic import field_validator
+
+# Absolute path to backend/.env — works regardless of process CWD.
+_ENV_FILE = str(Path(__file__).resolve().parent.parent / ".env")
 
 
 class Settings(BaseSettings):
@@ -44,7 +48,7 @@ class Settings(BaseSettings):
     # No additional config needed - uses IPFS_API_URL
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=_ENV_FILE,
         case_sensitive=True,
         extra="ignore"
     )

@@ -6,8 +6,14 @@ import os
 import json
 import httpx
 from datetime import datetime
-from celery import Celery
+from pathlib import Path
 from typing import Dict, Optional
+from dotenv import load_dotenv
+from celery import Celery
+
+# Load backend/.env using an absolute path so this works regardless of the
+# process working directory (e.g. when Celery is launched from the repo root).
+load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=False)
 
 from .inference import get_verifier
 from .signer import VerdictSigner
