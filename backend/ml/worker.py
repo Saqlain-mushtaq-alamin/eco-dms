@@ -176,6 +176,16 @@ def verify_eco_content(
             post_id,
             signed_verdict=signed_verdict,
         )
+
+        # Auto-open community voting window now that ML has finished.
+        # The window is keyed by post_id (post CID). Only open if we have
+        # enough info — the Celery worker has the raw confidence (0-1) and
+        # the poster wallet right here, so this is the right place to do it.
+        _open_voting_window_for_post(
+            post_cid=post_id or ipfs_cid,
+            confidence=verdict.get('confidence', 0),
+            poster_wallet=author_wallet,
+        )
         
         # Return result
         result = {
@@ -306,6 +316,40 @@ def _store_verdict_mapping(
     # Save updated mappings
     with open(mapping_file, 'w') as f:
         json.dump(mappings, f, indent=2)
+
+
+def _open_voting_window_for_post(
+    post_cid: str,
+    confidence: float,
+    poster_wallet: Optional[str],
+) -> None:
+    """
+    Open a community voting window for a post after ML verification completes.
+    Called from inside the Celery task — imports are deferred to avoid circular deps.
+    """
+    if not poster_wallet:
+        print(f"[voting] Skipping window open for {post_cid} — no poster_wallet")
+        return
+
+    try:
+        from backend.app.services.voting_service import voting_service
+
+        # Normalise confidence to 0-1 range (ML returns 0-100 sometimes)
+        conf = confidence / 100.0 if confidence > 1.0 else float(confidence)
+
+        if voting_service.get_status(post_cid):
+            print(f"[voting] Window already open for {post_cid}, skipping")
+            return
+
+        voting_service.open_window(
+            post_cid=post_cid,
+            ml_confidence=conf,
+            poster_wallet=poster_wallet,
+        )
+        print(f"[voting] Opened window for {post_cid} (confidence={conf:.2f})")
+    except Exception as e:
+        # Non-fatal — verdict is already stored, just log the failure
+        print(f"[voting] Failed to open window for {post_cid}: {e}")
 
 
 def get_verdict_for_post(post_cid: str) -> Optional[Dict]:

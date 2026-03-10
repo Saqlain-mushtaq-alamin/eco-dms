@@ -187,7 +187,20 @@ export const VotePanel: React.FC<VotePanelProps> = ({
 
     // ── Render ────────────────────────────────────────────────────────────────
 
-    if (!status) return null;
+    if (!status) {
+        // Voting window not open yet — show a subtle placeholder so users know
+        // it will appear once the ML analysis window is ready.
+        return (
+            <View style={[styles.container, { borderColor: theme.colors.border, opacity: 0.7 }, style]}>
+                <View style={styles.row}>
+                    <View style={[styles.dot, { backgroundColor: '#f59e0b' }]} />
+                    <Text style={[styles.tinyLabel, { color: theme.colors.textSecondary, marginLeft: 6 }]}>
+                        Community voting opens after analysis completes
+                    </Text>
+                </View>
+            </View>
+        );
+    }
 
     const hasVoted = localVote !== null || status.has_voted === true;
     const windowOpen = status.window_open && secondsLeft > 0;

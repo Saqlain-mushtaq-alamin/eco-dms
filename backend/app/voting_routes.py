@@ -125,8 +125,6 @@ async def get_vote_status(
         }
     return status
 
-    return status
-
 
 @router.get("/{post_cid}/my-vote")
 async def get_my_vote(
