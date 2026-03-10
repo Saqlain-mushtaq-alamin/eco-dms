@@ -22,6 +22,7 @@ from .services.orbitdb_service import orbitdb_service
 from .posts_manage.ipfs_post_service import ipfs_service
 from .services.notification_service import notification_service
 from .deps import get_current_user
+from .services.voting_service import voting_service
 
 try:
     from backend.ml.worker import get_verdict_for_post
@@ -156,9 +157,33 @@ async def get_task_status(task_id: str):
     - **task_id**: Celery task ID from /verify endpoint
     
     Returns task status and result when completed.
+    When the task completes, automatically opens a community voting window.
     """
     try:
         status = get_verification_status(task_id)
+
+        # Auto-open voting window when ML analysis completes successfully
+        if status.get('status') in ('SUCCESS', 'completed'):
+            result = status.get('result') or {}
+            if isinstance(result, dict):
+                confidence_raw = result.get('confidence', 0) or 0
+                post_cid = result.get('post_id') or result.get('ipfs_cid')
+                poster_wallet = result.get('author_wallet')
+                # Normalise confidence to 0–1 range
+                confidence = confidence_raw / 100.0 if confidence_raw > 1.0 else float(confidence_raw)
+
+                if post_cid and poster_wallet and confidence > 0:
+                    if not voting_service.get_status(post_cid):
+                        try:
+                            voting_service.open_window(
+                                post_cid=post_cid,
+                                ml_confidence=confidence,
+                                poster_wallet=poster_wallet,
+                            )
+                            logger.info("Auto-opened voting window for post %s (confidence=%.2f)", post_cid, confidence)
+                        except Exception as ve:
+                            logger.warning("Failed to auto-open voting window for %s: %s", post_cid, ve)
+
         return status
     
     except Exception as e:

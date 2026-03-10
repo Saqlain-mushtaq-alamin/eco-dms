@@ -901,7 +901,7 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
                                     onComment={p.cid ? () => handleToggleComments(p.cid!) : undefined}
                                     ecoScore={typeof p.eco_score === 'number' ? p.eco_score : undefined}
                                     verified={p.verified === true}
-                                    votePanel={p.cid ? (
+                                    votePanel={p.cid && p.verification_status === 'verified' ? (
                                         <VotePanel
                                             postCid={p.cid}
                                             viewerWallet={address}

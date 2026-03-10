@@ -103,13 +103,19 @@ export const VotePanel: React.FC<VotePanelProps> = ({
             if (s) {
                 setStatus(s);
                 setSecondsLeft(s.seconds_left);
+            } else {
+                // No voting window for this post yet — stop polling to avoid 404 spam
+                if (pollRef.current) {
+                    clearInterval(pollRef.current);
+                    pollRef.current = null;
+                }
             }
         } catch { /* silent — voting panel is non-critical */ }
     };
 
     useEffect(() => {
         fetchStatus();
-        // Poll every 30 s while window is open
+        // Poll every 30 s while window is open; cancelled early if no window found
         pollRef.current = setInterval(fetchStatus, 30_000);
         return () => {
             if (pollRef.current) clearInterval(pollRef.current);

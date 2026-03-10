@@ -117,7 +117,13 @@ async def get_vote_status(
 
     status = voting_service.get_public_status(post_cid, viewer_wallet)
     if not status:
-        raise HTTPException(status_code=404, detail="No voting window for this post")
+        # No voting window exists yet for this post — return gracefully instead of 404
+        return {
+            "window_open": False,
+            "exists": False,
+            "post_cid": post_cid,
+        }
+    return status
 
     return status
 

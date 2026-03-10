@@ -324,7 +324,10 @@ export async function getVoteStatus(postCid: string): Promise<VoteStatusResponse
         const res = await fetch(`${API_BASE}/api/votes/${encodeURIComponent(postCid)}/status`, { headers })
         if (res.status === 404) return null
         if (!res.ok) throw new Error(`Vote status fetch failed: ${res.status}`)
-        return res.json()
+        const data = await res.json()
+        // Backend returns {window_open: false, exists: false} when no window has been opened yet
+        if (data.exists === false) return null
+        return data as VoteStatusResponse
     } catch {
         return null
     }
