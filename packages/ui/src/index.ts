@@ -6,6 +6,8 @@ export { Avatar } from './components/Avatar';
 export { WalletConnectButton } from './components/WalletConnectButton';
 export { ProfileCard } from './components/ProfileCard';
 export { PostCard } from './components/PostCard';
+export { VotePanel } from './components/VotePanel';
+export type { VoteStatus, VotePanelProps } from './components/VotePanel';
 export { LoadingSpinner } from './components/LoadingSpinner';
 export { Modal } from './components/Modal';
 

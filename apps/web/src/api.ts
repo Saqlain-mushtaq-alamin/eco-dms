@@ -294,3 +294,67 @@ export async function getPostByCid(postCid: string): Promise<{ post: Notificatio
     if (!res.ok) throw new Error(`Failed to fetch post by cid: ${res.status}`)
     return res.json()
 }
+
+// ── Community Voting API ───────────────────────────────────────────────────────
+
+export interface VoteStatusResponse {
+    post_cid: string
+    path: 'auto' | 'standard' | 'extended'
+    quorum: number
+    deadline: number
+    seconds_left: number
+    window_open: boolean
+    total_votes: number
+    quorum_met: boolean
+    has_voted: boolean | null
+    ml_confidence: number
+    // only after close
+    eco_votes?: number
+    not_eco_votes?: number
+    final_verdict?: boolean | null
+    settled?: boolean
+}
+
+export async function getVoteStatus(postCid: string): Promise<VoteStatusResponse | null> {
+    const token = localStorage.getItem('auth_token')
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (token) headers['Authorization'] = `Bearer ${token}`
+
+    try {
+        const res = await fetch(`${API_BASE}/api/votes/${encodeURIComponent(postCid)}/status`, { headers })
+        if (res.status === 404) return null
+        if (!res.ok) throw new Error(`Vote status fetch failed: ${res.status}`)
+        return res.json()
+    } catch {
+        return null
+    }
+}
+
+export async function castVote(
+    postCid: string,
+    choice: 'eco' | 'not_eco',
+    signature: string,
+    ecoTokenBalance: number,
+): Promise<{ success: boolean; message: string }> {
+    const token = localStorage.getItem('auth_token')
+    if (!token) return { success: false, message: 'Not authenticated' }
+
+    const res = await fetch(`${API_BASE}/api/votes/${encodeURIComponent(postCid)}`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            choice,
+            signature,
+            eco_token_balance: ecoTokenBalance,
+        }),
+    })
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: 'Unknown error' }))
+        return { success: false, message: err.detail ?? 'Vote failed' }
+    }
+    return res.json()
+}

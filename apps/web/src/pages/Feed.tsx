@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Button, Input, LoadingSpinner, PostCard } from '@eco-dms/ui'
+import { Button, Input, LoadingSpinner, PostCard, VotePanel } from '@eco-dms/ui'
+import type { VoteStatus } from '@eco-dms/ui'
+import { getVoteStatus, castVote } from '../api'
 
 type Post = {
     cid?: string
@@ -897,6 +899,22 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
                                     onAuthorPress={() => onVisitProfile(p.author_wallet)}
                                     onLike={p.cid ? () => handleLike(p.cid!, p.liked_by_user ?? false) : undefined}
                                     onComment={p.cid ? () => handleToggleComments(p.cid!) : undefined}
+                                    ecoScore={typeof p.eco_score === 'number' ? p.eco_score : undefined}
+                                    verified={p.verified === true}
+                                    votePanel={p.cid ? (
+                                        <VotePanel
+                                            postCid={p.cid}
+                                            viewerWallet={address}
+                                            ecoBalance={10} // TODO: read actual ECO balance from chain
+                                            onFetchStatus={async (cid) => {
+                                                const s = await getVoteStatus(cid)
+                                                return s as VoteStatus | null
+                                            }}
+                                            onCastVote={async (cid, choice, sig, bal) => {
+                                                return castVote(cid, choice, sig, bal)
+                                            }}
+                                        />
+                                    ) : undefined}
                                     style={{
                                         borderWidth: 0,
                                         backgroundColor: 'rgba(255,255,255,0.75)',

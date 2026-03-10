@@ -26,6 +26,8 @@ export type { ECDSA } from "./@openzeppelin/contracts/utils/cryptography/ECDSA";
 export { ECDSA__factory } from "./factories/@openzeppelin/contracts/utils/cryptography/ECDSA__factory";
 export type { EIP712 } from "./@openzeppelin/contracts/utils/cryptography/EIP712";
 export { EIP712__factory } from "./factories/@openzeppelin/contracts/utils/cryptography/EIP712__factory";
+export type { MerkleProof } from "./@openzeppelin/contracts/utils/cryptography/MerkleProof";
+export { MerkleProof__factory } from "./factories/@openzeppelin/contracts/utils/cryptography/MerkleProof__factory";
 export type { MessageHashUtils } from "./@openzeppelin/contracts/utils/cryptography/MessageHashUtils";
 export { MessageHashUtils__factory } from "./factories/@openzeppelin/contracts/utils/cryptography/MessageHashUtils__factory";
 export type { SafeCast } from "./@openzeppelin/contracts/utils/math/SafeCast";
@@ -34,6 +36,8 @@ export type { ShortStrings } from "./@openzeppelin/contracts/utils/ShortStrings"
 export { ShortStrings__factory } from "./factories/@openzeppelin/contracts/utils/ShortStrings__factory";
 export type { Strings } from "./@openzeppelin/contracts/utils/Strings";
 export { Strings__factory } from "./factories/@openzeppelin/contracts/utils/Strings__factory";
+export type { CommunityVoting } from "./contracts/CommunityVoting";
+export { CommunityVoting__factory } from "./factories/contracts/CommunityVoting__factory";
 export type { ProfileRegistry } from "./contracts/ProfileRegistry";
 export { ProfileRegistry__factory } from "./factories/contracts/ProfileRegistry__factory";
 export type { RewardToken } from "./contracts/RewardToken";

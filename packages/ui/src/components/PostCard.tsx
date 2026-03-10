@@ -28,6 +28,12 @@ export interface PostCardProps {
     headerRight?: React.ReactNode;
     style?: ViewStyle;
     testID?: string;
+    /** ML confidence score 0-1 (used to show eco badge) */
+    ecoScore?: number;
+    /** Whether ML + community have verified this post as eco-friendly */
+    verified?: boolean;
+    /** Slot for the VotePanel component — rendered after actions */
+    votePanel?: React.ReactNode;
 }
 
 export const PostCard: React.FC<PostCardProps> = ({
@@ -45,6 +51,9 @@ export const PostCard: React.FC<PostCardProps> = ({
     headerRight,
     style,
     testID,
+    ecoScore,
+    verified,
+    votePanel,
 }) => {
     const theme = useTheme();
     const [likeHovered, setLikeHovered] = React.useState(false);
@@ -97,6 +106,21 @@ export const PostCard: React.FC<PostCardProps> = ({
                 {headerRight ? (
                     <RNView style={[styles.headerRight, { marginLeft: theme.spacing.sm }]}>{headerRight}</RNView>
                 ) : null}
+                {/* Eco badge — shown when verified */}
+                {verified && (
+                    <RNView style={styles.ecoBadge}>
+                        <RNText style={styles.ecoBadgeText}>🌿 Eco</RNText>
+                        {ecoScore !== undefined && (
+                            <RNText style={styles.ecoScore}>{Math.round(ecoScore * 100)}%</RNText>
+                        )}
+                    </RNView>
+                )}
+                {/* ML analysed but community pending */}
+                {!verified && ecoScore !== undefined && ecoScore > 0 && (
+                    <RNView style={styles.mlBadge}>
+                        <RNText style={styles.mlBadgeText}>🔍 {Math.round(ecoScore * 100)}%</RNText>
+                    </RNView>
+                )}
             </RNView>
 
             {/* Content */}
@@ -167,6 +191,9 @@ export const PostCard: React.FC<PostCardProps> = ({
                     </RNText>
                 </RNTouchableOpacity>
             </RNView>
+
+            {/* Community vote panel — injected from parent, hidden by default */}
+            {votePanel ? votePanel : null}
         </Card>
     );
 };
@@ -215,6 +242,40 @@ const styles = StyleSheet.create({
     action: {
         flexDirection: 'row',
         alignItems: 'center',
+    },
+    ecoBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#d1fae5',
+        borderRadius: 20,
+        paddingHorizontal: 9,
+        paddingVertical: 3,
+        marginLeft: 6,
+        gap: 4,
+    },
+    ecoBadgeText: {
+        color: '#065f46',
+        fontSize: 11,
+        fontWeight: '700',
+    },
+    ecoScore: {
+        color: '#065f46',
+        fontSize: 10,
+        fontWeight: '600',
+    },
+    mlBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(254,243,199,0.85)',
+        borderRadius: 20,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        marginLeft: 6,
+    },
+    mlBadgeText: {
+        color: '#92400e',
+        fontSize: 11,
+        fontWeight: '600',
     },
     actionPill: {
         borderWidth: 1,

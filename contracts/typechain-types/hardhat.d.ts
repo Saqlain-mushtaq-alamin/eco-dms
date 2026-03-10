@@ -54,6 +54,10 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.EIP712__factory>;
     getContractFactory(
+      name: "MerkleProof",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.MerkleProof__factory>;
+    getContractFactory(
       name: "MessageHashUtils",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.MessageHashUtils__factory>;
@@ -69,6 +73,10 @@ declare module "hardhat/types/runtime" {
       name: "Strings",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.Strings__factory>;
+    getContractFactory(
+      name: "CommunityVoting",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.CommunityVoting__factory>;
     getContractFactory(
       name: "ProfileRegistry",
       signerOrOptions?: ethers.Signer | FactoryOptions
@@ -133,6 +141,11 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.EIP712>;
     getContractAt(
+      name: "MerkleProof",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.MerkleProof>;
+    getContractAt(
       name: "MessageHashUtils",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
@@ -152,6 +165,11 @@ declare module "hardhat/types/runtime" {
       address: string | ethers.Addressable,
       signer?: ethers.Signer
     ): Promise<Contracts.Strings>;
+    getContractAt(
+      name: "CommunityVoting",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.CommunityVoting>;
     getContractAt(
       name: "ProfileRegistry",
       address: string | ethers.Addressable,
@@ -209,6 +227,10 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.EIP712>;
     deployContract(
+      name: "MerkleProof",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.MerkleProof>;
+    deployContract(
       name: "MessageHashUtils",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.MessageHashUtils>;
@@ -224,6 +246,10 @@ declare module "hardhat/types/runtime" {
       name: "Strings",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.Strings>;
+    deployContract(
+      name: "CommunityVoting",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.CommunityVoting>;
     deployContract(
       name: "ProfileRegistry",
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -288,6 +314,11 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.EIP712>;
     deployContract(
+      name: "MerkleProof",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.MerkleProof>;
+    deployContract(
       name: "MessageHashUtils",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -307,6 +338,11 @@ declare module "hardhat/types/runtime" {
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.Strings>;
+    deployContract(
+      name: "CommunityVoting",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.CommunityVoting>;
     deployContract(
       name: "ProfileRegistry",
       args: any[],

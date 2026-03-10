@@ -21,6 +21,7 @@ from .services.redis_service import redis_service
 from .posts_manage.post_routes import router as posts_router
 from .verify_routes import router as verify_router
 from .notification_routes import router as notification_router
+from .voting_routes import router as voting_router
 
 # Create FastAPI app
 app = FastAPI(
@@ -49,6 +50,7 @@ app.include_router(siwe_alias_router)  # Direct /api/siwe/... routes
 app.include_router(posts_router)  # Include posts router
 app.include_router(verify_router)  # ML verification routes
 app.include_router(notification_router)  # Decentralized notifications routes
+app.include_router(voting_router)  # Community voting routes
 
 
 @app.on_event("startup")

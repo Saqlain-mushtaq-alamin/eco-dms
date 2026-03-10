@@ -1072,14 +1072,114 @@
     "eco": true,
     "confidence": 0.273,
     "verified_at": "2026-03-09T10:02:06.953783",
-    "signature": "0x896b7216e69c093f1e37612eee9d382bda558b3b4095fe675f335bbe2de72a1a4ec69b7fd288b8c4cd126cf258af6f78ccac5a86a6ce7ec8f5c813982ddf809a1b",
+    "signature": "0xfc762ba04763e7c320f2957a8ee71907e9c03055d3d3cae557c5aa4153932bc86f9f728f066010da2a3729be39567028c1fa0c95abcd6d49ffecefb81297ac241c",
     "verifier_address": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
     "chain_verdict": {
       "postCid": "QmdcBcDM5PAQsiQaaPXaWSTg3xF3pL9Tbj8UuyQXxXnKBi",
       "isEco": true,
       "confidence": 80,
-      "timestamp": 1773092237,
-      "nonce": 247126879671759,
+      "timestamp": 1773139494,
+      "nonce": 97582778858164,
+      "wallet": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+    },
+    "eip712_domain": {
+      "name": "EcoDMS Verification",
+      "version": "1",
+      "chainId": 31337,
+      "verifyingContract": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
+    },
+    "eip712_types": {
+      "Verdict": [
+        {
+          "name": "postCid",
+          "type": "string"
+        },
+        {
+          "name": "isEco",
+          "type": "bool"
+        },
+        {
+          "name": "confidence",
+          "type": "uint256"
+        },
+        {
+          "name": "timestamp",
+          "type": "uint256"
+        },
+        {
+          "name": "nonce",
+          "type": "uint256"
+        },
+        {
+          "name": "wallet",
+          "type": "address"
+        }
+      ]
+    }
+  },
+  "QmUtzxxs7YQ7H69JKBjZF3VtKsibKHsedk6BquCPJhWXq5": {
+    "verdict_cid": null,
+    "eco": true,
+    "confidence": 0.263,
+    "verified_at": "2026-03-10T10:40:08.293525",
+    "signature": "0x0dabccc55efc3b6492307813a3ae5184aec9c476d3ded55b922004bf54b160d17b2d272a9a48f4b86301f4e0c1922807802e2979f16b49242ce2843055920d2f1b",
+    "verifier_address": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "chain_verdict": {
+      "postCid": "QmTxmKUDyXL5FW5gCmQfH3Mq2VoB5SSj62GrFyzp7VCDk8",
+      "isEco": true,
+      "confidence": 80,
+      "timestamp": 1773139208,
+      "nonce": 34991322531692,
+      "wallet": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+    },
+    "eip712_domain": {
+      "name": "EcoDMS Verification",
+      "version": "1",
+      "chainId": 31337,
+      "verifyingContract": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
+    },
+    "eip712_types": {
+      "Verdict": [
+        {
+          "name": "postCid",
+          "type": "string"
+        },
+        {
+          "name": "isEco",
+          "type": "bool"
+        },
+        {
+          "name": "confidence",
+          "type": "uint256"
+        },
+        {
+          "name": "timestamp",
+          "type": "uint256"
+        },
+        {
+          "name": "nonce",
+          "type": "uint256"
+        },
+        {
+          "name": "wallet",
+          "type": "address"
+        }
+      ]
+    }
+  },
+  "QmTxmKUDyXL5FW5gCmQfH3Mq2VoB5SSj62GrFyzp7VCDk8": {
+    "verdict_cid": null,
+    "eco": true,
+    "confidence": 0.263,
+    "verified_at": "2026-03-10T10:40:08.293525",
+    "signature": "0x746f2206f3c2e776042f02e6b20c9e4e0b69acc4ed33ed45f1aa4b18570582b7101c10a57a4e0f7706d76a9715e7349766807f1dde873c51a433b4283b46d95f1b",
+    "verifier_address": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "chain_verdict": {
+      "postCid": "QmTxmKUDyXL5FW5gCmQfH3Mq2VoB5SSj62GrFyzp7VCDk8",
+      "isEco": true,
+      "confidence": 80,
+      "timestamp": 1773139278,
+      "nonce": 59120069907002,
       "wallet": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
     },
     "eip712_domain": {
