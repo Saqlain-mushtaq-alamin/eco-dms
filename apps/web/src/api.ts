@@ -357,7 +357,12 @@ export async function castVote(
 
     if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: 'Unknown error' }))
-        return { success: false, message: err.detail ?? 'Vote failed' }
+        // FastAPI 422 returns detail as an array — coerce to a readable string
+        const detail = err.detail
+        const message = Array.isArray(detail)
+            ? detail.map((e: any) => e.msg ?? String(e)).join(', ')
+            : String(detail ?? 'Vote failed')
+        return { success: false, message }
     }
     return res.json()
 }

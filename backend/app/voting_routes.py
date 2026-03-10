@@ -20,7 +20,6 @@ class CastVoteRequest(BaseModel):
     signature: str = Field(
         ...,
         description="EIP-712 signed vote message from the user's wallet",
-        min_length=10,
     )
     eco_token_balance: float = Field(
         0.0,

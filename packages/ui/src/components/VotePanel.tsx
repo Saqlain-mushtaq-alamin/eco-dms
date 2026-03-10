@@ -164,7 +164,8 @@ export const VotePanel: React.FC<VotePanelProps> = ({
         setVoting(true);
         try {
             // Sign the vote (EIP-712 or fallback)
-            let sig = 'mock_sig';
+            // Placeholder sig when no wallet signer is wired — 10+ chars required by backend
+            let sig = 'mock_signature_unsigned';
             if (onSignVote) {
                 try { sig = await onSignVote(postCid, choice); }
                 catch { showToast('Signature cancelled'); setVoting(false); return; }
@@ -176,10 +177,12 @@ export const VotePanel: React.FC<VotePanelProps> = ({
                 await fetchStatus();
                 showToast(choice === 'eco' ? '🌿 Voted Eco-Friendly!' : '🚫 Voted Not Eco');
             } else {
-                showToast(result.message);
+                // Ensure message is always a string (guards against API returning objects)
+                showToast(String(result.message || 'Vote was not accepted'));
             }
-        } catch {
-            showToast('Failed to cast vote');
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : 'Failed to cast vote';
+            showToast(msg);
         } finally {
             setVoting(false);
         }

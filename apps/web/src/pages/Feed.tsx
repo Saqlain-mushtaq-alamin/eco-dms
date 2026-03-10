@@ -1,7 +1,21 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, Component, ReactNode } from 'react'
 import { Button, Input, LoadingSpinner, PostCard, VotePanel } from '@eco-dms/ui'
 import type { VoteStatus } from '@eco-dms/ui'
 import { getVoteStatus, castVote } from '../api'
+
+// Prevents a VotePanel JS crash from wiping the whole page
+class VotePanelErrorBoundary extends Component<{ children: ReactNode }, { crashed: boolean }> {
+    state = { crashed: false }
+    static getDerivedStateFromError() { return { crashed: true } }
+    render() {
+        if (this.state.crashed) return (
+            <div style={{ fontSize: 12, color: '#b45309', marginTop: 8 }}>
+                Voting unavailable for this post.
+            </div>
+        )
+        return this.props.children
+    }
+}
 
 type Post = {
     cid?: string
@@ -902,18 +916,20 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
                                     ecoScore={typeof p.eco_score === 'number' ? p.eco_score : undefined}
                                     verified={p.verified === true}
                                     votePanel={p.cid && p.verification_status === 'verified' ? (
-                                        <VotePanel
-                                            postCid={p.cid}
-                                            viewerWallet={address}
-                                            ecoBalance={10} // TODO: read actual ECO balance from chain
-                                            onFetchStatus={async (cid) => {
-                                                const s = await getVoteStatus(cid)
-                                                return s as VoteStatus | null
-                                            }}
-                                            onCastVote={async (cid, choice, sig, bal) => {
-                                                return castVote(cid, choice, sig, bal)
-                                            }}
-                                        />
+                                        <VotePanelErrorBoundary key={p.cid}>
+                                            <VotePanel
+                                                postCid={p.cid}
+                                                viewerWallet={address}
+                                                ecoBalance={10} // TODO: read actual ECO balance from chain
+                                                onFetchStatus={async (cid) => {
+                                                    const s = await getVoteStatus(cid)
+                                                    return s as VoteStatus | null
+                                                }}
+                                                onCastVote={async (cid, choice, sig, bal) => {
+                                                    return castVote(cid, choice, sig, bal)
+                                                }}
+                                            />
+                                        </VotePanelErrorBoundary>
                                     ) : undefined}
                                     style={{
                                         borderWidth: 0,
