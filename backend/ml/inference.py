@@ -150,19 +150,93 @@ class EcoVerifier:
         Returns:
             Verification result with eco verdict and confidence score
         """
-        # Fetch image from IPFS
-        image_url = f"{ipfs_gateway}/ipfs/{ipfs_cid}"
+        image_bytes = await self._fetch_image_from_ipfs(ipfs_cid, ipfs_gateway)
         
+        # Perform verification
+        return await self.verify_image(image_bytes, text_content)
+
+    async def verify_images_from_ipfs(
+        self,
+        ipfs_cids: List[str],
+        ipfs_gateway: str = "http://localhost:8080",
+        text_content: Optional[str] = None,
+    ) -> Dict:
+        """
+        Verify multiple images and return one merged verdict for the whole post.
+        """
+        if not ipfs_cids:
+            raise ValueError("ipfs_cids cannot be empty")
+
+        per_image_results: List[Dict] = []
+        failed_images: List[Dict[str, str]] = []
+
+        for cid in ipfs_cids:
+            try:
+                image_bytes = await self._fetch_image_from_ipfs(cid, ipfs_gateway)
+                image_verdict = await self.verify_image(image_bytes, text_content)
+                per_image_results.append({
+                    'ipfs_cid': cid,
+                    **image_verdict,
+                })
+            except Exception as e:
+                failed_images.append({'ipfs_cid': cid, 'error': str(e)})
+
+        if not per_image_results:
+            raise RuntimeError("Failed to verify all images from IPFS")
+
+        confidences = [float(v.get('confidence', 0.0)) for v in per_image_results]
+        merged_confidence = sum(confidences) / len(confidences)
+
+        threshold = float(self.scorer.eco_threshold)
+        merged_is_eco = merged_confidence > threshold
+
+        all_objects: List[str] = []
+        for v in per_image_results:
+            for obj in v.get('detected_objects', []):
+                if obj not in all_objects:
+                    all_objects.append(obj)
+
+        breakdown_keys = ('yolo_score', 'clip_score', 'efficientnet_score', 'text_score')
+        merged_breakdown = {
+            key: round(
+                sum(float(v.get('breakdown', {}).get(key, 0.0)) for v in per_image_results)
+                / len(per_image_results),
+                3,
+            )
+            for key in breakdown_keys
+        }
+
+        eco_images = sum(1 for v in per_image_results if bool(v.get('is_eco', False)))
+        merged_reasoning = (
+            f"Merged result from {len(per_image_results)} images "
+            f"({eco_images} eco-positive). "
+            f"Average confidence: {merged_confidence:.1%}."
+        )
+
+        return {
+            'is_eco': merged_is_eco,
+            'confidence': round(merged_confidence, 3),
+            'breakdown': merged_breakdown,
+            'detected_objects': all_objects,
+            'reasoning': merged_reasoning,
+            'models_used': self._get_active_models(),
+            'total_images': len(ipfs_cids),
+            'analyzed_images': len(per_image_results),
+            'failed_images': failed_images,
+            'per_image_results': per_image_results,
+        }
+
+    async def _fetch_image_from_ipfs(self, ipfs_cid: str, ipfs_gateway: str) -> bytes:
+        """Fetch one image from IPFS gateway."""
+        image_url = f"{ipfs_gateway}/ipfs/{ipfs_cid}"
+
         async with httpx.AsyncClient(
             timeout=httpx.Timeout(connect=10.0, read=35.0, write=10.0, pool=10.0),
             follow_redirects=True,
         ) as client:
             response = await client.get(image_url)
             response.raise_for_status()
-            image_bytes = response.content
-        
-        # Perform verification
-        return await self.verify_image(image_bytes, text_content)
+            return response.content
     
     async def verify_image(
         self,

@@ -6,7 +6,7 @@ import logging
 import time
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Query
 from pydantic import BaseModel, Field
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 import httpx
 import os
 import json
@@ -58,7 +58,8 @@ def _upsert_verdict_mapping(post_cid: str, updates: Dict) -> None:
 
 class VerifyRequest(BaseModel):
     """Request to verify eco-friendliness of content."""
-    ipfs_cid: str = Field(..., description="IPFS CID of image to verify")
+    ipfs_cid: Optional[str] = Field(None, description="IPFS CID of image to verify")
+    ipfs_cids: Optional[List[str]] = Field(None, description="Optional list of image CIDs for merged verification")
     text_content: Optional[str] = Field(None, description="Optional post text content")
     post_id: Optional[str] = Field(None, description="Optional post identifier")
     author_wallet: Optional[str] = Field(None, description="Optional author wallet address")
@@ -90,12 +91,19 @@ async def verify_content(request: VerifyRequest):
     Returns either immediate verdict or task_id for status polling.
     """
     try:
+        media_cids = [cid for cid in (request.ipfs_cids or []) if cid]
+        if not media_cids and request.ipfs_cid:
+            media_cids = [request.ipfs_cid]
+        if not media_cids:
+            raise HTTPException(status_code=400, detail="Provide ipfs_cid or ipfs_cids")
+
         if request.async_mode:
             # Submit to Celery worker queue
             task = celery_app.send_task(
                 'verify_eco_content',
                 kwargs={
-                    'ipfs_cid': request.ipfs_cid,
+                    'ipfs_cid': media_cids[0],
+                    'ipfs_cids': media_cids,
                     'text_content': request.text_content,
                     'post_id': request.post_id,
                     'author_wallet': request.author_wallet
@@ -117,17 +125,24 @@ async def verify_content(request: VerifyRequest):
             ipfs_gateway = os.getenv('IPFS_GATEWAY_URL', 'http://localhost:8080')
             
             # Run verification
-            import asyncio
-            verdict = await verifier.verify_from_ipfs(
-                request.ipfs_cid, 
-                ipfs_gateway, 
-                request.text_content
-            )
+            if len(media_cids) == 1:
+                verdict = await verifier.verify_from_ipfs(
+                    media_cids[0],
+                    ipfs_gateway,
+                    request.text_content
+                )
+            else:
+                verdict = await verifier.verify_images_from_ipfs(
+                    media_cids,
+                    ipfs_gateway,
+                    request.text_content
+                )
             
             # Add metadata
             verdict_with_metadata = {
                 **verdict,
-                'ipfs_cid': request.ipfs_cid,
+                'ipfs_cid': media_cids[0],
+                'ipfs_cids': media_cids,
                 'post_id': request.post_id,
                 'author_wallet': request.author_wallet,
                 'verified_at': datetime.utcnow().isoformat(),

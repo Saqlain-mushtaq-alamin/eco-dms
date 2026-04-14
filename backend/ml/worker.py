@@ -7,7 +7,7 @@ import json
 import httpx
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 from dotenv import load_dotenv
 from celery import Celery
 
@@ -49,7 +49,8 @@ celery_app.conf.update(
 @celery_app.task(name='verify_eco_content', bind=True, throws=(Exception,))
 def verify_eco_content(
     self,
-    ipfs_cid: str,
+    ipfs_cid: Optional[str] = None,
+    ipfs_cids: Optional[List[str]] = None,
     text_content: Optional[str] = None,
     post_id: Optional[str] = None,
     author_wallet: Optional[str] = None
@@ -58,7 +59,8 @@ def verify_eco_content(
     Celery task: Verify eco-friendliness of IPFS content.
     
     Args:
-        ipfs_cid: IPFS CID of the image to verify
+        ipfs_cid: IPFS CID of one image to verify (legacy)
+        ipfs_cids: List of IPFS CIDs for multi-image post verification
         text_content: Optional post text content
         post_id: Optional post identifier
         author_wallet: Optional author wallet address
@@ -67,6 +69,12 @@ def verify_eco_content(
         Dict with verification result and signed verdict
     """
     try:
+        media_cids = [cid for cid in (ipfs_cids or []) if cid]
+        if not media_cids and ipfs_cid:
+            media_cids = [ipfs_cid]
+        if not media_cids:
+            raise ValueError("Either ipfs_cid or ipfs_cids must be provided")
+
         # Update task state
         self.update_state(
             state='PROCESSING',
@@ -80,9 +88,9 @@ def verify_eco_content(
         primary_gateway = os.getenv('IPFS_GATEWAY_URL', 'http://localhost:8080')
         # Fallback to public gateways if local fails
         fallback_gateways = [
-            f"https://{ipfs_cid}.ipfs.nftstorage.link",
-            f"https://ipfs.io/ipfs/{ipfs_cid}",
-            f"https://dweb.link/ipfs/{ipfs_cid}",
+            "https://ipfs.nftstorage.link",
+            "https://ipfs.io",
+            "https://dweb.link",
         ]
         
         # Perform verification
@@ -103,18 +111,17 @@ def verify_eco_content(
         gateways_to_try = [primary_gateway] + fallback_gateways
         
         try:
-            for gateway_url in gateways_to_try:
-                # Extract base URL if CID is already in the URL
-                if ipfs_cid in gateway_url:
-                    # Already a full URL, use directly
-                    gateway_base = gateway_url.rsplit('/ipfs/', 1)[0]
-                else:
-                    gateway_base = gateway_url
+            for gateway_base in gateways_to_try:
                 
                 try:
-                    verdict = loop.run_until_complete(
-                        verifier.verify_from_ipfs(ipfs_cid, gateway_base, text_content)
-                    )
+                    if len(media_cids) == 1:
+                        verdict = loop.run_until_complete(
+                            verifier.verify_from_ipfs(media_cids[0], gateway_base, text_content)
+                        )
+                    else:
+                        verdict = loop.run_until_complete(
+                            verifier.verify_images_from_ipfs(media_cids, gateway_base, text_content)
+                        )
                     # Success! Break out of loop
                     break
                 except httpx.HTTPStatusError as e:
@@ -133,7 +140,8 @@ def verify_eco_content(
         # Add metadata
         verdict_with_metadata = {
             **verdict,
-            'ipfs_cid': ipfs_cid,
+            'ipfs_cid': media_cids[0],
+            'ipfs_cids': media_cids,
             'post_id': post_id,
             'author_wallet': author_wallet,
             'verified_at': datetime.utcnow().isoformat(),
@@ -170,7 +178,7 @@ def verify_eco_content(
         
         # Store verdict indexed by both media CID and post ID
         _store_verdict_mapping(
-            ipfs_cid,
+            media_cids,
             signed_cid,
             verdict,
             post_id,
@@ -182,7 +190,7 @@ def verify_eco_content(
         # enough info — the Celery worker has the raw confidence (0-1) and
         # the poster wallet right here, so this is the right place to do it.
         _open_voting_window_for_post(
-            post_cid=post_id or ipfs_cid,
+            post_cid=post_id or media_cids[0],
             confidence=verdict.get('confidence', 0),
             poster_wallet=author_wallet,
         )
@@ -190,6 +198,12 @@ def verify_eco_content(
         # Return result
         result = {
             'status': 'success',
+            'ipfs_cid': media_cids[0],
+            'ipfs_cids': media_cids,
+            'post_id': post_id,
+            'author_wallet': author_wallet,
+            'confidence': verdict.get('confidence', 0.0),
+            'eco': verdict.get('is_eco', verdict.get('eco', False)),
             'verdict': verdict,
             'signed_verdict_cid': signed_cid,
             'signature': signed_verdict['signature'],
@@ -208,6 +222,7 @@ def verify_eco_content(
             'error': error_msg,
             'error_type': error_type,
             'ipfs_cid': ipfs_cid,
+            'ipfs_cids': ipfs_cids,
             'post_id': post_id,
         }
         
@@ -254,7 +269,7 @@ def _store_verdict_on_ipfs(signed_verdict: Dict) -> str:
 
 
 def _store_verdict_mapping(
-    media_cid: str, 
+    media_cids: List[str],
     verdict_cid: Optional[str], 
     verdict: Dict,
     post_id: Optional[str] = None,
@@ -265,7 +280,7 @@ def _store_verdict_mapping(
     This is a simple local storage for demo - in production, use Redis/DB.
     
     Args:
-        media_cid: Media/image IPFS CID
+        media_cids: Media/image IPFS CIDs
         verdict_cid: Signed verdict IPFS CID (None if IPFS storage failed)
         verdict: Verification result
         post_id: Optional post CID (if provided, verdict will be indexed by both)
@@ -296,6 +311,11 @@ def _store_verdict_mapping(
         'verdict_cid': verdict_cid,
         'eco': verdict.get('is_eco', verdict.get('eco', False)),  # Support both formats
         'confidence': verdict.get('confidence', 0.0),
+        'media_cids': media_cids,
+        'total_images': verdict.get('total_images', len(media_cids)),
+        'analyzed_images': verdict.get('analyzed_images', len(media_cids)),
+        'failed_images': verdict.get('failed_images', []),
+        'per_image_results': verdict.get('per_image_results', []),
         'verified_at': datetime.utcnow().isoformat(),
     }
 
@@ -306,8 +326,9 @@ def _store_verdict_mapping(
         verdict_data['eip712_domain'] = signed_verdict.get('eip712_domain')
         verdict_data['eip712_types'] = signed_verdict.get('eip712_types')
     
-    # Store by media CID (always)
-    mappings[media_cid] = verdict_data
+    # Store by each media CID (always)
+    for media_cid in media_cids:
+        mappings[media_cid] = verdict_data
     
     # Also store by post ID if provided (allows lookup by post CID)
     if post_id:

@@ -151,20 +151,18 @@ async def create_post(
         # This maintains decentralization - verification is optional and off-chain
         if ML_AVAILABLE and verify_eco_content and payload.media_cids:
             try:
-                # Trigger verification for each image CID
-                for media_cid in payload.media_cids:
-                    # Send to Celery worker queue
-                    from backend.ml.worker import celery_app
-                    celery_app.send_task(
-                        'verify_eco_content',
-                        kwargs={
-                            'ipfs_cid': media_cid,
-                            'text_content': payload.content,
-                            'post_id': cid,
-                            'author_wallet': wallet_address.lower()
-                        }
-                    )
-                print(f"Triggered ML verification for post {cid} with {len(payload.media_cids)} images")
+                # Send one task with all images so ML can produce a merged verdict per post.
+                from backend.ml.worker import celery_app
+                celery_app.send_task(
+                    'verify_eco_content',
+                    kwargs={
+                        'ipfs_cids': payload.media_cids,
+                        'text_content': payload.content,
+                        'post_id': cid,
+                        'author_wallet': wallet_address.lower()
+                    }
+                )
+                print(f"Triggered merged ML verification for post {cid} with {len(payload.media_cids)} images")
             except Exception as e:
                 print(f"Warning: Failed to trigger ML verification: {e}")
                 # Don't fail the post creation if ML verification fails
