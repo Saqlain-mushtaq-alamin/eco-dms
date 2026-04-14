@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { API_BASE, getUserProfile, checkFollowStatus, followUser, unfollowUser } from '../api'
 import { Button, Card, LoadingSpinner, PostCard } from '@eco-dms/ui'
 
@@ -66,6 +67,7 @@ function getProfileBio(profile: UserProfile): string {
 }
 
 export default function VisitProfile({ walletAddress, currentUserAddress, onBack }: VisitProfileProps) {
+    const navigate = useNavigate()
     const [profile, setProfile] = useState<UserProfile | null>(null)
     const [posts, setPosts] = useState<Post[]>([])
     const [isFollowing, setIsFollowing] = useState(false)
@@ -398,11 +400,16 @@ export default function VisitProfile({ walletAddress, currentUserAddress, onBack
                                         avatarUri: resolveIpfsUrl(profile.avatar_cid),
                                     }}
                                     content={post.content || ''}
-                                    imageUri={post.media_cids?.[0] ? resolveIpfsUrl(post.media_cids[0]) : undefined}
+                                    imageUris={
+                                        (post.media_cids || [])
+                                            .map((cid) => resolveIpfsUrl(cid))
+                                            .filter((v): v is string => Boolean(v))
+                                    }
                                     timestamp={new Date(post.created_at).getTime()}
                                     likes={post.likes_count || 0}
                                     comments={post.comments_count || 0}
                                     isLiked={Boolean(post.liked_by_user)}
+                                    onImagePress={post.cid ? (index) => navigate(`/post/${post.cid}?image=${index}`) : undefined}
                                     onLike={post.cid ? () => handleLike(post.cid!, post.liked_by_user ?? false) : undefined}
                                     onComment={post.cid ? () => handleToggleComments(post.cid!) : undefined}
                                     style={{

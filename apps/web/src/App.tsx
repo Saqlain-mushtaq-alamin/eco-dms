@@ -1,4 +1,3 @@
-// filepath: d:\canvas\eco-dms\eco-dms\apps\web\src\App.tsx
 import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Layout } from './components/Layout'
@@ -9,19 +8,17 @@ import { FeedRoute } from './routes/FeedRoute'
 import { ProfileRoute } from './routes/ProfileRoute'
 import { VisitProfileRoute } from './routes/VisitProfileRoute'
 import { FriendsRoute } from './routes/FriendsRoute'
+import { PostViewRoute } from './routes/PostViewRoute'
 import { DashboardRoute } from './routes/DashboardRoute'
 import { useAuthSync } from './hooks/useAuthSync'
 
 function AppRoutes() {
-    // Sync auth state across all tabs
     useAuthSync()
 
     return (
         <Routes>
-            {/* Public route */}
             <Route path="/signin" element={<SignInRoute />} />
 
-            {/* Protected routes */}
             <Route
                 path="/profile/create"
                 element={
@@ -70,8 +67,15 @@ function AppRoutes() {
                     </ProtectedRoute>
                 }
             />
+            <Route
+                path="/post/:postCid"
+                element={
+                    <ProtectedRoute>
+                        <PostViewRoute />
+                    </ProtectedRoute>
+                }
+            />
 
-            {/* Default redirect */}
             <Route path="/" element={<Navigate to="/feed" replace />} />
             <Route path="*" element={<Navigate to="/feed" replace />} />
         </Routes>

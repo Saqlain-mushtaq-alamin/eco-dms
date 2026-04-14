@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { API_BASE, getMe, uploadImage } from '../api'
 import { Button, Card, Input, PostCard, LoadingSpinner } from '@eco-dms/ui'
 
@@ -33,6 +34,7 @@ interface UserProfileProps {
 }
 
 export default function UserProfile({ address, onBack }: UserProfileProps) {
+    const navigate = useNavigate()
     const [profile, setProfile] = useState<Profile | null>(null)
     const [posts, setPosts] = useState<Post[]>([])
     const [editing, setEditing] = useState(false)
@@ -350,11 +352,16 @@ export default function UserProfile({ address, onBack }: UserProfileProps) {
                                     avatarUri: resolveIpfsUrl(profile.avatar_cid),
                                 }}
                                 content={post.content || ''}
-                                imageUri={post.media_cids?.[0] ? resolveIpfsUrl(post.media_cids[0]) : undefined}
+                                imageUris={
+                                    (post.media_cids || [])
+                                        .map((cid) => resolveIpfsUrl(cid))
+                                        .filter((v): v is string => Boolean(v))
+                                }
                                 timestamp={new Date(post.created_at).getTime()}
                                 likes={post.likes_count || 0}
                                 comments={post.comments_count || 0}
                                 isLiked={Boolean(post.liked_by_user)}
+                                onImagePress={post.cid ? (index) => navigate(`/post/${post.cid}?image=${index}`) : undefined}
                                 style={{
                                     borderWidth: 0,
                                     backgroundColor: 'rgba(255,255,255,0.72)',

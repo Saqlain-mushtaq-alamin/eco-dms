@@ -17,6 +17,7 @@ export interface PostCardProps {
     };
     content: string;
     imageUri?: string;
+    imageUris?: string[];
     timestamp: number;
     likes: number;
     comments: number;
@@ -24,6 +25,7 @@ export interface PostCardProps {
     isOptimistic?: boolean;
     onLike?: () => void;
     onComment?: () => void;
+    onImagePress?: (index: number) => void;
     onAuthorPress?: () => void;
     headerRight?: React.ReactNode;
     style?: ViewStyle;
@@ -40,6 +42,7 @@ export const PostCard: React.FC<PostCardProps> = ({
     author,
     content,
     imageUri,
+    imageUris,
     timestamp,
     likes,
     comments,
@@ -47,6 +50,7 @@ export const PostCard: React.FC<PostCardProps> = ({
     isOptimistic = false,
     onLike,
     onComment,
+    onImagePress,
     onAuthorPress,
     headerRight,
     style,
@@ -79,6 +83,26 @@ export const PostCard: React.FC<PostCardProps> = ({
     const cardStyle: ViewStyle | ViewStyle[] | undefined = isOptimistic
         ? Array.isArray(style) ? [...style, { opacity: 0.7 }] : [style, { opacity: 0.7 } as ViewStyle]
         : style;
+
+    const normalizedImages = React.useMemo(() => {
+        if (imageUris && imageUris.length > 0) return imageUris;
+        return imageUri ? [imageUri] : [];
+    }, [imageUri, imageUris]);
+
+    const visibleImages = normalizedImages.slice(0, 4);
+    const overflowCount = Math.max(0, normalizedImages.length - 4);
+
+    const getImageTileStyle = (index: number, total: number): ViewStyle => {
+        if (total === 1) {
+            return styles.singleImageTile;
+        }
+
+        if (total === 3 && index === 0) {
+            return styles.threeUpHeroTile;
+        }
+
+        return styles.gridImageTile;
+    };
 
     return (
         <Card style={cardStyle as ViewStyle} padding="md" testID={testID}>
@@ -128,14 +152,42 @@ export const PostCard: React.FC<PostCardProps> = ({
                 {content}
             </RNText>
 
-            {/* Image */}
-            {imageUri && (
-                <RNImage
-                    source={{ uri: imageUri }}
-                    style={[styles.image, { marginTop: theme.spacing.md, borderRadius: theme.borderRadius.md }]}
-                    //resizeMode="contain"
-                    resizeMode="cover"
-                />
+            {/* Images */}
+            {visibleImages.length > 0 && (
+                <RNView
+                    style={[
+                        styles.imageGrid,
+                        { marginTop: theme.spacing.md, borderRadius: theme.borderRadius.md },
+                    ]}
+                >
+                    {visibleImages.map((uri, index) => {
+                        const isOverflowTile = overflowCount > 0 && index === visibleImages.length - 1;
+                        return (
+                            <RNTouchableOpacity
+                                key={`${uri}-${index}`}
+                                style={[
+                                    styles.imageTile,
+                                    getImageTileStyle(index, visibleImages.length),
+                                    onImagePress ? styles.imageTileClickable : undefined,
+                                ]}
+                                onPress={onImagePress ? () => onImagePress(index) : undefined}
+                                disabled={!onImagePress}
+                                activeOpacity={0.92}
+                            >
+                                <RNImage
+                                    source={{ uri }}
+                                    style={styles.image}
+                                    resizeMode="cover"
+                                />
+                                {isOverflowTile ? (
+                                    <RNView style={styles.overflowOverlay}>
+                                        <RNText style={styles.overflowText}>+{overflowCount}</RNText>
+                                    </RNView>
+                                ) : null}
+                            </RNTouchableOpacity>
+                        );
+                    })}
+                </RNView>
             )}
 
             {/* Actions */}
@@ -228,12 +280,53 @@ const styles = StyleSheet.create({
         lineHeight: 24,
     },
     image: {
-        //width: '100%',
-        //minHeight: 260,
-        //height: 320,
-        //backgroundColor: 'rgba(148, 163, 184, 0.12)',
         width: '100%',
-        height: 200,
+        height: '100%',
+    },
+    imageGrid: {
+        width: '100%',
+        minHeight: 200,
+        maxHeight: 420,
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        overflow: 'hidden',
+        backgroundColor: 'rgba(148, 163, 184, 0.1)',
+    },
+    imageTile: {
+        position: 'relative',
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.5)',
+    },
+    imageTileClickable: {
+        cursor: 'pointer',
+    },
+    singleImageTile: {
+        width: '100%',
+        height: 300,
+    },
+    threeUpHeroTile: {
+        width: '100%',
+        height: 220,
+    },
+    gridImageTile: {
+        width: '50%',
+        height: 180,
+    },
+    overflowOverlay: {
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 0,
+        backgroundColor: 'rgba(2, 6, 23, 0.56)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    overflowText: {
+        color: '#ffffff',
+        fontSize: 30,
+        fontWeight: '800',
     },
     actions: {
         flexDirection: 'row',

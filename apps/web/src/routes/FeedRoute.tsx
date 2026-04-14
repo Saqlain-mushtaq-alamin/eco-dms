@@ -25,6 +25,10 @@ export function FeedRoute() {
         navigate(`/profile/${walletAddress}`)
     }
 
+    const handleOpenPost = (postCid: string, imageIndex: number = 0) => {
+        navigate(`/post/${postCid}?image=${imageIndex}`)
+    }
+
     if (!address) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -33,5 +37,5 @@ export function FeedRoute() {
         )
     }
 
-    return <Feed address={address} onVisitProfile={handleVisitProfile} />
+    return <Feed address={address} onVisitProfile={handleVisitProfile} onOpenPost={handleOpenPost} />
 }

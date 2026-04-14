@@ -213,7 +213,15 @@ function shortAddress(walletAddress: string): string {
     return `${walletAddress.substring(0, 6)}...${walletAddress.substring(38)}`
 }
 
-export function Feed({ address, onVisitProfile }: { address: string; onVisitProfile: (walletAddress: string) => void }) {
+export function Feed({
+    address,
+    onVisitProfile,
+    onOpenPost,
+}: {
+    address: string;
+    onVisitProfile: (walletAddress: string) => void;
+    onOpenPost: (postCid: string, imageIndex?: number) => void;
+}) {
     const [posts, setPosts] = useState<Post[]>([])
     const [users, setUsers] = useState<User[]>([])
     const [content, setContent] = useState('')
@@ -904,12 +912,17 @@ export function Feed({ address, onVisitProfile }: { address: string; onVisitProf
                                         </span>
                                     ) : undefined}
                                     content={p.content}
-                                    imageUri={p.local_image_uri || (p.media_cids?.[0] ? resolveIpfsUrl(p.media_cids[0]) : undefined)}
+                                    imageUris={
+                                        (p.media_cids || [])
+                                            .map((cid) => resolveIpfsUrl(cid))
+                                            .filter((v): v is string => Boolean(v))
+                                    }
                                     timestamp={new Date(p.created_at).getTime()}
                                     likes={p.likes_count || 0}
                                     comments={p.comments_count || 0}
                                     isLiked={Boolean(p.liked_by_user)}
                                     isOptimistic={Boolean(p.isOptimistic)}
+                                    onImagePress={p.cid ? (index) => onOpenPost(p.cid!, index) : undefined}
                                     onAuthorPress={() => onVisitProfile(p.author_wallet)}
                                     onLike={p.cid ? () => handleLike(p.cid!, p.liked_by_user ?? false) : undefined}
                                     onComment={p.cid ? () => handleToggleComments(p.cid!) : undefined}
