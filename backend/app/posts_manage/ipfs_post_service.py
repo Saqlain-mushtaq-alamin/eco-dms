@@ -1,5 +1,6 @@
 import os
 import json
+import asyncio
 from typing import Dict, Optional
 from datetime import datetime
 
@@ -69,7 +70,11 @@ class PostsIPFS:
                 self._cache[cid] = data
                 
                 return data
-            except Exception:
+            except asyncio.CancelledError:
+                # httpx/anyio may cancel socket connect on timeout in some environments.
+                # Treat this as a transient gateway failure and try the next gateway.
+                continue
+            except (httpx.HTTPError, json.JSONDecodeError, ValueError):
                 continue
         return None
 

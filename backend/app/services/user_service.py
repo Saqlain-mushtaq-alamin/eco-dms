@@ -13,6 +13,7 @@ Architecture:
 """
 import os
 import sys
+import asyncio
 from typing import Optional, List, Dict
 from datetime import datetime
 from backend.app.models import UserProfile
@@ -71,9 +72,13 @@ class UserService:
             wallet_address=addr, 
             followers=[], 
             following=[], 
-            username="", 
-            bio="", 
-            avatar_cid="",
+            username=None,
+            bio=None,
+            avatar_cid=None,
+            cover_photo_cid=None,
+            date_of_birth=None,
+            location=None,
+            profession=None,
             documents_cid=""
         )
         
@@ -278,6 +283,10 @@ class UserService:
                                     "followers_count": len(cached_profile.get("followers", [])),
                                     "following_count": len(cached_profile.get("following", []))
                                 })
+                except asyncio.CancelledError as e:
+                    # A cancelled network read for one user should not fail the whole listing.
+                    print(f"⚠️ Cancelled while loading user from {key}: {e}")
+                    continue
                 except Exception as e:
                     print(f"⚠️ Error loading user from {key}: {e}")
                     continue
