@@ -13,6 +13,10 @@ from backend.app.posts_manage.ipfs_post_service import ipfs_service
 from backend.app.services.orbitdb_service import orbitdb_service
 
 
+class NotificationsTemporarilyUnavailableError(RuntimeError):
+    """Raised when notifications DB exists but cannot be read safely."""
+
+
 class NotificationService:
     async def _get_notifications_data(self, wallet_address: str) -> Dict:
         wallet = wallet_address.lower()
@@ -23,16 +27,22 @@ class NotificationService:
 
         parts = db_address.split("/")
         if len(parts) < 3:
-            return {"items": []}
+            raise NotificationsTemporarilyUnavailableError(
+                f"Invalid notifications DB address format for {wallet}: {db_address}"
+            )
 
         cid = parts[2]
         data = await ipfs_service.get_json(cid)
-        if not data:
-            return {"items": []}
+        if data is None:
+            raise NotificationsTemporarilyUnavailableError(
+                f"Notifications data unavailable from IPFS for {wallet} (cid={cid})"
+            )
 
         items = data.get("items", []) if isinstance(data, dict) else []
         if not isinstance(items, list):
-            items = []
+            raise NotificationsTemporarilyUnavailableError(
+                f"Invalid notifications payload for {wallet} (cid={cid})"
+            )
         return {"items": items}
 
     async def _save_notifications_data(self, wallet_address: str, notifications_data: Dict) -> bool:

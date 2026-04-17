@@ -28,6 +28,14 @@ class ProfileDataUnavailableError(RuntimeError):
     """Raised when a profile DB exists but its content cannot be read reliably."""
 
 
+class PostFeedUnavailableError(RuntimeError):
+    """Raised when a posts feed DB exists but entries cannot be read safely."""
+
+
+class SocialDataUnavailableError(RuntimeError):
+    """Raised when a social DB exists but payload cannot be read safely."""
+
+
 class OrbitDBService:
     """
     OrbitDB integration for fully decentralized, free social media.
@@ -322,20 +330,25 @@ class OrbitDBService:
         import time
         
         # Check cache first
-        cache_key = wallet.lower()
+        wallet = wallet.lower()
+        cache_key = wallet
         current_time = time.time()
         
-        if cache_key in self._posts_cache:
-            cached_time, cached_posts = self._posts_cache[cache_key]
-            # Use cache if less than TTL old
-            if current_time - cached_time < self._cache_ttl:
-                posts = cached_posts.copy()
+        try:
+            if cache_key in self._posts_cache:
+                cached_time, cached_posts = self._posts_cache[cache_key]
+                # Use cache if less than TTL old
+                if current_time - cached_time < self._cache_ttl:
+                    posts = cached_posts.copy()
+                else:
+                    # Cache expired, fetch from IPFS
+                    posts = await self._get_user_posts_no_cache(wallet)
             else:
-                # Cache expired, fetch from IPFS
+                # Not in cache, fetch from IPFS
                 posts = await self._get_user_posts_no_cache(wallet)
-        else:
-            # Not in cache, fetch from IPFS
-            posts = await self._get_user_posts_no_cache(wallet)
+        except PostFeedUnavailableError as e:
+            print(f"❌ Refusing to append post due to unreadable existing feed for {wallet}: {e}")
+            return False
         
         # Add new post at beginning (most recent first)
         posts.insert(0, post_cid)
@@ -370,7 +383,8 @@ class OrbitDBService:
         """Get list of post CIDs from user's OrbitDB feed (with caching)."""
         import time
         
-        cache_key = wallet.lower()
+        wallet = wallet.lower()
+        cache_key = wallet
         current_time = time.time()
         
         # Check cache first
@@ -389,7 +403,13 @@ class OrbitDBService:
         return posts
     
     async def _get_user_posts_no_cache(self, wallet: str) -> List[str]:
-        """Internal method to fetch posts from IPFS without cache."""
+        """
+        Internal method to fetch posts from IPFS without cache.
+
+        Returns [] only when feed DB does not exist yet.
+        Raises PostFeedUnavailableError when feed DB exists but payload is unreadable.
+        """
+        wallet = wallet.lower()
         db_address = await self.get_db_address(wallet, "posts")
         
         if not db_address:
@@ -397,16 +417,27 @@ class OrbitDBService:
         
         # Extract CID from OrbitDB address
         parts = db_address.split("/")
-        if len(parts) >= 3:
-            cid = parts[2]
-            
-            from backend.app.posts_manage.ipfs_post_service import ipfs_service
-            data = await ipfs_service.get_json(cid)
-            
-            if data and "entries" in data:
-                return data["entries"]
-        
-        return []
+        if len(parts) < 3:
+            raise PostFeedUnavailableError(
+                f"Invalid OrbitDB posts address format for {wallet}: {db_address}"
+            )
+
+        cid = parts[2]
+
+        from backend.app.posts_manage.ipfs_post_service import ipfs_service
+        data = await ipfs_service.get_json(cid)
+
+        if data is None:
+            raise PostFeedUnavailableError(
+                f"Posts feed unavailable from IPFS for {wallet} (cid={cid})"
+            )
+
+        if isinstance(data, dict) and isinstance(data.get("entries"), list):
+            return data["entries"]
+
+        raise PostFeedUnavailableError(
+            f"Invalid posts payload for {wallet} (cid={cid})"
+        )
     
     async def create_social_interactions_db(self, post_author_wallet: str) -> Optional[str]:
         """
@@ -436,23 +467,44 @@ class OrbitDBService:
         return None
     
     async def get_social_data(self, wallet: str) -> Optional[Dict]:
-        """Get social interactions data from user's OrbitDB."""
+        """
+        Get social interactions data from user's OrbitDB.
+
+        Returns None only when social DB does not exist yet.
+        Raises SocialDataUnavailableError when social DB exists but payload is unreadable.
+        """
+        wallet = wallet.lower()
         db_address = await self.get_db_address(wallet, "social")
         
         if not db_address:
             return None
         
         parts = db_address.split("/")
-        if len(parts) >= 3:
-            cid = parts[2]
-            
-            from backend.app.posts_manage.ipfs_post_service import ipfs_service
-            data = await ipfs_service.get_json(cid)
-            
-            if data and "data" in data:
+        if len(parts) < 3:
+            raise SocialDataUnavailableError(
+                f"Invalid OrbitDB social address format for {wallet}: {db_address}"
+            )
+
+        cid = parts[2]
+
+        from backend.app.posts_manage.ipfs_post_service import ipfs_service
+        data = await ipfs_service.get_json(cid)
+
+        if data is None:
+            raise SocialDataUnavailableError(
+                f"Social data unavailable from IPFS for {wallet} (cid={cid})"
+            )
+
+        if isinstance(data, dict):
+            if isinstance(data.get("data"), dict):
                 return data["data"]
-        
-        return None
+            # Legacy direct dict compatibility.
+            if "user_likes_index" in data:
+                return data
+
+        raise SocialDataUnavailableError(
+            f"Invalid social payload for {wallet} (cid={cid})"
+        )
     
     async def update_social_data(self, wallet: str, social_data: Dict) -> bool:
         """

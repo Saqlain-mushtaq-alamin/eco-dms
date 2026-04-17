@@ -15,8 +15,12 @@ import json
 from typing import List, Dict, Optional
 from datetime import datetime
 from backend.app.posts_manage.ipfs_post_service import ipfs_service
-from backend.app.services.orbitdb_service import orbitdb_service
+from backend.app.services.orbitdb_service import orbitdb_service, SocialDataUnavailableError
 from backend.app.services.redis_service import redis_service
+
+
+class SocialDataTemporarilyUnavailableError(RuntimeError):
+    """Raised when an existing social index cannot be read and should be retried."""
 
 
 class SocialService:
@@ -71,6 +75,8 @@ class SocialService:
     async def _get_social_data_for_author(self, author_wallet: str) -> Dict:
         """Get all social interactions data for a user's posts from their OrbitDB."""
         import time
+
+        author_wallet = author_wallet.lower()
         
         # Check request-level cache first
         current_time = time.time()
@@ -79,7 +85,11 @@ class SocialService:
             if current_time - cached_time < self._social_cache_ttl:
                 return cached_data.copy()
         
-        social_data = await orbitdb_service.get_social_data(author_wallet)
+        try:
+            social_data = await orbitdb_service.get_social_data(author_wallet)
+        except SocialDataUnavailableError as e:
+            raise SocialDataTemporarilyUnavailableError(str(e)) from e
+
         if social_data is None:
             # Create new social DB if doesn't exist - use lock to prevent race conditions
             # Get or create lock for this wallet
@@ -88,7 +98,11 @@ class SocialService:
             
             async with self._creation_locks[author_wallet]:
                 # Double-check after acquiring lock (another task might have created it)
-                social_data = await orbitdb_service.get_social_data(author_wallet)
+                try:
+                    social_data = await orbitdb_service.get_social_data(author_wallet)
+                except SocialDataUnavailableError as e:
+                    raise SocialDataTemporarilyUnavailableError(str(e)) from e
+
                 if social_data is None:
                     await orbitdb_service.create_social_interactions_db(author_wallet)
                     social_data = {}
@@ -103,7 +117,7 @@ class SocialService:
     
     async def _update_social_data_for_author(self, author_wallet: str, social_data: Dict) -> bool:
         """Update social interactions data in author's OrbitDB."""
-        return await orbitdb_service.update_social_data(author_wallet, social_data)
+        return await orbitdb_service.update_social_data(author_wallet.lower(), social_data)
     
     async def _get_likes_index_cid(self, post_cid: str) -> Optional[str]:
         """Get likes index CID from post author's OrbitDB."""
