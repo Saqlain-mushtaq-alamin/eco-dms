@@ -17,14 +17,15 @@ import asyncio
 from typing import Optional, List, Dict
 from datetime import datetime
 from backend.app.models import UserProfile
-from backend.app.services.ipfs_service import ipfs_service
-from backend.app.services.pinata_service import pinata_service
 from backend.app.services.redis_service import redis_service
-from backend.app.services.orbitdb_service import orbitdb_service
-from backend.app.config import settings
+from backend.app.services.orbitdb_service import orbitdb_service, ProfileDataUnavailableError
 
 # Fix: __file__ is automatically available, but make sure sys.path is set correctly
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+class ProfileTemporarilyUnavailableError(RuntimeError):
+    """Raised when an existing profile cannot be read right now and should be retried."""
 
 
 class UserService:
@@ -58,14 +59,24 @@ class UserService:
         DECENTRALIZED & FREE: Profile stored on OrbitDB, controlled by user's wallet.
         """
         addr = wallet_address.lower()
-        
-        # Try to get from OrbitDB first
-        profile_data = await self.orbit.get_profile_data(addr)
+
+        # Try to get from OrbitDB first. Distinguish transient read failures from true first-time users.
+        try:
+            profile_data = await self.orbit.get_profile_data(addr)
+        except ProfileDataUnavailableError as e:
+            raise ProfileTemporarilyUnavailableError(str(e)) from e
         
         if profile_data:
             profile = UserProfile(**profile_data)
             orbit_addr = await self.orbit.get_db_address(addr, "profile")
             return (profile, orbit_addr)
+
+        # Safety check before creating: if an address exists, this is not a new user.
+        existing_addr = await self.orbit.get_db_address(addr, "profile")
+        if existing_addr:
+            raise ProfileTemporarilyUnavailableError(
+                f"Profile index exists for {addr} but profile payload is unavailable"
+            )
         
         # Create default minimal profile
         profile = UserProfile(
@@ -88,12 +99,8 @@ class UserService:
 
     async def save_profile(self, profile: UserProfile) -> Optional[str]:
         """
-        Save profile to OrbitDB (fully decentralized, free).
-        
-        Priority:
-        1. OrbitDB (fully decentralized, free, user-owned)
-        2. IPFS/Pinata (decentralized content storage)
-        
+        Save profile to OrbitDB only.
+
         Redis used ONLY for temporary caching (30-day TTL).
         """
         data = profile.model_dump() if hasattr(profile, "model_dump") else dict(profile)
@@ -126,38 +133,22 @@ class UserService:
                 print(f"✅ Created OrbitDB and saved profile (FREE!)")
                 redis_service.set_json(self._cache_key(wallet_addr), data, ex=30*24*3600)
                 return orbit_addr
-        
-        # Final fallback to IPFS (still decentralized)
-        print(f"⚠️ OrbitDB not available, using IPFS fallback...")
-        try:
-            cid = ipfs_service.add_json(data)
-            if cid:
-                print(f"✅ Profile stored in IPFS: {cid}")
-                redis_service.set_json(self._cache_key(wallet_addr), data, ex=30*24*3600)
-                return cid
-        except Exception as e:
-            print(f"⚠️ IPFS add_json failed: {e}")
 
-        # Pinata fallback
-        try:
-            cid = pinata_service.pin_json(data)
-            if cid:
-                print(f"✅ Profile stored in Pinata: {cid}")
-                redis_service.set_json(self._cache_key(wallet_addr), data, ex=30*24*3600)
-                return cid
-        except Exception as e:
-            print(f"❌ Pinata pin_json failed: {e}")
-        
         return None
 
     async def get_profile(self, wallet_address: str) -> Optional[UserProfile]:
         """
-        Get user profile from decentralized storage (OrbitDB or IPFS).
+        Get user profile from OrbitDB/cache without creating new records.
+        Returns None for missing or temporarily unavailable profiles.
         """
         addr = wallet_address.lower()
-        
+
         # Try OrbitDB first
-        profile_data = await self.orbit.get_profile_data(addr)
+        try:
+            profile_data = await self.orbit.get_profile_data(addr)
+        except ProfileDataUnavailableError:
+            profile_data = None
+
         if profile_data:
             return UserProfile(**profile_data)
         
@@ -197,33 +188,41 @@ class UserService:
         return await self.save_profile(prof)
 
     async def follow_user(self, follower_address: str, following_address: str) -> bool:
-        follower, _ = await self.get_or_create_profile(follower_address)
-        target, _ = await self.get_or_create_profile(following_address)
+        follower = await self.get_profile(follower_address)
+        target = await self.get_profile(following_address)
+        if not follower or not target:
+            return False
         fa, ta = follower_address.lower(), following_address.lower()
         if ta not in [a.lower() for a in follower.following]:
             follower.following.append(ta)
         if fa not in [a.lower() for a in target.followers]:
             target.followers.append(fa)
-        await self.save_profile(follower)
-        await self.save_profile(target)
-        return True
+        follower_saved, target_saved = await asyncio.gather(
+            self.save_profile(follower),
+            self.save_profile(target),
+        )
+        return bool(follower_saved and target_saved)
 
     async def unfollow_user(self, follower_address: str, following_address: str) -> bool:
-        follower, _ = await self.get_or_create_profile(follower_address)
-        target, _ = await self.get_or_create_profile(following_address)
+        follower = await self.get_profile(follower_address)
+        target = await self.get_profile(following_address)
+        if not follower or not target:
+            return False
         follower.following = [a for a in follower.following if a.lower()!=following_address.lower()]
         target.followers = [a for a in target.followers if a.lower()!=follower_address.lower()]
-        await self.save_profile(follower)
-        await self.save_profile(target)
-        return True
+        follower_saved, target_saved = await asyncio.gather(
+            self.save_profile(follower),
+            self.save_profile(target),
+        )
+        return bool(follower_saved and target_saved)
 
     async def get_followers(self, wallet_address: str) -> List[str]:
-        prof, _ = await self.get_or_create_profile(wallet_address)
-        return prof.followers
+        prof = await self.get_profile(wallet_address)
+        return prof.followers if prof else []
 
     async def get_following(self, wallet_address: str) -> List[str]:
-        prof, _ = await self.get_or_create_profile(wallet_address)
-        return prof.following
+        prof = await self.get_profile(wallet_address)
+        return prof.following if prof else []
 
     async def get_all_users(self) -> List[dict]:
         """

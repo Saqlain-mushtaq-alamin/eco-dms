@@ -10,7 +10,7 @@ import logging
 
 from .auth_routes import get_current_user
 from .models import UserProfile, ProfileUpdateRequest
-from .services.user_service import user_service
+from .services.user_service import user_service, ProfileTemporarilyUnavailableError
 from .services.user_search_service import user_search_service
 from .services.redis_service import redis_service  # add Redis cache
 
@@ -41,9 +41,12 @@ async def get_my_profile(wallet_address: str = Depends(get_current_user)):
         return cached
 
     # IPFS operations can be slow—ensure user_service uses async non-blocking client
-    profile = await user_service.get_profile(wallet_address)
-    if not profile:
-        profile, _ = await user_service.get_or_create_profile(wallet_address)
+    try:
+        profile = await user_service.get_profile(wallet_address)
+        if not profile:
+            profile, _ = await user_service.get_or_create_profile(wallet_address)
+    except ProfileTemporarilyUnavailableError as e:
+        raise HTTPException(status_code=503, detail=f"Profile temporarily unavailable. Please retry. ({e})") from e
 
     redis_service.set_json(cache_key, profile, ex=CACHE_TTL)
     return profile
@@ -60,16 +63,19 @@ async def update_my_profile(
     if not wallet_address:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
-    new_cid = await user_service.update_profile(
-        wallet_address,
-        username=update_data.username,
-        bio=update_data.bio,
-        avatar_cid=update_data.avatar_cid,
-        cover_photo_cid=update_data.cover_photo_cid,
-        date_of_birth=update_data.date_of_birth,
-        location=update_data.location,
-        profession=update_data.profession
-    )
+    try:
+        new_cid = await user_service.update_profile(
+            wallet_address,
+            username=update_data.username,
+            bio=update_data.bio,
+            avatar_cid=update_data.avatar_cid,
+            cover_photo_cid=update_data.cover_photo_cid,
+            date_of_birth=update_data.date_of_birth,
+            location=update_data.location,
+            profession=update_data.profession
+        )
+    except ProfileTemporarilyUnavailableError as e:
+        raise HTTPException(status_code=503, detail=f"Profile temporarily unavailable. Please retry. ({e})") from e
     if not new_cid:
         raise HTTPException(status_code=500, detail="Failed to update profile")
 
@@ -155,6 +161,10 @@ async def follow_user(
     # bust caches related to following/followers
     redis_service.delete(f"followers:{wallet_address.lower()}")
     redis_service.delete(f"following:{current_user.lower()}")
+    redis_service.delete(f"profile:{wallet_address.lower()}")
+    redis_service.delete(f"profile:{current_user.lower()}")
+    redis_service.delete(f"cache:profile:{wallet_address.lower()}")
+    redis_service.delete(f"cache:profile:{current_user.lower()}")
 
     return {
         "success": True,
@@ -176,6 +186,10 @@ async def unfollow_user(
     # bust caches related to following/followers
     redis_service.delete(f"followers:{wallet_address.lower()}")
     redis_service.delete(f"following:{current_user.lower()}")
+    redis_service.delete(f"profile:{wallet_address.lower()}")
+    redis_service.delete(f"profile:{current_user.lower()}")
+    redis_service.delete(f"cache:profile:{wallet_address.lower()}")
+    redis_service.delete(f"cache:profile:{current_user.lower()}")
 
     return {
         "success": True,

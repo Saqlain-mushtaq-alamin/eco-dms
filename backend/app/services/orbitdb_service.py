@@ -24,6 +24,10 @@ from backend.app.services.redis_service import redis_service
 import httpx
 
 
+class ProfileDataUnavailableError(RuntimeError):
+    """Raised when a profile DB exists but its content cannot be read reliably."""
+
+
 class OrbitDBService:
     """
     OrbitDB integration for fully decentralized, free social media.
@@ -61,7 +65,7 @@ class OrbitDBService:
         
     def _cache_key(self, wallet: str, db_type: str) -> str:
         """Redis cache key for OrbitDB address."""
-        return f"{self._db_cache_prefix}{wallet}:{db_type}"
+        return f"{self._db_cache_prefix}{wallet.lower()}:{db_type}"
     
     def _wallet_to_identity(self, wallet_address: str) -> str:
         """Convert wallet to OrbitDB identity string."""
@@ -78,12 +82,34 @@ class OrbitDBService:
           3. Pinata pin-name lookup — works even after a full Redis wipe (social only)
           4. Returns None → caller will create a new DB
         """
+        wallet = wallet.lower()
         cache_key = self._cache_key(wallet, db_type)
 
         # 1. Redis
         address = redis_service.get_str(cache_key)
         if address:
             return address
+
+        # 1b. Redis recovery for legacy mixed-case wallet keys.
+        # Older writes could store keys with checksum-case wallets, while new reads use lowercase.
+        try:
+            pattern = self._cache_key("*", db_type)
+            candidate_keys = await redis_service.get_keys(pattern)
+            target_wallet = wallet.lower()
+            suffix = f":{db_type}"
+            for key in candidate_keys:
+                if not key.startswith(self._db_cache_prefix) or not key.endswith(suffix):
+                    continue
+                wallet_part = key[len(self._db_cache_prefix):-len(suffix)]
+                if wallet_part.lower() != target_wallet:
+                    continue
+                recovered = redis_service.get_str(key)
+                if recovered:
+                    # Restore canonical lowercase key for future reads.
+                    redis_service.set_str(cache_key, recovered, ex=90*24*3600)
+                    return recovered
+        except Exception as e:
+            print(f"⚠️ Redis legacy-key recovery failed for {wallet}:{db_type}: {e}")
 
         # 2. IPFS registry (registry CID found via Redis or local file backup)
         try:
@@ -95,6 +121,20 @@ class OrbitDBService:
                 redis_service.set_str(cache_key, address, ex=90*24*3600)
                 print(f"🔄 Restored OrbitDB address from IPFS backup: {address}")
                 return address
+
+            # Legacy compatibility: tolerate mixed-case wallet keys in registry.
+            target_wallet = wallet.lower()
+            for key, value in registry.items():
+                if not isinstance(key, str) or not isinstance(value, str):
+                    continue
+                parts = key.split(":", 1)
+                if len(parts) != 2:
+                    continue
+                wallet_part, type_part = parts
+                if wallet_part.lower() == target_wallet and type_part == db_type:
+                    redis_service.set_str(cache_key, value, ex=90*24*3600)
+                    print(f"🔄 Restored OrbitDB address from legacy registry key: {value}")
+                    return value
         except Exception as e:
             print(f"⚠️ Failed to check IPFS registry backup: {e}")
 
@@ -120,6 +160,7 @@ class OrbitDBService:
     
     async def set_db_address(self, wallet: str, db_type: str, address: str):
         """Cache OrbitDB address in Redis AND backup to IPFS (permanent)."""
+        wallet = wallet.lower()
         cache_key = self._cache_key(wallet, db_type)
         
         # Store in Redis (fast access)
@@ -198,25 +239,51 @@ class OrbitDBService:
         return None
     
     async def get_profile_data(self, wallet: str) -> Optional[Dict]:
-        """Get user profile from their OrbitDB."""
+        """
+        Get user profile from OrbitDB.
+
+        Returns:
+          - dict: profile data when available
+          - None: profile DB does not exist yet (first-time user)
+
+        Raises:
+          - ProfileDataUnavailableError: profile DB exists but payload cannot be read/decoded.
+        """
+        wallet = wallet.lower()
         db_address = await self.get_db_address(wallet, "profile")
-        
+
         if not db_address:
             return None
-        
+
         # Extract CID from OrbitDB address
         # /orbitdb/{cid}/name -> extract cid
         parts = db_address.split("/")
-        if len(parts) >= 3:
-            cid = parts[2]
-            
-            from backend.app.posts_manage.ipfs_post_service import ipfs_service
-            data = await ipfs_service.get_json(cid)
-            
-            if data and "data" in data:
+        if len(parts) < 3:
+            raise ProfileDataUnavailableError(
+                f"Invalid OrbitDB profile address format for {wallet}: {db_address}"
+            )
+
+        cid = parts[2]
+
+        from backend.app.posts_manage.ipfs_post_service import ipfs_service
+        data = await ipfs_service.get_json(cid)
+
+        if data is None:
+            raise ProfileDataUnavailableError(
+                f"Profile data unavailable from IPFS for {wallet} (cid={cid})"
+            )
+
+        if isinstance(data, dict):
+            # Expected OrbitDB payload shape.
+            if isinstance(data.get("data"), dict):
                 return data["data"]
-        
-        return None
+            # Legacy payload compatibility: direct profile object.
+            if "wallet_address" in data:
+                return data
+
+        raise ProfileDataUnavailableError(
+            f"Invalid profile payload for {wallet} (cid={cid})"
+        )
     
     async def update_profile_data(self, wallet: str, profile_data: Dict) -> bool:
         """
@@ -392,8 +459,8 @@ class OrbitDBService:
         Update social interactions in user's OrbitDB.
         social_data format: {post_cid: {"likes_index_cid": "...", "comments_index_cid": "..."}}
 
-        Pins with a deterministic name so Pinata can recover the latest CID
-        even after a full Redis wipe (see get_db_address fallback #3).
+        Always writes to local IPFS first (authoritative write path for OrbitDB).
+        If Pinata is configured, enqueue a best-effort backup pin in the background.
         """
         identity = self._wallet_to_identity(wallet)
 
@@ -405,29 +472,34 @@ class OrbitDBService:
         }
 
         from backend.app.posts_manage.ipfs_post_service import ipfs_service
-        from backend.app.services.pinata_service import pinata_service
         from backend.app.config import settings
 
-        new_cid: Optional[str] = None
-
-        # Pin with a deterministic Pinata name so recovery is possible without Redis.
-        if settings.PINATA_JWT:
-            pin_name = f"social-index:{wallet.lower()}"
-            new_cid = pinata_service.pin_json(updated_data, name=pin_name)
-
-        # Fall back to regular IPFS pin if Pinata was not used / failed
-        if not new_cid:
-            new_cid = await ipfs_service.pin_json(updated_data)
+        # Authoritative write path: local IPFS only.
+        new_cid = await ipfs_service.pin_json(updated_data)
 
         if new_cid:
             db_name = f"{wallet.lower()}.social"
             new_address = f"/orbitdb/{new_cid}/{db_name}"
 
             await self.set_db_address(wallet, "social", new_address)
+
+            # Optional durability backup (non-blocking): mirror the same payload to Pinata.
+            if settings.PINATA_JWT:
+                pin_name = f"social-index:{wallet.lower()}"
+                asyncio.create_task(self._backup_social_to_pinata(updated_data, pin_name))
+
             print(f"✅ Updated OrbitDB social data for {wallet}")
             return True
 
         return False
+
+    async def _backup_social_to_pinata(self, data: Dict, pin_name: str) -> None:
+        """Best-effort background mirror to Pinata; never affects write success."""
+        try:
+            from backend.app.services.pinata_service import pinata_service
+            await asyncio.to_thread(pinata_service.pin_json, data, pin_name)
+        except Exception as e:
+            print(f"⚠️ Background Pinata backup failed for {pin_name}: {e}")
     
     # ==================== IPFS REGISTRY BACKUP ====================
     # Permanent backup of OrbitDB addresses to prevent data loss
