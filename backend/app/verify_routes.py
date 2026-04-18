@@ -296,11 +296,9 @@ async def get_claim_payload(post_cid: str, chain_timestamp: int | None = Query(d
                     'is_eco': bool(verdict_data.get('eco', False)),
                     'confidence': float(verdict_data.get('confidence', 0.0)),
                     'verified_at': verdict_data.get('verified_at'),
-                    # NOTE: chain_timestamp intentionally omitted.
-                    # _build_chain_verdict() will call _get_reference_timestamp()
-                    # to fetch the CURRENT block timestamp from the RPC so the
-                    # resulting signature is always fresh and never rejected as
-                    # "verdict expired" by the contract.
+                    # Keep claim payload timestamp aligned with frontend/provider block,
+                    # while signer clamps it to chain latest to avoid "future" reverts.
+                    'chain_timestamp': chain_timestamp,
                 })
 
                 chain_verdict = regenerated.get('chain_verdict')

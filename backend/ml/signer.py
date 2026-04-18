@@ -118,14 +118,7 @@ class VerdictSigner:
             confidence_pct = 80
 
         provided_chain_ts = verdict_data.get('chain_timestamp')
-        timestamp_unix: int
-        if provided_chain_ts is not None:
-            try:
-                timestamp_unix = int(provided_chain_ts)
-            except Exception:
-                timestamp_unix = self._get_reference_timestamp()
-        else:
-            timestamp_unix = self._get_reference_timestamp()
+        timestamp_unix = self._resolve_safe_chain_timestamp(provided_chain_ts)
         # Keep nonce within JS safe integer range so frontend serialization stays exact.
         nonce = int.from_bytes(os.urandom(6), byteorder='big', signed=False)
 
@@ -137,6 +130,65 @@ class VerdictSigner:
             'nonce': nonce,
             'wallet': Web3.to_checksum_address(wallet),
         }
+
+    def _fetch_rpc_latest_timestamp(self) -> Optional[int]:
+        """Read latest block timestamp from RPC. Returns None when unavailable."""
+        rpc_url = (
+            os.getenv('RPC_URL')
+            or os.getenv('HARDHAT_RPC_URL')
+            or os.getenv('WEB3_RPC_URL')
+            or os.getenv('VITE_RPC_URL')
+            or 'http://127.0.0.1:8545'
+        )
+
+        try:
+            response = requests.post(
+                rpc_url,
+                json={
+                    'jsonrpc': '2.0',
+                    'method': 'eth_getBlockByNumber',
+                    'params': ['latest', False],
+                    'id': 1,
+                },
+                timeout=3,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            result = payload.get('result') or {}
+            ts_hex = result.get('timestamp')
+            if isinstance(ts_hex, str) and ts_hex.startswith('0x'):
+                return int(ts_hex, 16)
+        except Exception:
+            return None
+        return None
+
+    def _resolve_safe_chain_timestamp(self, provided_chain_ts: Optional[object] = None) -> int:
+        """
+        Resolve a contract-safe timestamp with one canonical rule:
+        never exceed the current chain latest timestamp.
+
+        Priority:
+          1) If caller provides chain_timestamp, use it but clamp to latest RPC timestamp.
+          2) Otherwise use latest RPC timestamp.
+          3) Fallback to wall clock only when RPC is unavailable.
+        """
+        rpc_latest = self._fetch_rpc_latest_timestamp()
+
+        provided: Optional[int] = None
+        if provided_chain_ts is not None:
+            try:
+                provided = int(provided_chain_ts)
+            except Exception:
+                provided = None
+
+        if rpc_latest is not None and provided is not None:
+            # Hard guard against "timestamp in future" reverts.
+            return min(provided, rpc_latest)
+        if rpc_latest is not None:
+            return rpc_latest
+        if provided is not None:
+            return provided
+        return int(time.time())
 
     def _get_reference_timestamp(self) -> int:
         """
@@ -163,39 +215,9 @@ class VerdictSigner:
         utcnow() returns a naive datetime and .timestamp() interprets it as local time,
         producing an incorrect value on UTC+ machines (hours behind true Unix time).
         """
-        wall_clock = int(time.time())  # always correct UTC Unix epoch
-
-        rpc_url = (
-            os.getenv('RPC_URL')
-            or os.getenv('HARDHAT_RPC_URL')
-            or os.getenv('WEB3_RPC_URL')
-            or os.getenv('VITE_RPC_URL')
-            or 'http://127.0.0.1:8545'
-        )
-
-        try:
-            response = requests.post(
-                rpc_url,
-                json={
-                    'jsonrpc': '2.0',
-                    'method': 'eth_getBlockByNumber',
-                    'params': ['latest', False],
-                    'id': 1,
-                },
-                timeout=3,
-            )
-            response.raise_for_status()
-            payload = response.json()
-            result = payload.get('result') or {}
-            ts_hex = result.get('timestamp')
-            if isinstance(ts_hex, str) and ts_hex.startswith('0x'):
-                rpc_ts = int(ts_hex, 16)
-                # Use whichever is higher so we are always "fresh"
-                return max(wall_clock, rpc_ts)
-        except Exception:
-            pass
-
-        return wall_clock
+        # Keep method for backward compatibility, but route through the new
+        # canonical chain-safe resolver to avoid future-timestamp reverts.
+        return self._resolve_safe_chain_timestamp()
 
     def sign_verdict(self, verdict_data: Dict) -> Dict:
         """
