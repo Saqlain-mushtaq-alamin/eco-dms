@@ -74,6 +74,19 @@ def _verdict_key(post_cid: str) -> str:
     return f"verdict:{post_cid}"
 
 
+def _normalize_ipfs_cid(value: Optional[str]) -> str:
+    """Normalize possible IPFS URL/path forms to a raw CID."""
+    if not value:
+        return ""
+    cid = str(value).strip()
+    if cid.startswith("ipfs://"):
+        cid = cid[len("ipfs://"):]
+    cid = cid.replace("/ipfs/", "")
+    cid = cid.replace("ipfs/", "")
+    cid = cid.strip("/")
+    return cid
+
+
 def _read_status(post_cid: str) -> Dict:
     raw = redis_service.get_json(_status_key(post_cid))
     return raw if isinstance(raw, dict) else {}
@@ -152,9 +165,12 @@ def verify_eco_content(
         Dict with verification result and signed verdict
     """
     try:
-        media_cids = [cid for cid in (ipfs_cids or []) if cid]
+        media_cids = [_normalize_ipfs_cid(cid) for cid in (ipfs_cids or []) if cid]
+        media_cids = [cid for cid in media_cids if cid]
         if not media_cids and ipfs_cid:
-            media_cids = [ipfs_cid]
+            normalized = _normalize_ipfs_cid(ipfs_cid)
+            if normalized:
+                media_cids = [normalized]
         if not media_cids:
             raise NonRetryableVerificationError("Either ipfs_cid or ipfs_cids must be provided")
 
@@ -225,6 +241,10 @@ def verify_eco_content(
                     continue  # Try next gateway
                 except (httpx.ConnectError, httpx.TimeoutException) as e:
                     last_error = f"Gateway {gateway_base}: {type(e).__name__}"
+                    continue  # Try next gateway
+                except RuntimeError as e:
+                    # Verifier failures caused by gateway/cid fetch issues are retryable.
+                    last_error = f"Gateway {gateway_base}: {e}"
                     continue  # Try next gateway
             
             if verdict is None:
@@ -568,6 +588,9 @@ def watchdog_stale_verifications() -> Dict:
                 should_requeue = True
             elif status == "processing" and updated_at and (now - updated_at).total_seconds() > 10 * 60:
                 should_requeue = True
+            elif status == "failed" and attempts < 4 and updated_at and (now - updated_at).total_seconds() > 10 * 60:
+                # Auto-reverify failed posts without requiring manual action.
+                should_requeue = True
 
             if status == "retrying" and attempts >= 4:
                 set_verification_status(
@@ -577,6 +600,10 @@ def watchdog_stale_verifications() -> Dict:
                     last_error="Maximum retries exceeded",
                 )
                 failed += 1
+                continue
+
+            if status == "failed" and attempts >= 4:
+                # Terminal failed state after automatic re-verification attempts are exhausted.
                 continue
 
             if not should_requeue:

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, Component, ReactNode } from 'react'
 import { Button, Input, LoadingSpinner, PostCard, VotePanel } from '@eco-dms/ui'
 import type { VoteStatus } from '@eco-dms/ui'
-import { getVoteStatus, castVote, retryPostVerification } from '../api'
+import { getVoteStatus, castVote } from '../api'
 
 // Prevents a VotePanel JS crash from wiping the whole page
 class VotePanelErrorBoundary extends Component<{ children: ReactNode }, { crashed: boolean }> {
@@ -243,7 +243,6 @@ export function Feed({
     const [showComposerModal, setShowComposerModal] = useState(false)
     const [currentUserProfile, setCurrentUserProfile] = useState<CurrentUserProfile | null>(null)
     const [mlPollingActive, setMlPollingActive] = useState(false)
-    const [retryingVerification, setRetryingVerification] = useState<Record<string, boolean>>({})
     const quickPhotoInputRef = useRef<HTMLInputElement>(null)
 
     // Configure your API base URL
@@ -649,30 +648,6 @@ export function Feed({
         }
     }
 
-    const handleRetryVerification = async (postCid: string) => {
-        if (!postCid) return
-        setRetryingVerification((prev) => ({ ...prev, [postCid]: true }))
-        setError(null)
-        try {
-            await retryPostVerification(postCid)
-            setPosts((prev) => prev.map((post) => (
-                post.cid === postCid
-                    ? { ...post, verification_status: 'queued', verification_error: '' }
-                    : post
-            )))
-            if (showingFeed) {
-                await loadFeed()
-            } else {
-                await loadMyPosts()
-            }
-        } catch (e: any) {
-            const message = e?.message || 'Failed to retry verification'
-            setError(message)
-        } finally {
-            setRetryingVerification((prev) => ({ ...prev, [postCid]: false }))
-        }
-    }
-
     const closeVerificationModal = () => {
         setVerificationModal({ isOpen: false, details: null, loading: false })
     }
@@ -941,21 +916,10 @@ export function Feed({
                                             <span>{p.verification_status === 'queued' ? 'Queued' : 'ML Analyzing...'}</span>
                                         </span>
                                     ) : p.verification_status === 'failed' || p.verification_status === 'unqueued' ? (
-                                        <div className="inline-flex items-center gap-2">
-                                            <span className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50/90 px-3.5 py-1.5 text-xs font-semibold text-rose-700">
-                                                <span className="h-2 w-2 rounded-full bg-rose-500" />
-                                                <span>{p.verification_status === 'failed' ? 'Verification failed' : 'Verification not queued'}</span>
-                                            </span>
-                                            {p.cid && p.author_wallet.toLowerCase() === address.toLowerCase() && (
-                                                <button
-                                                    onClick={() => handleRetryVerification(p.cid!)}
-                                                    disabled={Boolean(retryingVerification[p.cid!])}
-                                                    className="rounded-full border border-rose-300 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
-                                                >
-                                                    {retryingVerification[p.cid!] ? 'Retrying...' : 'Retry verification'}
-                                                </button>
-                                            )}
-                                        </div>
+                                        <span className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50/90 px-3.5 py-1.5 text-xs font-semibold text-rose-700">
+                                            <span className="h-2 w-2 rounded-full bg-rose-500" />
+                                            <span>{p.verification_status === 'failed' ? 'Verification failed (auto retry scheduled)' : 'Verification not queued (watchdog will requeue)'}</span>
+                                        </span>
                                     ) : undefined}
                                     content={p.content}
                                     imageUris={

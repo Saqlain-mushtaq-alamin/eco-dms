@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { API_BASE, getUserProfile, checkFollowStatus, followUser, unfollowUser, retryPostVerification } from '../api'
+import { API_BASE, getUserProfile, checkFollowStatus, followUser, unfollowUser } from '../api'
 import { Button, Card, LoadingSpinner, PostCard } from '@eco-dms/ui'
 
 type UserProfile = {
@@ -80,7 +80,6 @@ export default function VisitProfile({ walletAddress, currentUserAddress, onBack
     const [loading, setLoading] = useState(true)
     const [actionLoading, setActionLoading] = useState(false)
     const [error, setError] = useState('')
-    const [retryingVerification, setRetryingVerification] = useState<Record<string, boolean>>({})
 
     const fetchComments = async (postCid: string) => {
         const token = localStorage.getItem('auth_token')
@@ -253,19 +252,6 @@ export default function VisitProfile({ walletAddress, currentUserAddress, onBack
 
     const isProcessingVerification = (status?: string) => {
         return status === 'pending' || status === 'queued' || status === 'processing' || status === 'retrying'
-    }
-
-    const handleRetryVerification = async (postCid: string) => {
-        setRetryingVerification((prev) => ({ ...prev, [postCid]: true }))
-        setError('')
-        try {
-            await retryPostVerification(postCid)
-            await fetchProfile()
-        } catch (err: any) {
-            setError(err?.message || 'Failed to retry verification')
-        } finally {
-            setRetryingVerification((prev) => ({ ...prev, [postCid]: false }))
-        }
     }
 
     const fetchUserPosts = async () => {
@@ -446,21 +432,10 @@ export default function VisitProfile({ walletAddress, currentUserAddress, onBack
                                             <span>{post.verification_status === 'queued' ? 'Queued' : 'ML Analyzing...'}</span>
                                         </span>
                                     ) : post.verification_status === 'failed' || post.verification_status === 'unqueued' ? (
-                                        <div className="inline-flex items-center gap-2">
-                                            <span className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50/90 px-3.5 py-1.5 text-xs font-semibold text-rose-700">
-                                                <span className="h-2 w-2 rounded-full bg-rose-500" />
-                                                <span>{post.verification_status === 'failed' ? 'Verification failed' : 'Verification not queued'}</span>
-                                            </span>
-                                            {isOwnProfile && post.cid && (
-                                                <button
-                                                    onClick={() => handleRetryVerification(post.cid!)}
-                                                    disabled={Boolean(retryingVerification[post.cid!])}
-                                                    className="rounded-full border border-rose-300 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
-                                                >
-                                                    {retryingVerification[post.cid!] ? 'Retrying...' : 'Retry verification'}
-                                                </button>
-                                            )}
-                                        </div>
+                                        <span className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50/90 px-3.5 py-1.5 text-xs font-semibold text-rose-700">
+                                            <span className="h-2 w-2 rounded-full bg-rose-500" />
+                                            <span>{post.verification_status === 'failed' ? 'Verification failed (auto retry scheduled)' : 'Verification not queued (watchdog will requeue)'}</span>
+                                        </span>
                                     ) : undefined}
                                     onImagePress={post.cid ? (index) => navigate(`/post/${post.cid}?image=${index}`) : undefined}
                                     onLike={post.cid ? () => handleLike(post.cid!, post.liked_by_user ?? false) : undefined}

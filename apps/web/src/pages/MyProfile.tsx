@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { API_BASE, getMe, uploadImage, retryPostVerification } from '../api'
+import { API_BASE, getMe, uploadImage } from '../api'
 import { Button, Card, Input, PostCard, LoadingSpinner } from '@eco-dms/ui'
 
 type Profile = {
@@ -55,7 +55,6 @@ export default function UserProfile({ address, onBack }: UserProfileProps) {
     const [uploadingCover, setUploadingCover] = useState(false)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
-    const [retryingVerification, setRetryingVerification] = useState<Record<string, boolean>>({})
     const avatarInputRef = React.useRef<HTMLInputElement>(null)
     const coverInputRef = React.useRef<HTMLInputElement>(null)
 
@@ -203,19 +202,6 @@ export default function UserProfile({ address, onBack }: UserProfileProps) {
 
     const isProcessingVerification = (status?: string) => {
         return status === 'pending' || status === 'queued' || status === 'processing' || status === 'retrying'
-    }
-
-    const handleRetryVerification = async (postCid: string) => {
-        setRetryingVerification((prev) => ({ ...prev, [postCid]: true }))
-        setError('')
-        try {
-            await retryPostVerification(postCid)
-            await fetchMyPosts(address)
-        } catch (err: any) {
-            setError(err?.message || 'Failed to retry verification')
-        } finally {
-            setRetryingVerification((prev) => ({ ...prev, [postCid]: false }))
-        }
     }
 
     if (!address) return <div className="p-6">Please sign in to view your profile.</div>
@@ -398,21 +384,10 @@ export default function UserProfile({ address, onBack }: UserProfileProps) {
                                         <span>{post.verification_status === 'queued' ? 'Queued' : 'ML Analyzing...'}</span>
                                     </span>
                                 ) : post.verification_status === 'failed' || post.verification_status === 'unqueued' ? (
-                                    <div className="inline-flex items-center gap-2">
-                                        <span className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50/90 px-3.5 py-1.5 text-xs font-semibold text-rose-700">
-                                            <span className="h-2 w-2 rounded-full bg-rose-500" />
-                                            <span>{post.verification_status === 'failed' ? 'Verification failed' : 'Verification not queued'}</span>
-                                        </span>
-                                        {post.cid && (
-                                            <button
-                                                onClick={() => handleRetryVerification(post.cid!)}
-                                                disabled={Boolean(retryingVerification[post.cid!])}
-                                                className="rounded-full border border-rose-300 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
-                                            >
-                                                {retryingVerification[post.cid!] ? 'Retrying...' : 'Retry verification'}
-                                            </button>
-                                        )}
-                                    </div>
+                                    <span className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50/90 px-3.5 py-1.5 text-xs font-semibold text-rose-700">
+                                        <span className="h-2 w-2 rounded-full bg-rose-500" />
+                                        <span>{post.verification_status === 'failed' ? 'Verification failed (auto retry scheduled)' : 'Verification not queued (watchdog will requeue)'}</span>
+                                    </span>
                                 ) : undefined}
                                 onImagePress={post.cid ? (index) => navigate(`/post/${post.cid}?image=${index}`) : undefined}
                                 style={{
