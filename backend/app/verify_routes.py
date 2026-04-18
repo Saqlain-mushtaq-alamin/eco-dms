@@ -11,7 +11,6 @@ import httpx
 import os
 import json
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +22,7 @@ from .posts_manage.ipfs_post_service import ipfs_service
 from .services.notification_service import notification_service
 from .deps import get_current_user
 from .services.voting_service import voting_service
+from .services.redis_service import redis_service
 
 try:
     from backend.ml.worker import get_verdict_for_post
@@ -34,26 +34,25 @@ router = APIRouter(prefix="/api/verify", tags=["verification"])
 
 def _upsert_verdict_mapping(post_cid: str, updates: Dict) -> None:
     """Persist additional fields for an existing verdict mapping entry."""
-    base_dir = Path(__file__).resolve().parent.parent  # backend directory
-    storage_dir = Path(os.getenv('VERDICT_STORAGE_DIR', str(base_dir / 'ml_verdicts')))
-    mapping_file = storage_dir / 'verdicts.json'
-    if not mapping_file.exists():
-        return
-
     try:
-        with open(mapping_file, 'r', encoding='utf-8') as f:
-            mappings = json.load(f)
+        raw = redis_service.client.hget(f"verdict:{post_cid}", "payload")
+        if not raw:
+            return
+        current = json.loads(raw)
     except Exception:
         return
 
-    current = mappings.get(post_cid)
     if not isinstance(current, dict):
         return
 
     current.update(updates)
-    mappings[post_cid] = current
-    with open(mapping_file, 'w', encoding='utf-8') as f:
-        json.dump(mappings, f, indent=2)
+    try:
+        redis_service.client.hset(
+            f"verdict:{post_cid}",
+            mapping={"payload": json.dumps(current)},
+        )
+    except Exception:
+        return
 
 
 class VerifyRequest(BaseModel):

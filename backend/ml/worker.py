@@ -5,11 +5,13 @@ Processes verification jobs asynchronously using Redis queue
 import os
 import json
 import httpx
+import traceback
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional, List
 from dotenv import load_dotenv
 from celery import Celery
+from backend.app.services.redis_service import redis_service
 
 # Load backend/.env using an absolute path so this works regardless of the
 # process working directory (e.g. when Celery is launched from the repo root).
@@ -43,10 +45,91 @@ celery_app.conf.update(
             'timeout': 5.0
         }
     },
+    beat_schedule={
+        'watchdog-stale-verifications-every-10m': {
+            'task': 'watchdog_stale_verifications',
+            'schedule': 600.0,
+        }
+    },
 )
 
 
-@celery_app.task(name='verify_eco_content', bind=True, throws=(Exception,))
+class NonRetryableVerificationError(RuntimeError):
+    """Permanent verification failure that should not be retried."""
+
+
+class RetryableVerificationError(RuntimeError):
+    """Transient verification failure that can be retried."""
+
+
+def _utc_now_iso() -> str:
+    return datetime.utcnow().isoformat()
+
+
+def _status_key(post_cid: str) -> str:
+    return f"verification_status:{post_cid}"
+
+
+def _verdict_key(post_cid: str) -> str:
+    return f"verdict:{post_cid}"
+
+
+def _read_status(post_cid: str) -> Dict:
+    raw = redis_service.get_json(_status_key(post_cid))
+    return raw if isinstance(raw, dict) else {}
+
+
+def _write_status(post_cid: str, updates: Dict) -> None:
+    current = _read_status(post_cid)
+    current.update(updates)
+    current["updated_at"] = _utc_now_iso()
+    redis_service.set_json(_status_key(post_cid), current)
+
+
+def set_verification_status(
+    post_cid: str,
+    status: str,
+    task_id: Optional[str] = None,
+    attempts: Optional[int] = None,
+    last_error: Optional[str] = None,
+    queued_at: Optional[str] = None,
+    started_at: Optional[str] = None,
+    completed_at: Optional[str] = None,
+    ipfs_cids: Optional[List[str]] = None,
+    text_content: Optional[str] = None,
+    author_wallet: Optional[str] = None,
+) -> None:
+    updates: Dict = {"status": status}
+    if task_id is not None:
+        updates["task_id"] = task_id
+    if attempts is not None:
+        updates["attempts"] = attempts
+    if last_error is not None:
+        updates["last_error"] = last_error
+    if queued_at is not None:
+        updates["queued_at"] = queued_at
+    if started_at is not None:
+        updates["started_at"] = started_at
+    if completed_at is not None:
+        updates["completed_at"] = completed_at
+    if ipfs_cids is not None:
+        updates["ipfs_cids"] = ipfs_cids
+    if text_content is not None:
+        updates["text_content"] = text_content
+    if author_wallet is not None:
+        updates["author_wallet"] = author_wallet.lower()
+    _write_status(post_cid, updates)
+
+
+@celery_app.task(
+    name='verify_eco_content',
+    bind=True,
+    max_retries=3,
+    default_retry_delay=60,
+    autoretry_for=(httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError),
+    retry_backoff=True,
+    retry_jitter=True,
+)
 def verify_eco_content(
     self,
     ipfs_cid: Optional[str] = None,
@@ -73,7 +156,20 @@ def verify_eco_content(
         if not media_cids and ipfs_cid:
             media_cids = [ipfs_cid]
         if not media_cids:
-            raise ValueError("Either ipfs_cid or ipfs_cids must be provided")
+            raise NonRetryableVerificationError("Either ipfs_cid or ipfs_cids must be provided")
+
+        post_cid = post_id or media_cids[0]
+        current_attempt = int(self.request.retries or 0) + 1
+        set_verification_status(
+            post_cid=post_cid,
+            status='processing',
+            task_id=self.request.id,
+            attempts=current_attempt,
+            started_at=_utc_now_iso(),
+            ipfs_cids=media_cids,
+            text_content=text_content,
+            author_wallet=author_wallet,
+        )
 
         # Update task state
         self.update_state(
@@ -133,7 +229,9 @@ def verify_eco_content(
             
             if verdict is None:
                 # All gateways failed
-                raise Exception(f"Failed to fetch content from IPFS after trying {len(gateways_to_try)} gateways. Last error: {last_error}")
+                raise RetryableVerificationError(
+                    f"Failed to fetch content from IPFS after trying {len(gateways_to_try)} gateways. Last error: {last_error}"
+                )
         finally:
             loop.close()
         
@@ -183,6 +281,17 @@ def verify_eco_content(
             verdict,
             post_id,
             signed_verdict=signed_verdict,
+            task_id=self.request.id,
+            attempts=current_attempt,
+        )
+
+        set_verification_status(
+            post_cid=post_cid,
+            status='completed',
+            task_id=self.request.id,
+            attempts=current_attempt,
+            completed_at=_utc_now_iso(),
+            last_error="",
         )
 
         # Auto-open community voting window now that ML has finished.
@@ -211,24 +320,53 @@ def verify_eco_content(
         }
         
         return result
-    
+
+    except NonRetryableVerificationError as e:
+        post_cid = post_id or ipfs_cid or ((ipfs_cids or [None])[0])
+        if post_cid:
+            set_verification_status(
+                post_cid=post_cid,
+                status='failed',
+                task_id=self.request.id,
+                attempts=int(self.request.retries or 0) + 1,
+                last_error=str(e),
+            )
+        raise
+    except (RetryableVerificationError, httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError) as e:
+        post_cid = post_id or ipfs_cid or ((ipfs_cids or [None])[0])
+        current_attempt = int(self.request.retries or 0) + 1
+        if post_cid:
+            if self.request.retries < self.max_retries:
+                set_verification_status(
+                    post_cid=post_cid,
+                    status='retrying',
+                    task_id=self.request.id,
+                    attempts=current_attempt,
+                    last_error=str(e),
+                )
+            else:
+                set_verification_status(
+                    post_cid=post_cid,
+                    status='failed',
+                    task_id=self.request.id,
+                    attempts=current_attempt,
+                    last_error=f"Maximum retries exceeded: {e}",
+                )
+
+        if self.request.retries < self.max_retries:
+            raise self.retry(exc=e)
+        raise
     except Exception as e:
-        # Create JSON-serializable error response
-        error_msg = str(e)
-        error_type = type(e).__name__
-        
-        error_result = {
-            'status': 'error',
-            'error': error_msg,
-            'error_type': error_type,
-            'ipfs_cid': ipfs_cid,
-            'ipfs_cids': ipfs_cids,
-            'post_id': post_id,
-        }
-        
-        # Don't call update_state in exception handler - just raise
-        # Celery will handle state update automatically
-        raise Exception(f"{error_type}: {error_msg}")
+        post_cid = post_id or ipfs_cid or ((ipfs_cids or [None])[0])
+        if post_cid:
+            set_verification_status(
+                post_cid=post_cid,
+                status='failed',
+                task_id=self.request.id,
+                attempts=int(self.request.retries or 0) + 1,
+                last_error=f"{type(e).__name__}: {e}",
+            )
+        raise
 
 
 def _store_verdict_on_ipfs(signed_verdict: Dict) -> str:
@@ -274,6 +412,8 @@ def _store_verdict_mapping(
     verdict: Dict,
     post_id: Optional[str] = None,
     signed_verdict: Optional[Dict] = None,
+    task_id: Optional[str] = None,
+    attempts: Optional[int] = None,
 ) -> None:
     """
     Store mapping of media/post CID to verdict CID in a JSON file.
@@ -285,27 +425,6 @@ def _store_verdict_mapping(
         verdict: Verification result
         post_id: Optional post CID (if provided, verdict will be indexed by both)
     """
-    import os
-    import json
-    from pathlib import Path
-    
-    # Use absolute path based on this file's location
-    base_dir = Path(__file__).parent.parent  # backend directory
-    storage_dir = Path(os.getenv('VERDICT_STORAGE_DIR', str(base_dir / 'ml_verdicts')))
-    storage_dir.mkdir(exist_ok=True)
-    
-    # Store mapping
-    mapping_file = storage_dir / 'verdicts.json'
-    
-    # Load existing mappings
-    mappings = {}
-    if mapping_file.exists():
-        try:
-            with open(mapping_file, 'r') as f:
-                mappings = json.load(f)
-        except Exception:
-            pass
-    
     # Prepare verdict data
     verdict_data = {
         'verdict_cid': verdict_cid,
@@ -317,6 +436,13 @@ def _store_verdict_mapping(
         'failed_images': verdict.get('failed_images', []),
         'per_image_results': verdict.get('per_image_results', []),
         'verified_at': datetime.utcnow().isoformat(),
+        'status': 'completed',
+        'task_id': task_id,
+        'attempts': attempts,
+        'last_error': '',
+        'queued_at': _read_status(post_id or media_cids[0]).get('queued_at'),
+        'started_at': _read_status(post_id or media_cids[0]).get('started_at'),
+        'completed_at': _utc_now_iso(),
     }
 
     if signed_verdict:
@@ -326,17 +452,13 @@ def _store_verdict_mapping(
         verdict_data['eip712_domain'] = signed_verdict.get('eip712_domain')
         verdict_data['eip712_types'] = signed_verdict.get('eip712_types')
     
-    # Store by each media CID (always)
-    for media_cid in media_cids:
-        mappings[media_cid] = verdict_data
-    
-    # Also store by post ID if provided (allows lookup by post CID)
-    if post_id:
-        mappings[post_id] = verdict_data
-    
-    # Save updated mappings
-    with open(mapping_file, 'w') as f:
-        json.dump(mappings, f, indent=2)
+    target_ids = list(dict.fromkeys(media_cids + ([post_id] if post_id else [])))
+    payload = json.dumps(verdict_data)
+    for target_id in target_ids:
+        try:
+            redis_service.client.hset(_verdict_key(target_id), mapping={"payload": payload})
+        except Exception as e:
+            print(f"⚠️ Failed to persist verdict in Redis for {target_id}: {e}")
 
 
 def _open_voting_window_for_post(
@@ -383,24 +505,128 @@ def get_verdict_for_post(post_cid: str) -> Optional[Dict]:
     Returns:
         Verdict data if available
     """
-    import os
-    import json
-    from pathlib import Path
-    
-    # Use absolute path based on this file's location
-    base_dir = Path(__file__).parent.parent  # backend directory
+    # Redis-first lookup (authoritative).
+    try:
+        raw = redis_service.client.hget(_verdict_key(post_cid), "payload")
+        if raw:
+            return json.loads(raw)
+    except Exception:
+        pass
+
+    # Backward compatibility fallback: local JSON mapping.
+    base_dir = Path(__file__).parent.parent
     storage_dir = Path(os.getenv('VERDICT_STORAGE_DIR', str(base_dir / 'ml_verdicts')))
     mapping_file = storage_dir / 'verdicts.json'
-    
-    if not mapping_file.exists():
-        return None
-    
+    if mapping_file.exists():
+        try:
+            with open(mapping_file, 'r', encoding='utf-8') as f:
+                mappings = json.load(f)
+            return mappings.get(post_cid)
+        except Exception:
+            return None
+    return None
+
+
+@celery_app.task(name='watchdog_stale_verifications')
+def watchdog_stale_verifications() -> Dict:
+    """Requeue stale queued/processing verification tasks and finalize exhausted retries."""
+    scanned = 0
+    requeued = 0
+    failed = 0
+    now = datetime.utcnow()
+
     try:
-        with open(mapping_file, 'r') as f:
-            mappings = json.load(f)
-        return mappings.get(post_cid)
-    except Exception:
-        return None
+        keys = redis_service.client.keys("verification_status:*") or []
+    except Exception as e:
+        return {"scanned": 0, "requeued": 0, "failed": 0, "error": str(e)}
+
+    for key in keys:
+        scanned += 1
+        try:
+            key_str = key.decode('utf-8') if isinstance(key, (bytes, bytearray)) else str(key)
+            raw = redis_service.get_json(key_str)
+            if not isinstance(raw, dict):
+                continue
+
+            status = str(raw.get("status", "")).lower()
+            attempts = int(raw.get("attempts", 1) or 1)
+            post_cid = key_str.split("verification_status:", 1)[-1]
+
+            def _parse_iso(value: Optional[str]) -> Optional[datetime]:
+                if not value or not isinstance(value, str):
+                    return None
+                try:
+                    return datetime.fromisoformat(value.replace("Z", ""))
+                except Exception:
+                    return None
+
+            queued_at = _parse_iso(raw.get("queued_at"))
+            updated_at = _parse_iso(raw.get("updated_at"))
+
+            should_requeue = False
+            if status == "queued" and queued_at and (now - queued_at).total_seconds() > 15 * 60:
+                should_requeue = True
+            elif status == "processing" and updated_at and (now - updated_at).total_seconds() > 10 * 60:
+                should_requeue = True
+
+            if status == "retrying" and attempts >= 4:
+                set_verification_status(
+                    post_cid=post_cid,
+                    status="failed",
+                    attempts=attempts,
+                    last_error="Maximum retries exceeded",
+                )
+                failed += 1
+                continue
+
+            if not should_requeue:
+                continue
+
+            ipfs_cids = raw.get("ipfs_cids") or []
+            text_content = raw.get("text_content")
+            author_wallet = raw.get("author_wallet")
+            if not ipfs_cids:
+                set_verification_status(
+                    post_cid=post_cid,
+                    status="failed",
+                    attempts=attempts,
+                    last_error="Watchdog cannot requeue: missing ipfs_cids",
+                )
+                failed += 1
+                continue
+
+            task = celery_app.send_task(
+                'verify_eco_content',
+                kwargs={
+                    'ipfs_cid': ipfs_cids[0],
+                    'ipfs_cids': ipfs_cids,
+                    'text_content': text_content,
+                    'post_id': post_cid,
+                    'author_wallet': author_wallet,
+                }
+            )
+
+            set_verification_status(
+                post_cid=post_cid,
+                status="queued" if status == "queued" else "retrying",
+                task_id=task.id,
+                attempts=attempts + 1,
+                queued_at=_utc_now_iso(),
+                last_error=raw.get("last_error", "") or "",
+                ipfs_cids=ipfs_cids,
+                text_content=text_content,
+                author_wallet=author_wallet,
+            )
+            requeued += 1
+        except Exception:
+            traceback.print_exc()
+            continue
+
+    return {
+        "scanned": scanned,
+        "requeued": requeued,
+        "failed": failed,
+    }
 
 
 @celery_app.task(name='get_verification_status')

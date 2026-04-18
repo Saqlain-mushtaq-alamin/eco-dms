@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, Component, ReactNode } from 'react'
 import { Button, Input, LoadingSpinner, PostCard, VotePanel } from '@eco-dms/ui'
 import type { VoteStatus } from '@eco-dms/ui'
-import { getVoteStatus, castVote } from '../api'
+import { getVoteStatus, castVote, retryPostVerification } from '../api'
 
 // Prevents a VotePanel JS crash from wiping the whole page
 class VotePanelErrorBoundary extends Component<{ children: ReactNode }, { crashed: boolean }> {
@@ -35,7 +35,8 @@ type Post = {
     signed_verdict_cid?: string
     verifier_address?: string
     verified_at?: string
-    verification_status?: 'pending' | 'verified' | 'none'
+    verification_status?: 'queued' | 'processing' | 'retrying' | 'failed' | 'verified' | 'not_eco' | 'unqueued' | 'none' | 'pending'
+    verification_error?: string
     local_image_uri?: string
     isOptimistic?: boolean
 }
@@ -242,6 +243,7 @@ export function Feed({
     const [showComposerModal, setShowComposerModal] = useState(false)
     const [currentUserProfile, setCurrentUserProfile] = useState<CurrentUserProfile | null>(null)
     const [mlPollingActive, setMlPollingActive] = useState(false)
+    const [retryingVerification, setRetryingVerification] = useState<Record<string, boolean>>({})
     const quickPhotoInputRef = useRef<HTMLInputElement>(null)
 
     // Configure your API base URL
@@ -341,6 +343,10 @@ export function Feed({
         }
     }
 
+    const isProcessingVerification = (status?: string) => {
+        return status === 'pending' || status === 'queued' || status === 'processing' || status === 'retrying'
+    }
+
     useEffect(() => {
         load()
         loadUsers()
@@ -356,7 +362,7 @@ export function Feed({
             return
         }
 
-        const hasPendingVerification = posts.some((post) => post.verification_status === 'pending')
+        const hasPendingVerification = posts.some((post) => isProcessingVerification(post.verification_status))
         setMlPollingActive(hasPendingVerification)
 
         if (!hasPendingVerification) return
@@ -643,6 +649,30 @@ export function Feed({
         }
     }
 
+    const handleRetryVerification = async (postCid: string) => {
+        if (!postCid) return
+        setRetryingVerification((prev) => ({ ...prev, [postCid]: true }))
+        setError(null)
+        try {
+            await retryPostVerification(postCid)
+            setPosts((prev) => prev.map((post) => (
+                post.cid === postCid
+                    ? { ...post, verification_status: 'queued', verification_error: '' }
+                    : post
+            )))
+            if (showingFeed) {
+                await loadFeed()
+            } else {
+                await loadMyPosts()
+            }
+        } catch (e: any) {
+            const message = e?.message || 'Failed to retry verification'
+            setError(message)
+        } finally {
+            setRetryingVerification((prev) => ({ ...prev, [postCid]: false }))
+        }
+    }
+
     const closeVerificationModal = () => {
         setVerificationModal({ isOpen: false, details: null, loading: false })
     }
@@ -870,7 +900,7 @@ export function Feed({
                     {mlPollingActive && !loading && (
                         <div className="text-xs text-amber-700 bg-amber-50/80 border border-amber-200 rounded-lg px-3 py-2 inline-flex items-center gap-2">
                             <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-                            <span>ML verification in progress. Feed auto-refreshes every few seconds.</span>
+                            <span>ML verification is active (queued/processing/retrying). Feed auto-refreshes every few seconds.</span>
                         </div>
                     )}
 
@@ -884,7 +914,7 @@ export function Feed({
                                         username: getAuthorForPost(p.author_wallet).displayName,
                                         avatarUri: getAuthorForPost(p.author_wallet).avatarUri,
                                     }}
-                                    headerRight={p.verification_status === 'verified' ? (
+                                    headerRight={p.verification_status === 'verified' || p.verification_status === 'not_eco' ? (
                                         <button
                                             onClick={() => p.signed_verdict_cid && handleShowVerification(p.signed_verdict_cid)}
                                             className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all duration-200 hover:scale-[1.02] hover:shadow-md ${p.verified
@@ -905,11 +935,27 @@ export function Feed({
                                                 </span>
                                             )}
                                         </button>
-                                    ) : p.verification_status === 'pending' ? (
+                                    ) : isProcessingVerification(p.verification_status) ? (
                                         <span className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50/90 px-3.5 py-1.5 text-xs font-semibold text-amber-700">
                                             <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-                                            <span>ML Analyzing...</span>
+                                            <span>{p.verification_status === 'queued' ? 'Queued' : 'ML Analyzing...'}</span>
                                         </span>
+                                    ) : p.verification_status === 'failed' || p.verification_status === 'unqueued' ? (
+                                        <div className="inline-flex items-center gap-2">
+                                            <span className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50/90 px-3.5 py-1.5 text-xs font-semibold text-rose-700">
+                                                <span className="h-2 w-2 rounded-full bg-rose-500" />
+                                                <span>{p.verification_status === 'failed' ? 'Verification failed' : 'Verification not queued'}</span>
+                                            </span>
+                                            {p.cid && p.author_wallet.toLowerCase() === address.toLowerCase() && (
+                                                <button
+                                                    onClick={() => handleRetryVerification(p.cid!)}
+                                                    disabled={Boolean(retryingVerification[p.cid!])}
+                                                    className="rounded-full border border-rose-300 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+                                                >
+                                                    {retryingVerification[p.cid!] ? 'Retrying...' : 'Retry verification'}
+                                                </button>
+                                            )}
+                                        </div>
                                     ) : undefined}
                                     content={p.content}
                                     imageUris={
@@ -928,7 +974,7 @@ export function Feed({
                                     onComment={p.cid ? () => handleToggleComments(p.cid!) : undefined}
                                     ecoScore={typeof p.eco_score === 'number' ? p.eco_score : undefined}
                                     verified={p.verified === true}
-                                    votePanel={p.cid && p.verification_status === 'verified' ? (
+                                    votePanel={p.cid && (p.verification_status === 'verified' || p.verification_status === 'not_eco') ? (
                                         <VotePanelErrorBoundary key={p.cid}>
                                             <VotePanel
                                                 postCid={p.cid}

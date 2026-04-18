@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { API_BASE, getMe, uploadImage } from '../api'
+import { API_BASE, getMe, uploadImage, retryPostVerification } from '../api'
 import { Button, Card, Input, PostCard, LoadingSpinner } from '@eco-dms/ui'
 
 type Profile = {
@@ -26,6 +26,9 @@ type Post = {
     likes_count?: number
     comments_count?: number
     liked_by_user?: boolean
+    verified?: boolean
+    eco_score?: number
+    verification_status?: 'queued' | 'processing' | 'retrying' | 'failed' | 'verified' | 'not_eco' | 'unqueued' | 'none' | 'pending'
 }
 
 interface UserProfileProps {
@@ -52,6 +55,7 @@ export default function UserProfile({ address, onBack }: UserProfileProps) {
     const [uploadingCover, setUploadingCover] = useState(false)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
+    const [retryingVerification, setRetryingVerification] = useState<Record<string, boolean>>({})
     const avatarInputRef = React.useRef<HTMLInputElement>(null)
     const coverInputRef = React.useRef<HTMLInputElement>(null)
 
@@ -194,6 +198,23 @@ export default function UserProfile({ address, onBack }: UserProfileProps) {
             setError('Failed to save profile')
         } finally {
             setSaving(false)
+        }
+    }
+
+    const isProcessingVerification = (status?: string) => {
+        return status === 'pending' || status === 'queued' || status === 'processing' || status === 'retrying'
+    }
+
+    const handleRetryVerification = async (postCid: string) => {
+        setRetryingVerification((prev) => ({ ...prev, [postCid]: true }))
+        setError('')
+        try {
+            await retryPostVerification(postCid)
+            await fetchMyPosts(address)
+        } catch (err: any) {
+            setError(err?.message || 'Failed to retry verification')
+        } finally {
+            setRetryingVerification((prev) => ({ ...prev, [postCid]: false }))
         }
     }
 
@@ -361,6 +382,38 @@ export default function UserProfile({ address, onBack }: UserProfileProps) {
                                 likes={post.likes_count || 0}
                                 comments={post.comments_count || 0}
                                 isLiked={Boolean(post.liked_by_user)}
+                                headerRight={post.verification_status === 'verified' || post.verification_status === 'not_eco' ? (
+                                    <span className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-semibold ${post.verified ? 'border-emerald-200 bg-white/90 text-emerald-700' : 'border-rose-200 bg-white/90 text-rose-700'}`}>
+                                        <span className={`h-2 w-2 rounded-full ${post.verified ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                                        <span>{post.verified ? 'ECO' : 'NOT ECO'}</span>
+                                        {typeof post.eco_score === 'number' && (
+                                            <span className="rounded-full bg-black/5 px-2 py-0.5 text-[11px] font-bold">
+                                                {Math.round(post.eco_score * 100)}%
+                                            </span>
+                                        )}
+                                    </span>
+                                ) : isProcessingVerification(post.verification_status) ? (
+                                    <span className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50/90 px-3.5 py-1.5 text-xs font-semibold text-amber-700">
+                                        <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                                        <span>{post.verification_status === 'queued' ? 'Queued' : 'ML Analyzing...'}</span>
+                                    </span>
+                                ) : post.verification_status === 'failed' || post.verification_status === 'unqueued' ? (
+                                    <div className="inline-flex items-center gap-2">
+                                        <span className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50/90 px-3.5 py-1.5 text-xs font-semibold text-rose-700">
+                                            <span className="h-2 w-2 rounded-full bg-rose-500" />
+                                            <span>{post.verification_status === 'failed' ? 'Verification failed' : 'Verification not queued'}</span>
+                                        </span>
+                                        {post.cid && (
+                                            <button
+                                                onClick={() => handleRetryVerification(post.cid!)}
+                                                disabled={Boolean(retryingVerification[post.cid!])}
+                                                className="rounded-full border border-rose-300 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+                                            >
+                                                {retryingVerification[post.cid!] ? 'Retrying...' : 'Retry verification'}
+                                            </button>
+                                        )}
+                                    </div>
+                                ) : undefined}
                                 onImagePress={post.cid ? (index) => navigate(`/post/${post.cid}?image=${index}`) : undefined}
                                 style={{
                                     borderWidth: 0,

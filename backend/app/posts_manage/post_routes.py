@@ -13,6 +13,7 @@ from backend.app.services.social_service import social_service
 # User service for follow relationships
 from backend.app.services.user_service import user_service
 from backend.app.services.notification_service import notification_service
+from backend.app.services.redis_service import redis_service
 # ML verification (async Celery task)
 try:
     from backend.ml.worker import verify_eco_content, get_verdict_for_post
@@ -23,6 +24,129 @@ except ImportError:
     get_verdict_for_post = None
 
 router = APIRouter(prefix="/api/posts", tags=["posts"])
+
+
+def _status_key(post_cid: str) -> str:
+    return f"verification_status:{post_cid}"
+
+
+def _set_verification_status(post_cid: str, updates: Dict) -> None:
+    current = redis_service.get_json(_status_key(post_cid))
+    if not isinstance(current, dict):
+        current = {}
+    current.update(updates)
+    current["updated_at"] = datetime.utcnow().isoformat()
+    redis_service.set_json(_status_key(post_cid), current)
+
+
+def _get_verification_state(post_cid: str, has_media: bool) -> Dict:
+    state = {
+        "verified": False,
+        "eco_score": 0.0,
+        "signed_verdict_cid": None,
+        "verification_status": "none",
+        "verification_error": "",
+    }
+
+    if not has_media:
+        return state
+
+    status_data = redis_service.get_json(_status_key(post_cid))
+    status = status_data.get("status") if isinstance(status_data, dict) else None
+
+    if status == "completed":
+        verdict_data = get_verdict_for_post(post_cid) if get_verdict_for_post else None
+        if isinstance(verdict_data, dict):
+            is_eco = bool(verdict_data.get("eco", False))
+            state["verified"] = is_eco
+            state["eco_score"] = float(verdict_data.get("confidence", 0.0) or 0.0)
+            state["signed_verdict_cid"] = verdict_data.get("verdict_cid")
+            state["verification_status"] = "verified" if is_eco else "not_eco"
+        else:
+            state["verification_status"] = "failed"
+            state["verification_error"] = "Completed verification but verdict is missing"
+        return state
+
+    if status == "failed":
+        state["verification_status"] = "failed"
+        if isinstance(status_data, dict):
+            state["verification_error"] = str(status_data.get("last_error", "") or "")
+        return state
+
+    if status in {"processing", "retrying"}:
+        state["verification_status"] = "processing"
+        if isinstance(status_data, dict):
+            state["verification_error"] = str(status_data.get("last_error", "") or "")
+        return state
+
+    if status == "queued":
+        state["verification_status"] = "queued"
+        return state
+
+    state["verification_status"] = "unqueued"
+    return state
+
+
+def _attach_verification_state(post: Dict, post_cid: str) -> None:
+    has_media = bool(post.get("media_cids"))
+    verification = _get_verification_state(post_cid, has_media)
+    post.update(verification)
+
+
+def _next_attempts_for_post(post_cid: str) -> int:
+    status_data = redis_service.get_json(_status_key(post_cid))
+    if isinstance(status_data, dict):
+        return int(status_data.get("attempts", 0) or 0) + 1
+    return 1
+
+
+def _enqueue_verification_task(
+    post_cid: str,
+    media_cids: List[str],
+    content: str,
+    author_wallet: str,
+    attempts: int,
+) -> str:
+    from backend.ml.worker import celery_app
+
+    try:
+        task = celery_app.send_task(
+            'verify_eco_content',
+            kwargs={
+                'ipfs_cids': media_cids,
+                'text_content': content,
+                'post_id': post_cid,
+                'author_wallet': author_wallet.lower()
+            }
+        )
+        _set_verification_status(
+            post_cid,
+            {
+                "status": "queued",
+                "task_id": task.id,
+                "attempts": attempts,
+                "last_error": "",
+                "queued_at": datetime.utcnow().isoformat(),
+                "ipfs_cids": media_cids,
+                "text_content": content,
+                "author_wallet": author_wallet.lower(),
+            },
+        )
+        return task.id
+    except Exception as e:
+        _set_verification_status(
+            post_cid,
+            {
+                "status": "failed",
+                "attempts": attempts,
+                "last_error": str(e),
+                "queued_at": datetime.utcnow().isoformat(),
+                "ipfs_cids": media_cids,
+                "text_content": content,
+                "author_wallet": author_wallet.lower(),
+            },
+        )
+        raise HTTPException(status_code=503, detail=f"Post exists but ML verification enqueue failed: {e}")
 
 
 async def _get_post_author_wallet(post_cid: str) -> str | None:
@@ -62,25 +186,12 @@ async def get_post_by_cid(
     post["liked_by_user"] = False if isinstance(liked_by_user, (Exception, BaseException)) else bool(liked_by_user)
 
     try:
-        if ML_AVAILABLE and get_verdict_for_post:
-            verdict_data = get_verdict_for_post(post_cid)
-            if verdict_data:
-                post["verified"] = verdict_data.get("eco", False)
-                post["eco_score"] = verdict_data.get("confidence", 0.0)
-                post["signed_verdict_cid"] = verdict_data.get("verdict_cid")
-                post["verification_status"] = "verified"
-            else:
-                post["verified"] = False
-                post["eco_score"] = 0.0
-                post["verification_status"] = "pending" if post.get("media_cids") else "none"
-        else:
-            post["verified"] = False
-            post["eco_score"] = 0.0
-            post["verification_status"] = "pending" if post.get("media_cids") else "none"
+        _attach_verification_state(post, post_cid)
     except Exception:
         post["verified"] = False
         post["eco_score"] = 0.0
-        post["verification_status"] = "pending" if post.get("media_cids") else "none"
+        post["verification_status"] = "failed" if post.get("media_cids") else "none"
+        post["verification_error"] = "Could not resolve verification state"
 
     return {"post": post}
 
@@ -149,31 +260,64 @@ async def create_post(
         
         # Trigger ML verification for posts with images (async via Celery)
         # This maintains decentralization - verification is optional and off-chain
-        if ML_AVAILABLE and verify_eco_content and payload.media_cids:
-            try:
-                # Send one task with all images so ML can produce a merged verdict per post.
-                from backend.ml.worker import celery_app
-                celery_app.send_task(
-                    'verify_eco_content',
-                    kwargs={
-                        'ipfs_cids': payload.media_cids,
-                        'text_content': payload.content,
-                        'post_id': cid,
-                        'author_wallet': wallet_address.lower()
-                    }
-                )
-                print(f"Triggered merged ML verification for post {cid} with {len(payload.media_cids)} images")
-            except Exception as e:
-                print(f"Warning: Failed to trigger ML verification: {e}")
-                # Don't fail the post creation if ML verification fails
+        if payload.media_cids:
+            task_id = _enqueue_verification_task(
+                post_cid=cid,
+                media_cids=payload.media_cids,
+                content=payload.content,
+                author_wallet=wallet_address.lower(),
+                attempts=1,
+            )
+            print(f"Triggered merged ML verification for post {cid} with {len(payload.media_cids)} images (task={task_id})")
         
         if not ok:
             # We still return success for pinning; client can retry index update
             return {"success": True, "cid": cid, "indexed": False}
 
         return {"success": True, "cid": cid, "indexed": True}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{post_cid}/retry-verification", response_model=Dict)
+async def retry_verification(
+    post_cid: str,
+    authorization: str | None = Header(default=None),
+):
+    """Retry ML verification for a post with media. Restricted to post author."""
+    wallet_address = await get_current_user(authorization)
+
+    post = await ipfs_service.get_json(post_cid)
+    if not isinstance(post, dict):
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    author_wallet = str(post.get("author_wallet") or post.get("author") or "").lower()
+    if not author_wallet:
+        raise HTTPException(status_code=422, detail="Post author metadata missing")
+    if author_wallet != wallet_address.lower():
+        raise HTTPException(status_code=403, detail="Only post author can retry verification")
+
+    media_cids = post.get("media_cids") or []
+    if not isinstance(media_cids, list) or len(media_cids) == 0:
+        raise HTTPException(status_code=400, detail="Post has no media to verify")
+
+    attempts = _next_attempts_for_post(post_cid)
+    task_id = _enqueue_verification_task(
+        post_cid=post_cid,
+        media_cids=media_cids,
+        content=str(post.get("content") or ""),
+        author_wallet=author_wallet,
+        attempts=attempts,
+    )
+    return {
+        "success": True,
+        "post_cid": post_cid,
+        "task_id": task_id,
+        "status": "queued",
+        "attempts": attempts,
+    }
 
 @router.get("/{wallet_address}", response_model=Dict)
 async def list_author_posts(
@@ -231,27 +375,13 @@ async def list_author_posts(
                 post["comments_count"] = 0 if isinstance(comments_count, (Exception, BaseException)) else (comments_count or 0)
                 post["liked_by_user"] = False if isinstance(liked_by_user, (Exception, BaseException)) else bool(liked_by_user)
                 
-                # Fetch verification data if available
                 try:
-                    if ML_AVAILABLE and get_verdict_for_post:
-                        verdict_data = get_verdict_for_post(cid)
-                        if verdict_data:
-                            post["verified"] = verdict_data.get("eco", False)
-                            post["eco_score"] = verdict_data.get("confidence", 0.0)
-                            post["signed_verdict_cid"] = verdict_data.get("verdict_cid")
-                            post["verification_status"] = "verified"
-                        else:
-                            post["verified"] = False
-                            post["eco_score"] = 0.0
-                            post["verification_status"] = "pending" if post.get("media_cids") else "none"
-                    else:
-                        post["verified"] = False
-                        post["eco_score"] = 0.0
-                        post["verification_status"] = "pending" if post.get("media_cids") else "none"
+                    _attach_verification_state(post, cid)
                 except Exception:
                     post["verified"] = False
                     post["eco_score"] = 0.0
-                    post["verification_status"] = "pending" if post.get("media_cids") else "none"
+                    post["verification_status"] = "failed" if post.get("media_cids") else "none"
+                    post["verification_error"] = "Could not resolve verification state"
                 
                 return post
             return None
@@ -337,27 +467,13 @@ async def get_feed_timeline(
                     post["comments_count"] = 0 if isinstance(comments_count, (Exception, BaseException)) else (comments_count or 0)
                     post["liked_by_user"] = False if isinstance(liked_by_user, (Exception, BaseException)) else bool(liked_by_user)
                     
-                    # Fetch verification data if available
                     try:
-                        if ML_AVAILABLE and get_verdict_for_post:
-                            verdict_data = get_verdict_for_post(cid)
-                            if verdict_data:
-                                post["verified"] = verdict_data.get("eco", False)
-                                post["eco_score"] = verdict_data.get("confidence", 0.0)
-                                post["signed_verdict_cid"] = verdict_data.get("verdict_cid")
-                                post["verification_status"] = "verified"
-                            else:
-                                post["verified"] = False
-                                post["eco_score"] = 0.0
-                                post["verification_status"] = "pending" if post.get("media_cids") else "none"
-                        else:
-                            post["verified"] = False
-                            post["eco_score"] = 0.0
-                            post["verification_status"] = "pending" if post.get("media_cids") else "none"
+                        _attach_verification_state(post, cid)
                     except Exception:
                         post["verified"] = False
                         post["eco_score"] = 0.0
-                        post["verification_status"] = "pending" if post.get("media_cids") else "none"
+                        post["verification_status"] = "failed" if post.get("media_cids") else "none"
+                        post["verification_error"] = "Could not resolve verification state"
                     
                     return post
                 return None

@@ -200,6 +200,25 @@ export async function getFeedTimeline() {
     return res.json()
 }
 
+export async function retryPostVerification(postCid: string): Promise<{ success: boolean; post_cid: string; task_id: string; status: string; attempts: number }> {
+    const token = localStorage.getItem('auth_token')
+    if (!token) throw new Error('No authentication token')
+
+    const res = await fetch(`${API_BASE}/api/posts/${encodeURIComponent(postCid)}/retry-verification`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    })
+
+    if (!res.ok) {
+        const msg = await res.text()
+        throw new Error(msg || `Failed to retry verification: ${res.status}`)
+    }
+    return res.json()
+}
+
 export interface AppNotification {
     id: string
     type: 'like' | 'comment' | 'reward' | string
