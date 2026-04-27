@@ -138,6 +138,20 @@ export default function WalletConnect({ onConnected }: { onConnected: (address: 
             <div className="signin-shell">
                 <section className="signin-side signin-side--left">
                     <div className="signin-glass signin-glass--left">
+                        <div className="signin-left-orbit" aria-hidden="true">
+                            <span className="signin-left-orbit__ring signin-left-orbit__ring--outer" />
+                            <span className="signin-left-orbit__ring signin-left-orbit__ring--mid" />
+                            <span className="signin-left-orbit__ring signin-left-orbit__ring--inner" />
+                            <span className="signin-left-orbit__node signin-left-orbit__node--a" />
+                            <span className="signin-left-orbit__node signin-left-orbit__node--b" />
+                            <span className="signin-left-orbit__node signin-left-orbit__node--c" />
+                        </div>
+                        <div className="signin-left-lines" aria-hidden="true">
+                            <span className="signin-left-lines__beam signin-left-lines__beam--one" />
+                            <span className="signin-left-lines__beam signin-left-lines__beam--two" />
+                            <span className="signin-left-lines__beam signin-left-lines__beam--three" />
+                        </div>
+
                         <p className="signin-kicker">eco dms</p>
                         <h1 className="signin-title">eco dms</h1>
                         <p className="signin-tagline">Grow what you give.</p>

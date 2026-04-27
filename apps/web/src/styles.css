@@ -273,6 +273,108 @@ html.theme-dark ::-webkit-scrollbar-thumb:hover {
     box-shadow: none;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
+    position: relative;
+    overflow: visible;
+}
+
+.signin-left-orbit {
+    position: absolute;
+    left: -2.2rem;
+    top: 1rem;
+    width: clamp(220px, 28vw, 330px);
+    aspect-ratio: 1 / 1;
+    pointer-events: none;
+    transform-style: preserve-3d;
+    opacity: 0.75;
+}
+
+.signin-left-orbit__ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    border: 1px solid rgba(171, 202, 47, 0.44);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15), 0 0 18px rgba(171, 202, 47, 0.16);
+}
+
+.signin-left-orbit__ring--outer {
+    animation: orbitSpin 14s linear infinite;
+}
+
+.signin-left-orbit__ring--mid {
+    inset: 11%;
+    border-color: rgba(171, 202, 47, 0.36);
+    border-style: dashed;
+    animation: orbitSpinReverse 11s linear infinite;
+}
+
+.signin-left-orbit__ring--inner {
+    inset: 24%;
+    border-color: rgba(171, 202, 47, 0.5);
+    animation: orbitPulse 5s ease-in-out infinite;
+}
+
+.signin-left-orbit__node {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #ffffff, #cfe86d 58%, #abca2f 100%);
+    box-shadow: 0 0 12px rgba(171, 202, 47, 0.5);
+}
+
+.signin-left-orbit__node--a {
+    top: 8%;
+    left: 47%;
+    animation: nodeDriftA 7s ease-in-out infinite;
+}
+
+.signin-left-orbit__node--b {
+    top: 58%;
+    left: 10%;
+    animation: nodeDriftB 8s ease-in-out infinite;
+}
+
+.signin-left-orbit__node--c {
+    top: 70%;
+    right: 14%;
+    animation: nodeDriftC 6s ease-in-out infinite;
+}
+
+.signin-left-lines {
+    position: absolute;
+    left: -0.8rem;
+    top: 8.8rem;
+    width: clamp(240px, 34vw, 420px);
+    height: 140px;
+    pointer-events: none;
+}
+
+.signin-left-lines__beam {
+    position: absolute;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(171, 202, 47, 0.7), transparent);
+    filter: drop-shadow(0 0 6px rgba(171, 202, 47, 0.34));
+}
+
+.signin-left-lines__beam--one {
+    width: 85%;
+    top: 12%;
+    left: 0;
+    animation: beamFloat 4.6s ease-in-out infinite;
+}
+
+.signin-left-lines__beam--two {
+    width: 70%;
+    top: 46%;
+    left: 10%;
+    animation: beamFloat 5.4s ease-in-out infinite reverse;
+}
+
+.signin-left-lines__beam--three {
+    width: 56%;
+    top: 76%;
+    left: 20%;
+    animation: beamFloat 4.9s ease-in-out infinite;
 }
 
 .signin-glass--right {
@@ -324,6 +426,14 @@ html.theme-dark ::-webkit-scrollbar-thumb:hover {
     color: #4e673f;
     line-height: 1.5;
     font-weight: 500;
+}
+
+.signin-kicker,
+.signin-title,
+.signin-tagline,
+.signin-support-copy {
+    position: relative;
+    z-index: 2;
 }
 
 .signin-ethos {
@@ -450,6 +560,20 @@ html.theme-dark ::-webkit-scrollbar-thumb:hover {
 
     .signin-title {
         font-size: clamp(2.1rem, 10vw, 4rem);
+    }
+
+    .signin-left-orbit {
+        left: -0.8rem;
+        top: -0.5rem;
+        width: clamp(180px, 46vw, 250px);
+        opacity: 0.52;
+    }
+
+    .signin-left-lines {
+        left: -0.4rem;
+        top: 7rem;
+        width: clamp(190px, 56vw, 300px);
+        opacity: 0.64;
     }
 }
 
@@ -593,4 +717,80 @@ button:disabled {
 
 ::-webkit-scrollbar-thumb:hover {
     background: #9bb829;
+}
+
+@keyframes orbitSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes orbitSpinReverse {
+    to {
+        transform: rotate(-360deg);
+    }
+}
+
+@keyframes orbitPulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 0.72;
+    }
+
+    50% {
+        transform: scale(1.05);
+        opacity: 1;
+    }
+}
+
+@keyframes beamFloat {
+
+    0%,
+    100% {
+        transform: translateX(0);
+        opacity: 0.5;
+    }
+
+    50% {
+        transform: translateX(6px);
+        opacity: 0.95;
+    }
+}
+
+@keyframes nodeDriftA {
+
+    0%,
+    100% {
+        transform: translate3d(0, 0, 0);
+    }
+
+    50% {
+        transform: translate3d(4px, -5px, 0);
+    }
+}
+
+@keyframes nodeDriftB {
+
+    0%,
+    100% {
+        transform: translate3d(0, 0, 0);
+    }
+
+    50% {
+        transform: translate3d(-4px, 6px, 0);
+    }
+}
+
+@keyframes nodeDriftC {
+
+    0%,
+    100% {
+        transform: translate3d(0, 0, 0);
+    }
+
+    50% {
+        transform: translate3d(5px, 4px, 0);
+    }
 }
