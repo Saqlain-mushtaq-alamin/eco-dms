@@ -163,9 +163,11 @@ export default function WalletConnect({ onConnected }: { onConnected: (address: 
 
                 <section className="signin-side signin-side--right">
                     <div className="signin-glass signin-glass--right">
-                        <h2 className="signin-ethos">Your actions. Your data. Your earth.</h2>
+                        <h2 className="signin-ethos">
+                            <span>Your actions.</span> <span>Your data.</span> <span>Your earth.</span>
+                        </h2>
                         <p className="signin-subtitle">
-                            Sign in with Ethereum to join the ecosystem working to save the planet.
+                            <strong>Sign in with Ethereum</strong> to join the ecosystem working to save the planet.
                         </p>
 
                         {error ? <div className="signin-error">{error}</div> : null}

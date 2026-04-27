@@ -387,6 +387,7 @@ html.theme-dark ::-webkit-scrollbar-thumb:hover {
     flex-direction: column;
     justify-content: center;
     gap: 1rem;
+    text-align: center;
 }
 
 .signin-kicker {
@@ -439,18 +440,38 @@ html.theme-dark ::-webkit-scrollbar-thumb:hover {
 .signin-ethos {
     margin: 0;
     font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: clamp(1.32rem, 2.8vw, 2rem);
-    line-height: 1.18;
+    font-size: clamp(1.38rem, 3vw, 2.2rem);
+    line-height: 1.15;
     color: #24401f;
     font-weight: 800;
+    letter-spacing: 0.01em;
+    text-wrap: balance;
+    text-shadow: 0 2px 0 rgba(255, 255, 255, 0.65);
+}
+
+.signin-ethos span {
+    display: inline-block;
+    padding: 0 0.08em;
+    background: linear-gradient(180deg, #2c4d23 10%, #6f8e2f 90%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
 }
 
 .signin-subtitle {
     margin: 0;
     font-family: 'Manrope', sans-serif;
-    font-size: clamp(0.98rem, 1.65vw, 1.15rem);
+    font-size: clamp(1.02rem, 1.7vw, 1.18rem);
     line-height: 1.45;
     color: #50703e;
+    max-width: 38ch;
+    margin-inline: auto;
+}
+
+.signin-subtitle strong {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 700;
+    color: #2c4d23;
 }
 
 .signin-actions {
@@ -462,8 +483,10 @@ html.theme-dark ::-webkit-scrollbar-thumb:hover {
 
 .signin-wallet-btn {
     width: 100%;
+    position: relative;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 0.35rem;
     padding: 1rem 1.05rem;
     border-radius: 16px;
@@ -495,9 +518,9 @@ html.theme-dark ::-webkit-scrollbar-thumb:hover {
 .signin-wallet-btn__copy {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
     gap: 0.12rem;
-    text-align: left;
+    text-align: center;
     flex: 1;
 }
 
@@ -535,7 +558,10 @@ html.theme-dark ::-webkit-scrollbar-thumb:hover {
     border-radius: 50%;
     border: 2px solid rgba(228, 255, 244, 0.28);
     border-top-color: #9dff75;
-    margin-left: auto;
+    position: absolute;
+    right: 0.9rem;
+    top: 50%;
+    transform: translateY(-50%);
     animation: spin 0.85s linear infinite;
 }
 
