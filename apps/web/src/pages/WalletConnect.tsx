@@ -163,7 +163,6 @@ export default function WalletConnect({ onConnected }: { onConnected: (address: 
                                 disabled={loading}
                                 onClick={() => handleConnect('metamask')}
                             >
-                                <span className="signin-wallet-btn__badge">M</span>
                                 <span className="signin-wallet-btn__copy">
                                     <strong>Connect with MetaMask</strong>
                                     <small>Use your browser wallet</small>
@@ -177,7 +176,6 @@ export default function WalletConnect({ onConnected }: { onConnected: (address: 
                                 disabled={loading}
                                 onClick={() => handleConnect('walletconnect')}
                             >
-                                <span className="signin-wallet-btn__badge">W</span>
                                 <span className="signin-wallet-btn__copy">
                                     <strong>Connect with WalletConnect</strong>
                                     <small>Scan QR with your mobile wallet</small>

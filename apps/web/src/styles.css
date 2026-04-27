@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;500;600;700&family=Orbitron:wght@500;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700&display=swap');
 
 :root {
     --dark-bg-0: #010203;
@@ -177,18 +177,20 @@ html.theme-dark ::-webkit-scrollbar-thumb:hover {
 }
 
 .signin-cosmos {
-    --eco-neon: #8bff5f;
-    --eco-cyan: #52d5ff;
-    --eco-glass: rgba(6, 20, 24, 0.56);
-    --eco-border: rgba(179, 255, 142, 0.22);
+    --eco-ink: #24401f;
+    --eco-lime-1: #abca2f;
+    --eco-lime-2: #bcd45a;
+    --eco-lime-3: #cfe86d;
+    --eco-glass: rgba(255, 255, 255, 0.44);
+    --eco-border: rgba(171, 202, 47, 0.3);
     position: relative;
     min-height: 100dvh;
     overflow: hidden;
     padding: 1.25rem;
     background:
-        radial-gradient(1200px 600px at -20% 0%, rgba(139, 255, 95, 0.2), transparent 50%),
-        radial-gradient(900px 500px at 110% 100%, rgba(82, 213, 255, 0.22), transparent 56%),
-        linear-gradient(140deg, #040f14 0%, #071a22 38%, #061017 100%);
+        radial-gradient(1200px 620px at -20% 0%, rgba(171, 202, 47, 0.34), transparent 52%),
+        radial-gradient(980px 560px at 108% 100%, rgba(188, 212, 90, 0.26), transparent 56%),
+        linear-gradient(145deg, #f6fce8 0%, #edf7d1 42%, #e8f4c4 100%);
 }
 
 .signin-cosmos__aurora,
@@ -201,26 +203,26 @@ html.theme-dark ::-webkit-scrollbar-thumb:hover {
 
 .signin-cosmos__aurora {
     background:
-        radial-gradient(circle at 25% 30%, rgba(139, 255, 95, 0.18), transparent 36%),
-        radial-gradient(circle at 70% 64%, rgba(82, 213, 255, 0.2), transparent 40%);
+        radial-gradient(circle at 25% 30%, rgba(171, 202, 47, 0.34), transparent 36%),
+        radial-gradient(circle at 70% 64%, rgba(207, 232, 109, 0.3), transparent 40%);
     filter: blur(8px);
     animation: auroraShift 12s ease-in-out infinite;
 }
 
 .signin-cosmos__grid {
     background-image:
-        linear-gradient(rgba(139, 255, 95, 0.14) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(139, 255, 95, 0.12) 1px, transparent 1px);
+        linear-gradient(rgba(171, 202, 47, 0.22) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(171, 202, 47, 0.2) 1px, transparent 1px);
     background-size: 42px 42px;
-    opacity: 0.22;
+    opacity: 0.18;
     transform: perspective(800px) rotateX(56deg) translateY(26%);
     transform-origin: center bottom;
 }
 
 .signin-cosmos__rings {
     background:
-        radial-gradient(circle at 73% 46%, transparent 0 110px, rgba(82, 213, 255, 0.18) 111px 113px, transparent 114px),
-        radial-gradient(circle at 73% 46%, transparent 0 170px, rgba(139, 255, 95, 0.2) 171px 173px, transparent 174px);
+        radial-gradient(circle at 73% 46%, transparent 0 110px, rgba(171, 202, 47, 0.28) 111px 113px, transparent 114px),
+        radial-gradient(circle at 73% 46%, transparent 0 170px, rgba(171, 202, 47, 0.22) 171px 173px, transparent 174px);
     animation: ringsPulse 6.5s ease-in-out infinite;
 }
 
@@ -251,13 +253,13 @@ html.theme-dark ::-webkit-scrollbar-thumb:hover {
     width: 100%;
     border-radius: 24px;
     border: 1px solid var(--eco-border);
-    background: linear-gradient(160deg, rgba(9, 23, 30, 0.76), var(--eco-glass));
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.62), var(--eco-glass));
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
     box-shadow:
-        0 26px 48px rgba(1, 9, 12, 0.62),
-        inset 0 1px 0 rgba(188, 255, 156, 0.22),
-        inset 0 -1px 0 rgba(5, 13, 18, 0.7);
+        0 18px 36px rgba(76, 98, 42, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.72),
+        inset 0 -1px 0 rgba(171, 202, 47, 0.16);
 }
 
 .signin-glass--left {
@@ -266,6 +268,11 @@ html.theme-dark ::-webkit-scrollbar-thumb:hover {
     padding: clamp(1.5rem, 5vw, 3.3rem);
     transform: perspective(1100px) rotateY(8deg) rotateX(1.8deg);
     animation: floatLeft 5.2s ease-in-out infinite;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 }
 
 .signin-glass--right {
@@ -282,53 +289,58 @@ html.theme-dark ::-webkit-scrollbar-thumb:hover {
 
 .signin-kicker {
     margin: 0;
-    font-family: 'Exo 2', sans-serif;
-    font-size: 0.9rem;
-    letter-spacing: 0.24em;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.86rem;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: rgba(207, 255, 185, 0.92);
+    color: #4f6d2d;
+    font-weight: 700;
 }
 
 .signin-title {
     margin: 0.3rem 0 0;
-    font-family: 'Orbitron', sans-serif;
+    font-family: 'Plus Jakarta Sans', sans-serif;
     font-size: clamp(2.2rem, 8vw, 5.2rem);
-    line-height: 0.92;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: #e8fff6;
-    text-shadow: 0 0 30px rgba(139, 255, 95, 0.35);
+    line-height: 0.98;
+    text-transform: none;
+    letter-spacing: 0.01em;
+    color: #1f3619;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+    font-weight: 800;
 }
 
 .signin-tagline {
     margin: 1.1rem 0 0;
-    font-family: 'Exo 2', sans-serif;
+    font-family: 'Manrope', sans-serif;
     font-size: clamp(1rem, 2vw, 1.34rem);
-    color: #c9fede;
+    color: #345727;
+    font-weight: 600;
 }
 
 .signin-support-copy {
     margin: 1.1rem 0 0;
     max-width: 34ch;
-    font-family: 'Exo 2', sans-serif;
-    color: #9bcfbe;
+    font-family: 'Manrope', sans-serif;
+    color: #4e673f;
     line-height: 1.5;
+    font-weight: 500;
 }
 
 .signin-ethos {
     margin: 0;
-    font-family: 'Orbitron', sans-serif;
+    font-family: 'Plus Jakarta Sans', sans-serif;
     font-size: clamp(1.32rem, 2.8vw, 2rem);
     line-height: 1.18;
-    color: #e6fff9;
+    color: #24401f;
+    font-weight: 800;
 }
 
 .signin-subtitle {
     margin: 0;
-    font-family: 'Exo 2', sans-serif;
+    font-family: 'Manrope', sans-serif;
     font-size: clamp(0.98rem, 1.65vw, 1.15rem);
     line-height: 1.45;
-    color: #b9e2d7;
+    color: #50703e;
 }
 
 .signin-actions {
@@ -342,20 +354,23 @@ html.theme-dark ::-webkit-scrollbar-thumb:hover {
     width: 100%;
     display: flex;
     align-items: center;
-    gap: 0.85rem;
-    padding: 0.95rem 1rem;
+    gap: 0.35rem;
+    padding: 1rem 1.05rem;
     border-radius: 16px;
-    border: 1px solid rgba(164, 255, 120, 0.34);
-    background: linear-gradient(150deg, rgba(16, 43, 34, 0.72), rgba(13, 26, 34, 0.86));
-    color: #ecfff8;
-    box-shadow: 0 14px 24px rgba(2, 15, 18, 0.52), inset 0 1px 0 rgba(189, 255, 157, 0.2);
+    border: 1px solid rgba(171, 202, 47, 0.38);
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.76), rgba(245, 252, 224, 0.56));
+    color: #24401f;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 12px 20px rgba(112, 140, 63, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.84);
     transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;
 }
 
 .signin-wallet-btn:hover:not(:disabled) {
     transform: translateY(-2px) scale(1.008);
-    border-color: rgba(82, 213, 255, 0.72);
-    box-shadow: 0 18px 30px rgba(8, 28, 34, 0.62), 0 0 22px rgba(82, 213, 255, 0.24);
+    border-color: rgba(171, 202, 47, 0.64);
+    background: linear-gradient(165deg, rgba(255, 255, 255, 0.88), rgba(207, 232, 109, 0.3));
+    box-shadow: 0 16px 26px rgba(112, 140, 63, 0.24), 0 0 14px rgba(171, 202, 47, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.94);
 }
 
 .signin-wallet-btn:disabled {
@@ -363,21 +378,8 @@ html.theme-dark ::-webkit-scrollbar-thumb:hover {
 }
 
 .signin-wallet-btn--alt {
-    border-color: rgba(82, 213, 255, 0.42);
-    background: linear-gradient(150deg, rgba(10, 31, 40, 0.78), rgba(8, 21, 29, 0.86));
-}
-
-.signin-wallet-btn__badge {
-    width: 38px;
-    height: 38px;
-    flex-shrink: 0;
-    border-radius: 12px;
-    display: grid;
-    place-items: center;
-    font-family: 'Orbitron', sans-serif;
-    font-size: 0.95rem;
-    background: linear-gradient(150deg, rgba(139, 255, 95, 0.28), rgba(82, 213, 255, 0.22));
-    border: 1px solid rgba(161, 255, 117, 0.36);
+    border-color: rgba(171, 202, 47, 0.44);
+    background: linear-gradient(165deg, rgba(255, 255, 255, 0.7), rgba(207, 232, 109, 0.24));
 }
 
 .signin-wallet-btn__copy {
@@ -386,18 +388,25 @@ html.theme-dark ::-webkit-scrollbar-thumb:hover {
     align-items: flex-start;
     gap: 0.12rem;
     text-align: left;
+    flex: 1;
 }
 
 .signin-wallet-btn__copy strong {
-    font-family: 'Exo 2', sans-serif;
-    font-size: 0.97rem;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.98rem;
     letter-spacing: 0.01em;
+    font-weight: 700;
+    color: #26421f;
 }
 
 .signin-wallet-btn__copy small {
-    font-family: 'Exo 2', sans-serif;
+    font-family: 'Manrope', sans-serif;
     font-size: 0.78rem;
-    color: #98cabb;
+    color: #557446;
+}
+
+.signin-cosmos .signin-wallet-btn:hover:not(:disabled) {
+    color: #1f3619;
 }
 
 .signin-error {
@@ -405,7 +414,7 @@ html.theme-dark ::-webkit-scrollbar-thumb:hover {
     border: 1px solid rgba(255, 122, 122, 0.48);
     background: rgba(84, 14, 20, 0.46);
     color: #ffd7d9;
-    font-family: 'Exo 2', sans-serif;
+    font-family: 'Manrope', sans-serif;
     font-size: 0.9rem;
     padding: 0.72rem 0.8rem;
 }
@@ -445,6 +454,7 @@ html.theme-dark ::-webkit-scrollbar-thumb:hover {
 }
 
 @keyframes auroraShift {
+
     0%,
     100% {
         transform: translate3d(0, 0, 0) scale(1);
@@ -458,6 +468,7 @@ html.theme-dark ::-webkit-scrollbar-thumb:hover {
 }
 
 @keyframes ringsPulse {
+
     0%,
     100% {
         opacity: 0.6;
@@ -471,6 +482,7 @@ html.theme-dark ::-webkit-scrollbar-thumb:hover {
 }
 
 @keyframes floatLeft {
+
     0%,
     100% {
         transform: perspective(1100px) rotateY(8deg) rotateX(1.8deg) translateY(0px);
@@ -482,6 +494,7 @@ html.theme-dark ::-webkit-scrollbar-thumb:hover {
 }
 
 @keyframes floatRight {
+
     0%,
     100% {
         transform: perspective(1000px) rotateY(-6deg) rotateX(1.5deg) translateY(0px);
@@ -493,6 +506,7 @@ html.theme-dark ::-webkit-scrollbar-thumb:hover {
 }
 
 @keyframes floatMobile {
+
     0%,
     100% {
         transform: translateY(0);
