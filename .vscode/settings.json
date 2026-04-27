@@ -2,5 +2,8 @@
     "python.defaultInterpreterPath": "d:\\canvas\\eco-dms\\eco-dms\\backend\\.venv\\Scripts\\python.exe",
     "python.analysis.extraPaths": [
         "d:\\canvas\\eco-dms\\eco-dms\\backend\\.venv\\Lib\\site-packages"
-    ]
+    ],
+    "css.lint.unknownAtRules": "ignore",
+    "scss.lint.unknownAtRules": "ignore",
+    "less.lint.unknownAtRules": "ignore"
 }
