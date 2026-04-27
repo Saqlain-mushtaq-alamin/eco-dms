@@ -229,11 +229,98 @@ html.theme-dark ::-webkit-scrollbar-thumb:hover {
 .signin-shell {
     position: relative;
     z-index: 2;
-    min-height: calc(100dvh - 2.5rem);
+    min-height: calc(100dvh - 7.8rem);
     display: grid;
     grid-template-columns: 1fr 1.15fr;
     gap: 1.25rem;
     transform-style: preserve-3d;
+}
+
+.signin-footer {
+    position: relative;
+    z-index: 3;
+    margin-top: 0.6rem;
+    border-radius: 16px;
+    border: 1px solid rgba(171, 202, 47, 0.28);
+    background: linear-gradient(165deg, rgba(255, 255, 255, 0.7), rgba(236, 245, 202, 0.44));
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 8px 20px rgba(101, 132, 55, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    padding: 0.85rem 1rem;
+    display: grid;
+    grid-template-columns: 1.2fr auto auto;
+    align-items: center;
+    gap: 1rem;
+}
+
+.signin-footer__content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.12rem;
+}
+
+.signin-footer__brand {
+    margin: 0;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #27411f;
+    letter-spacing: 0.03em;
+}
+
+.signin-footer__meta {
+    margin: 0;
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.8rem;
+    color: #4f693f;
+}
+
+.signin-footer__links {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.signin-footer__links a {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.78rem;
+    color: #2f5324;
+    text-decoration: none;
+    padding: 0.28rem 0.5rem;
+    border-radius: 10px;
+    border: 1px solid rgba(171, 202, 47, 0.26);
+    background: rgba(255, 255, 255, 0.44);
+    transition: all 0.22s ease;
+}
+
+.signin-footer__links a:hover {
+    color: #1d3617;
+    border-color: rgba(171, 202, 47, 0.5);
+    background: rgba(207, 232, 109, 0.36);
+}
+
+.signin-footer__status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.36rem;
+    justify-self: end;
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.76rem;
+    color: #3d5e30;
+    padding: 0.3rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid rgba(171, 202, 47, 0.26);
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.signin-footer__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #7ea92a;
+    box-shadow: 0 0 9px rgba(126, 169, 42, 0.55);
+    animation: footerPulse 2.2s ease-in-out infinite;
 }
 
 .signin-side {
@@ -569,6 +656,7 @@ html.theme-dark ::-webkit-scrollbar-thumb:hover {
     .signin-shell {
         grid-template-columns: 1fr;
         gap: 0.85rem;
+        min-height: auto;
     }
 
     .signin-side--right,
@@ -600,6 +688,15 @@ html.theme-dark ::-webkit-scrollbar-thumb:hover {
         top: 7rem;
         width: clamp(190px, 56vw, 300px);
         opacity: 0.64;
+    }
+
+    .signin-footer {
+        grid-template-columns: 1fr;
+        gap: 0.65rem;
+    }
+
+    .signin-footer__status {
+        justify-self: start;
     }
 }
 
@@ -818,5 +915,19 @@ button:disabled {
 
     50% {
         transform: translate3d(5px, 4px, 0);
+    }
+}
+
+@keyframes footerPulse {
+
+    0%,
+    100% {
+        opacity: 0.7;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.18);
     }
 }

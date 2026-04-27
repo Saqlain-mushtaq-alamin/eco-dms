@@ -202,6 +202,25 @@ export default function WalletConnect({ onConnected }: { onConnected: (address: 
                     </div>
                 </section>
             </div>
+
+            <footer className="signin-footer" aria-label="Sign in page footer">
+                <div className="signin-footer__content">
+                    <p className="signin-footer__brand">Eco DMS</p>
+                    <p className="signin-footer__meta">Secure SIWE access for a decentralized social impact ecosystem.</p>
+                </div>
+
+                <nav className="signin-footer__links" aria-label="Sign in resources">
+                    <a href="https://github.com/Saqlain-mushtaq-alamin/eco-dms" target="_blank" rel="noreferrer">GitHub</a>
+                    <a href="https://ethereum.org/en/developers/docs/standards/tokens/erc-4361/" target="_blank" rel="noreferrer">SIWE</a>
+                    <a href="https://walletconnect.com/" target="_blank" rel="noreferrer">WalletConnect</a>
+                    <a href="mailto:support@eco-dms.org">Support</a>
+                </nav>
+
+                <div className="signin-footer__status" role="status" aria-live="polite">
+                    <span className="signin-footer__dot" aria-hidden="true" />
+                    <span>Auth network ready</span>
+                </div>
+            </footer>
         </div>
     )
 }
