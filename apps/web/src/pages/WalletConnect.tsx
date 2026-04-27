@@ -1,12 +1,10 @@
 import React, { useState } from 'react'
-import { Card, WalletConnectActionsPanel, WalletConnectHero } from '@eco-dms/ui'
 import { getNonce, prepareMessage, verifySignature } from '../api'
 import EthereumProvider from '@walletconnect/ethereum-provider'
 
 export default function WalletConnect({ onConnected }: { onConnected: (address: string) => void }) {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
-    const [provider, setProvider] = useState<any>(null)
 
     const getTargetChainId = () => Number(import.meta.env.VITE_CHAIN_ID ?? 31337)
 
@@ -76,7 +74,6 @@ export default function WalletConnect({ onConnected }: { onConnected: (address: 
 
         await wcProvider.enable()
         const accounts = wcProvider.accounts
-        setProvider(wcProvider)
         return { address: accounts[0], provider: wcProvider }
     }
 
@@ -133,36 +130,63 @@ export default function WalletConnect({ onConnected }: { onConnected: (address: 
     }
 
     return (
-        <div className="relative w-full h-[100dvh] max-h-[100dvh] flex items-center px-3 md:px-6 signin-vibe-bg overflow-hidden">
-            <div className="vibe-blob vibe-blob-one" aria-hidden="true" />
-            <div className="vibe-blob vibe-blob-two" aria-hidden="true" />
+        <div className="signin-cosmos">
+            <div className="signin-cosmos__aurora" aria-hidden="true" />
+            <div className="signin-cosmos__grid" aria-hidden="true" />
+            <div className="signin-cosmos__rings" aria-hidden="true" />
 
-            <div className="w-full h-full max-h-full mx-auto px-2 md:px-4 relative z-10 overflow-hidden">
-                <Card
-                    padding="lg"
-                    style={{ borderWidth: 0, borderColor: 'transparent', borderRadius: 24, shadowColor: '#010203', shadowOpacity: 0.08, shadowRadius: 22, elevation: 3, height: '100%' }}
-                    variant="glass"
-                >
-                    <div className="flex flex-col lg:flex-row lg:items-center h-full overflow-hidden gap-8 lg:gap-10">
-                        <div className="hidden md:flex flex-1 flex-col justify-center">
-                            <WalletConnectHero
-                                title="Discover what truly excites you"
-                                subtitle="Decentralized Social Impact Platform"
-                            />
-                        </div>
+            <div className="signin-shell">
+                <section className="signin-side signin-side--left">
+                    <div className="signin-glass signin-glass--left">
+                        <p className="signin-kicker">eco dms</p>
+                        <h1 className="signin-title">eco dms</h1>
+                        <p className="signin-tagline">Grow what you give.</p>
+                        <p className="signin-support-copy">
+                            Build trust, verify impact, and turn sustainability into shared action.
+                        </p>
+                    </div>
+                </section>
 
-                        <div className="w-full lg:w-auto lg:min-w-[450px] lg:ml-auto">
-                            <WalletConnectActionsPanel
-                                title="Welcome to Eco DMS"
-                                subtitle="Sign in with Ethereum to join the ecosystem working to save the planet."
-                                error={error}
-                                loading={loading}
-                                onMetaMask={() => handleConnect('metamask')}
-                                onWalletConnect={() => handleConnect('walletconnect')}
-                            />
+                <section className="signin-side signin-side--right">
+                    <div className="signin-glass signin-glass--right">
+                        <h2 className="signin-ethos">Your actions. Your data. Your earth.</h2>
+                        <p className="signin-subtitle">
+                            Sign in with Ethereum to join the ecosystem working to save the planet.
+                        </p>
+
+                        {error ? <div className="signin-error">{error}</div> : null}
+
+                        <div className="signin-actions">
+                            <button
+                                type="button"
+                                className="signin-wallet-btn"
+                                disabled={loading}
+                                onClick={() => handleConnect('metamask')}
+                            >
+                                <span className="signin-wallet-btn__badge">M</span>
+                                <span className="signin-wallet-btn__copy">
+                                    <strong>Connect with MetaMask</strong>
+                                    <small>Use your browser wallet</small>
+                                </span>
+                                {loading ? <span className="signin-loader" aria-hidden="true" /> : null}
+                            </button>
+
+                            <button
+                                type="button"
+                                className="signin-wallet-btn signin-wallet-btn--alt"
+                                disabled={loading}
+                                onClick={() => handleConnect('walletconnect')}
+                            >
+                                <span className="signin-wallet-btn__badge">W</span>
+                                <span className="signin-wallet-btn__copy">
+                                    <strong>Connect with WalletConnect</strong>
+                                    <small>Scan QR with your mobile wallet</small>
+                                </span>
+                                {loading ? <span className="signin-loader" aria-hidden="true" /> : null}
+                            </button>
                         </div>
                     </div>
-                </Card>
+                </section>
             </div>
         </div>
     )
