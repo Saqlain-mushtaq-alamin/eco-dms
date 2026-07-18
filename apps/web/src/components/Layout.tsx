@@ -61,9 +61,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
     }
 
     const navItems: NavItem[] = useMemo(() => ([
-        { to: '/feed', icon: '🏠', label: 'Feed' },
-        { to: '/dashboard', icon: '📊', label: 'Dashboard' },
-        { to: '/friends', icon: '👥', label: 'Friends' }
+        { to: '/feed',         icon: '🏠', label: 'Feed' },
+        { to: '/dashboard',    icon: '📊', label: 'Dashboard' },
+        { to: '/my-portfolio', icon: '🌱', label: 'Eco Portfolio' },
+        { to: '/friends',      icon: '👥', label: 'Friends' }
 
     ]), [])
 
@@ -477,6 +478,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
                                             </span>
                                         </button>
 
+                                        <button
+                                            id="eco-portfolio-nav-btn"
+                                            type="button"
+                                            onClick={() => {
+                                                setShowProfileDropdown(false)
+                                                navigate('/my-portfolio')
+                                            }}
+                                            className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 justify-start ${isDarkMode
+                                                ? 'hover:bg-slate-800 hover:text-slate-100 text-slate-300'
+                                                : 'hover:bg-gray-50 hover:text-gray-900 text-gray-700'
+                                                }`}
+                                        >
+                                            <span className={`h-8 w-8 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-slate-800' : 'bg-lime-50'}`}>🌱</span>
+                                            <span>My Eco Portfolio</span>
+                                        </button>
                                         <button
                                             type="button"
                                             className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 justify-start ${isDarkMode
