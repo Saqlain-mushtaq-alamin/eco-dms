@@ -6,16 +6,25 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title RewardToken
- * @dev ERC-20 token for rewarding verified eco-friendly posts
- * Only authorized minters (Verification contract) can mint tokens
+ * @dev ERC-20 token for rewarding verified eco-friendly posts.
+ * Only authorized minters (Verification contracts) can mint tokens.
+ *
+ * v2 upgrades (Phase 1):
+ *   - Added burn() for user self-burn
+ *   - Added burnFrom() for contract-driven burns (EcoBoost, EcoCredential, EcoDAO)
+ *   - Added totalBurned tracker for analytics and portfolio display
  */
 contract RewardToken is ERC20, Ownable {
-    // Authorized minters (typically the Verification contract)
+    // Authorized minters (Verification.sol, DynamicVerification.sol, etc.)
     mapping(address => bool) public minters;
+
+    // Track total ECO burned for tokenomics analytics
+    uint256 public totalBurned;
 
     // Events
     event MinterAdded(address indexed minter);
     event MinterRemoved(address indexed minter);
+    event Burned(address indexed from, uint256 amount);
 
     /**
      * @dev Constructor initializes the token with name and symbol
@@ -23,59 +32,60 @@ contract RewardToken is ERC20, Ownable {
      */
     constructor(
         address initialOwner
-    ) ERC20("EcoDMS Reward Token", "ECO") Ownable(initialOwner) {
-        // Owner is set via Ownable constructor
-    }
+    ) ERC20("EcoDMS Reward Token", "ECO") Ownable(initialOwner) {}
 
-    /**
-     * @dev Modifier to restrict function to authorized minters
-     */
+    // ─── Minter Access Control ───────────────────────────────
+
     modifier onlyMinter() {
         require(minters[msg.sender], "RewardToken: caller is not a minter");
         _;
     }
 
-    /**
-     * @dev Add an authorized minter
-     * @param minter Address to authorize for minting
-     */
     function addMinter(address minter) external onlyOwner {
         require(minter != address(0), "RewardToken: minter is zero address");
         require(!minters[minter], "RewardToken: minter already added");
-
         minters[minter] = true;
         emit MinterAdded(minter);
     }
 
-    /**
-     * @dev Remove an authorized minter
-     * @param minter Address to revoke minting authorization
-     */
     function removeMinter(address minter) external onlyOwner {
         require(minters[minter], "RewardToken: minter does not exist");
-
         minters[minter] = false;
         emit MinterRemoved(minter);
     }
 
-    /**
-     * @dev Mint tokens to a recipient (only callable by authorized minters)
-     * @param to Recipient address
-     * @param amount Amount of tokens to mint
-     */
+    function isMinter(address account) external view returns (bool) {
+        return minters[account];
+    }
+
+    // ─── Mint ────────────────────────────────────────────────
+
     function mint(address to, uint256 amount) external onlyMinter {
         require(to != address(0), "RewardToken: mint to zero address");
         require(amount > 0, "RewardToken: mint amount is zero");
-
         _mint(to, amount);
     }
 
-    /**
-     * @dev Check if an address is an authorized minter
-     * @param account Address to check
-     * @return bool True if address is a minter
-     */
-    function isMinter(address account) external view returns (bool) {
-        return minters[account];
+    // ─── Burn Mechanics (v2) ─────────────────────────────────
+
+    /// @notice Allow any token holder to burn their own tokens
+    function burn(uint256 amount) external {
+        require(amount > 0, "RewardToken: burn amount is zero");
+        _burn(msg.sender, amount);
+    }
+
+    /// @notice Allow approved contracts to burn tokens on behalf of users
+    function burnFrom(address account, uint256 amount) external {
+        uint256 currentAllowance = allowance(account, msg.sender);
+        require(currentAllowance >= amount, "RewardToken: insufficient allowance");
+        _approve(account, msg.sender, currentAllowance - amount);
+        _burn(account, amount);
+    }
+
+    /// @dev Override _burn to accumulate totalBurned for analytics
+    function _burn(address account, uint256 amount) internal override {
+        super._burn(account, amount);
+        totalBurned += amount;
+        emit Burned(account, amount);
     }
 }
