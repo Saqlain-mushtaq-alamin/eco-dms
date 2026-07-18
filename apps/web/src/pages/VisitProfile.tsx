@@ -358,8 +358,29 @@ export default function VisitProfile({ walletAddress, currentUserAddress, onBack
                                     variant={isFollowing ? 'secondary' : 'primary'}
                                 />
                             )}
+                            <button
+                                id="view-eco-portfolio-btn"
+                                type="button"
+                                onClick={() => navigate(`/portfolio/${walletAddress}`)}
+                                style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.35rem',
+                                    padding: '0.5rem 0.9rem',
+                                    borderRadius: '12px',
+                                    fontSize: '0.82rem',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    border: '1px solid rgba(34,197,94,0.3)',
+                                    background: 'linear-gradient(135deg, rgba(34,197,94,0.12), rgba(22,163,74,0.08))',
+                                    color: '#15803d',
+                                }}
+                            >
+                                🌱 Eco Portfolio
+                            </button>
                             <Button title="Back to Feed" onPress={onBack} variant="secondary" />
                         </div>
+
                     </div>
                 </div>
             </Card>
