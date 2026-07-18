@@ -10,6 +10,7 @@ import { VisitProfileRoute } from './routes/VisitProfileRoute'
 import { FriendsRoute } from './routes/FriendsRoute'
 import { PostViewRoute } from './routes/PostViewRoute'
 import { DashboardRoute } from './routes/DashboardRoute'
+import { EcoPortfolioRoute, MyPortfolioRoute } from './routes/EcoPortfolioRoute'
 import { useAuthSync } from './hooks/useAuthSync'
 
 function AppRoutes() {
@@ -72,6 +73,23 @@ function AppRoutes() {
                 element={
                     <ProtectedRoute>
                         <PostViewRoute />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/my-portfolio"
+                element={
+                    <ProtectedRoute>
+                        <MyPortfolioRoute />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/portfolio/:address"
+                element={
+                    <ProtectedRoute>
+                        <EcoPortfolioRoute />
                     </ProtectedRoute>
                 }
             />
