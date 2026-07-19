@@ -23,6 +23,7 @@ from .verify_routes import router as verify_router
 from .notification_routes import router as notification_router
 from .voting_routes import router as voting_router
 from .portfolio_routes import router as portfolio_router, leaderboard_router
+from .fraud_routes import router as fraud_router
 
 # Create FastAPI app
 app = FastAPI(
@@ -54,6 +55,7 @@ app.include_router(notification_router)  # Decentralized notifications routes
 app.include_router(voting_router)  # Community voting routes
 app.include_router(portfolio_router)   # Eco Portfolio routes
 app.include_router(leaderboard_router)  # Leaderboard routes
+app.include_router(fraud_router)        # Admin fraud review routes
 
 
 @app.on_event("startup")
