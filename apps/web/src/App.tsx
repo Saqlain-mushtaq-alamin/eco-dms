@@ -13,6 +13,7 @@ import { DashboardRoute } from './routes/DashboardRoute'
 import { EcoPortfolioRoute, MyPortfolioRoute } from './routes/EcoPortfolioRoute'
 import { DAORoute } from './routes/DAORoute'
 import PublicPortfolio from './pages/PublicPortfolio'
+import AdminFraudDashboard from './pages/AdminFraudDashboard'
 import { useAuthSync } from './hooks/useAuthSync'
 
 function AppRoutes() {
@@ -107,6 +108,16 @@ function AppRoutes() {
 
             {/* Public portfolio — shareable, no auth required */}
             <Route path="/p/:address" element={<PublicPortfolio />} />
+
+            {/* Admin — requires admin wallet, no nav layout */}
+            <Route
+                path="/admin/fraud"
+                element={
+                    <ProtectedRoute>
+                        <AdminFraudDashboard />
+                    </ProtectedRoute>
+                }
+            />
 
             <Route path="/" element={<Navigate to="/feed" replace />} />
             <Route path="*" element={<Navigate to="/feed" replace />} />
