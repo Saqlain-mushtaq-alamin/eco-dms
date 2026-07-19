@@ -64,6 +64,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         { to: '/feed',         icon: '🏠', label: 'Feed' },
         { to: '/dashboard',    icon: '📊', label: 'Dashboard' },
         { to: '/my-portfolio', icon: '🌱', label: 'Eco Portfolio' },
+        { to: '/dao',          icon: '🗳️', label: 'DAO' },
         { to: '/friends',      icon: '👥', label: 'Friends' }
 
     ]), [])

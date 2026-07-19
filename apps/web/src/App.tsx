@@ -11,6 +11,7 @@ import { FriendsRoute } from './routes/FriendsRoute'
 import { PostViewRoute } from './routes/PostViewRoute'
 import { DashboardRoute } from './routes/DashboardRoute'
 import { EcoPortfolioRoute, MyPortfolioRoute } from './routes/EcoPortfolioRoute'
+import { DAORoute } from './routes/DAORoute'
 import { useAuthSync } from './hooks/useAuthSync'
 
 function AppRoutes() {
@@ -90,6 +91,15 @@ function AppRoutes() {
                 element={
                     <ProtectedRoute>
                         <EcoPortfolioRoute />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/dao"
+                element={
+                    <ProtectedRoute>
+                        <DAORoute />
                     </ProtectedRoute>
                 }
             />
