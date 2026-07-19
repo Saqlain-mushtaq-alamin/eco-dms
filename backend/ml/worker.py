@@ -50,7 +50,11 @@ celery_app.conf.update(
         'watchdog-stale-verifications-every-10m': {
             'task': 'watchdog_stale_verifications',
             'schedule': 600.0,
-        }
+        },
+        'claim-engagement-bonuses-every-30m': {
+            'task': 'claim_engagement_bonuses',
+            'schedule': 1800.0,
+        },
     },
 )
 
@@ -763,4 +767,23 @@ def get_verification_status(task_id: str) -> Dict:
         }
 
 
+
 # For running worker: celery -A backend.ml.worker worker --loglevel=info
+# For beat:           celery -A backend.ml.worker beat  --loglevel=info
+
+
+@celery_app.task(name='claim_engagement_bonuses')
+def claim_engagement_bonuses() -> dict:
+    """
+    Periodic task: claim engagement bonuses for all verified posts
+    whose 24h engagement window has closed.
+    Runs every 30 minutes via Celery beat.
+    """
+    try:
+        from backend.app.services.bonus_claimer import run_bonus_claimer
+        result = run_bonus_claimer()
+        print(f"[bonus_claimer] {result}")
+        return result
+    except Exception as e:
+        print(f"[bonus_claimer] Failed: {e}")
+        return {"error": str(e)}
