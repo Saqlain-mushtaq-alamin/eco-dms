@@ -12,6 +12,7 @@ import { PostViewRoute } from './routes/PostViewRoute'
 import { DashboardRoute } from './routes/DashboardRoute'
 import { EcoPortfolioRoute, MyPortfolioRoute } from './routes/EcoPortfolioRoute'
 import { DAORoute } from './routes/DAORoute'
+import PublicPortfolio from './pages/PublicPortfolio'
 import { useAuthSync } from './hooks/useAuthSync'
 
 function AppRoutes() {
@@ -103,6 +104,9 @@ function AppRoutes() {
                     </ProtectedRoute>
                 }
             />
+
+            {/* Public portfolio — shareable, no auth required */}
+            <Route path="/p/:address" element={<PublicPortfolio />} />
 
             <Route path="/" element={<Navigate to="/feed" replace />} />
             <Route path="*" element={<Navigate to="/feed" replace />} />
