@@ -232,6 +232,20 @@ def verify_eco_content(
             )
 
             if fraud_result.block:
+                # Persist to admin review queue
+                try:
+                    from ..app.fraud_routes import record_fraud_flag
+                    record_fraud_flag(
+                        post_cid=post_cid,
+                        wallet=author_wallet or "",
+                        fraud_score=fraud_result.fraud_score,
+                        reasons=fraud_result.reasons,
+                        details=fraud_result.details,
+                        blocked=True,
+                    )
+                except Exception as _rfe:
+                    print(f"[worker] record_fraud_flag (block) failed: {_rfe}")
+
                 set_verification_status(
                     post_cid=post_cid, status='failed',
                     task_id=self.request.id,
@@ -246,6 +260,22 @@ def verify_eco_content(
                     'post_id': post_id,
                     'author_wallet': author_wallet,
                 }
+
+            if fraud_result.flag_for_review:
+                # Persist flag (non-blocking — post continues processing)
+                try:
+                    from ..app.fraud_routes import record_fraud_flag
+                    record_fraud_flag(
+                        post_cid=post_cid,
+                        wallet=author_wallet or "",
+                        fraud_score=fraud_result.fraud_score,
+                        reasons=fraud_result.reasons,
+                        details=fraud_result.details,
+                        blocked=False,
+                    )
+                except Exception as _rfe:
+                    print(f"[worker] record_fraud_flag (flag) failed: {_rfe}")
+
         except Exception as _fe:
             print(f"[worker] Fraud check error (non-fatal): {_fe}")
             fraud_result = None
