@@ -105,7 +105,7 @@ contract EcoCredential is ERC721, Ownable {
         // Burn ECO from earner
         require(
             ecoToken.transferFrom(earner, BURN_ADDRESS, cost),
-            "EcoCredential: ECO burn failed — check allowance"
+            "EcoCredential: ECO burn failed - check allowance"
         );
         totalBurned += cost;
         totalMinted += 1;

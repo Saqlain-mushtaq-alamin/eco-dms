@@ -122,7 +122,7 @@ describe("EcoCredential", () => {
                 ecoCredential
                     .connect(user)
                     .transferFrom(user.address, other.address, 0)
-            ).to.be.revertedWith("EcoCredential: soulbound — transfers disabled")
+            ).to.be.revertedWith("EcoCredential: soulbound - transfers disabled")
         })
 
         it("safeTransferFrom reverts (soulbound)", async () => {
@@ -132,7 +132,7 @@ describe("EcoCredential", () => {
                     ["safeTransferFrom(address,address,uint256)"](
                         user.address, other.address, 0
                     )
-            ).to.be.revertedWith("EcoCredential: soulbound — transfers disabled")
+            ).to.be.revertedWith("EcoCredential: soulbound - transfers disabled")
         })
     })
 

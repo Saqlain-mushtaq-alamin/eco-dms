@@ -82,10 +82,17 @@ contract RewardToken is ERC20, Ownable {
         _burn(account, amount);
     }
 
-    /// @dev Override _burn to accumulate totalBurned for analytics
-    function _burn(address account, uint256 amount) internal override {
-        super._burn(account, amount);
-        totalBurned += amount;
-        emit Burned(account, amount);
+    /// @dev OZ v5: _burn is not virtual; hook into _update instead.
+    ///      Accumulate totalBurned whenever tokens are sent to address(0).
+    function _update(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
+        super._update(from, to, amount);
+        if (to == address(0)) {
+            totalBurned += amount;
+            emit Burned(from, amount);
+        }
     }
 }

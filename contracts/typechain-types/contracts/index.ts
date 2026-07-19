@@ -2,6 +2,10 @@
 /* tslint:disable */
 /* eslint-disable */
 export type { CommunityVoting } from "./CommunityVoting";
+export type { DynamicVerification } from "./DynamicVerification";
+export type { EcoBoost } from "./EcoBoost";
+export type { EcoCredential } from "./EcoCredential";
+export type { EcoDAO } from "./EcoDAO";
 export type { ProfileRegistry } from "./ProfileRegistry";
 export type { RewardToken } from "./RewardToken";
 export type { Verification } from "./Verification";

@@ -46,6 +46,22 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.IERC20__factory>;
     getContractFactory(
+      name: "ERC721",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.ERC721__factory>;
+    getContractFactory(
+      name: "IERC721Metadata",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IERC721Metadata__factory>;
+    getContractFactory(
+      name: "IERC721",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IERC721__factory>;
+    getContractFactory(
+      name: "IERC721Receiver",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IERC721Receiver__factory>;
+    getContractFactory(
       name: "ECDSA",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.ECDSA__factory>;
@@ -62,6 +78,14 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.MessageHashUtils__factory>;
     getContractFactory(
+      name: "ERC165",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.ERC165__factory>;
+    getContractFactory(
+      name: "IERC165",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IERC165__factory>;
+    getContractFactory(
       name: "SafeCast",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.SafeCast__factory>;
@@ -77,6 +101,22 @@ declare module "hardhat/types/runtime" {
       name: "CommunityVoting",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.CommunityVoting__factory>;
+    getContractFactory(
+      name: "DynamicVerification",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.DynamicVerification__factory>;
+    getContractFactory(
+      name: "EcoBoost",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.EcoBoost__factory>;
+    getContractFactory(
+      name: "EcoCredential",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.EcoCredential__factory>;
+    getContractFactory(
+      name: "EcoDAO",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.EcoDAO__factory>;
     getContractFactory(
       name: "ProfileRegistry",
       signerOrOptions?: ethers.Signer | FactoryOptions
@@ -131,6 +171,26 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.IERC20>;
     getContractAt(
+      name: "ERC721",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.ERC721>;
+    getContractAt(
+      name: "IERC721Metadata",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IERC721Metadata>;
+    getContractAt(
+      name: "IERC721",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IERC721>;
+    getContractAt(
+      name: "IERC721Receiver",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IERC721Receiver>;
+    getContractAt(
       name: "ECDSA",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
@@ -151,6 +211,16 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.MessageHashUtils>;
     getContractAt(
+      name: "ERC165",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.ERC165>;
+    getContractAt(
+      name: "IERC165",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IERC165>;
+    getContractAt(
       name: "SafeCast",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
@@ -170,6 +240,26 @@ declare module "hardhat/types/runtime" {
       address: string | ethers.Addressable,
       signer?: ethers.Signer
     ): Promise<Contracts.CommunityVoting>;
+    getContractAt(
+      name: "DynamicVerification",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.DynamicVerification>;
+    getContractAt(
+      name: "EcoBoost",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.EcoBoost>;
+    getContractAt(
+      name: "EcoCredential",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.EcoCredential>;
+    getContractAt(
+      name: "EcoDAO",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.EcoDAO>;
     getContractAt(
       name: "ProfileRegistry",
       address: string | ethers.Addressable,
@@ -219,6 +309,22 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IERC20>;
     deployContract(
+      name: "ERC721",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.ERC721>;
+    deployContract(
+      name: "IERC721Metadata",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IERC721Metadata>;
+    deployContract(
+      name: "IERC721",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IERC721>;
+    deployContract(
+      name: "IERC721Receiver",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IERC721Receiver>;
+    deployContract(
       name: "ECDSA",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.ECDSA>;
@@ -235,6 +341,14 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.MessageHashUtils>;
     deployContract(
+      name: "ERC165",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.ERC165>;
+    deployContract(
+      name: "IERC165",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IERC165>;
+    deployContract(
       name: "SafeCast",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.SafeCast>;
@@ -250,6 +364,22 @@ declare module "hardhat/types/runtime" {
       name: "CommunityVoting",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.CommunityVoting>;
+    deployContract(
+      name: "DynamicVerification",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.DynamicVerification>;
+    deployContract(
+      name: "EcoBoost",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.EcoBoost>;
+    deployContract(
+      name: "EcoCredential",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.EcoCredential>;
+    deployContract(
+      name: "EcoDAO",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.EcoDAO>;
     deployContract(
       name: "ProfileRegistry",
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -304,6 +434,26 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IERC20>;
     deployContract(
+      name: "ERC721",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.ERC721>;
+    deployContract(
+      name: "IERC721Metadata",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IERC721Metadata>;
+    deployContract(
+      name: "IERC721",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IERC721>;
+    deployContract(
+      name: "IERC721Receiver",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IERC721Receiver>;
+    deployContract(
       name: "ECDSA",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -324,6 +474,16 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.MessageHashUtils>;
     deployContract(
+      name: "ERC165",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.ERC165>;
+    deployContract(
+      name: "IERC165",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IERC165>;
+    deployContract(
       name: "SafeCast",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -343,6 +503,26 @@ declare module "hardhat/types/runtime" {
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.CommunityVoting>;
+    deployContract(
+      name: "DynamicVerification",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.DynamicVerification>;
+    deployContract(
+      name: "EcoBoost",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.EcoBoost>;
+    deployContract(
+      name: "EcoCredential",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.EcoCredential>;
+    deployContract(
+      name: "EcoDAO",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.EcoDAO>;
     deployContract(
       name: "ProfileRegistry",
       args: any[],

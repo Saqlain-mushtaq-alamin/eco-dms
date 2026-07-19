@@ -30,6 +30,8 @@ export interface RewardTokenInterface extends Interface {
       | "allowance"
       | "approve"
       | "balanceOf"
+      | "burn"
+      | "burnFrom"
       | "decimals"
       | "isMinter"
       | "mint"
@@ -39,6 +41,7 @@ export interface RewardTokenInterface extends Interface {
       | "removeMinter"
       | "renounceOwnership"
       | "symbol"
+      | "totalBurned"
       | "totalSupply"
       | "transfer"
       | "transferFrom"
@@ -48,6 +51,7 @@ export interface RewardTokenInterface extends Interface {
   getEvent(
     nameOrSignatureOrTopic:
       | "Approval"
+      | "Burned"
       | "MinterAdded"
       | "MinterRemoved"
       | "OwnershipTransferred"
@@ -69,6 +73,11 @@ export interface RewardTokenInterface extends Interface {
   encodeFunctionData(
     functionFragment: "balanceOf",
     values: [AddressLike]
+  ): string;
+  encodeFunctionData(functionFragment: "burn", values: [BigNumberish]): string;
+  encodeFunctionData(
+    functionFragment: "burnFrom",
+    values: [AddressLike, BigNumberish]
   ): string;
   encodeFunctionData(functionFragment: "decimals", values?: undefined): string;
   encodeFunctionData(
@@ -95,6 +104,10 @@ export interface RewardTokenInterface extends Interface {
   ): string;
   encodeFunctionData(functionFragment: "symbol", values?: undefined): string;
   encodeFunctionData(
+    functionFragment: "totalBurned",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
     functionFragment: "totalSupply",
     values?: undefined
   ): string;
@@ -115,6 +128,8 @@ export interface RewardTokenInterface extends Interface {
   decodeFunctionResult(functionFragment: "allowance", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "approve", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "balanceOf", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "burn", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "burnFrom", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "decimals", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "isMinter", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "mint", data: BytesLike): Result;
@@ -130,6 +145,10 @@ export interface RewardTokenInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "symbol", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "totalBurned",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "totalSupply",
     data: BytesLike
@@ -156,6 +175,19 @@ export namespace ApprovalEvent {
     owner: string;
     spender: string;
     value: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace BurnedEvent {
+  export type InputTuple = [from: AddressLike, amount: BigNumberish];
+  export type OutputTuple = [from: string, amount: bigint];
+  export interface OutputObject {
+    from: string;
+    amount: bigint;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -277,6 +309,14 @@ export interface RewardToken extends BaseContract {
 
   balanceOf: TypedContractMethod<[account: AddressLike], [bigint], "view">;
 
+  burn: TypedContractMethod<[amount: BigNumberish], [void], "nonpayable">;
+
+  burnFrom: TypedContractMethod<
+    [account: AddressLike, amount: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
   decimals: TypedContractMethod<[], [bigint], "view">;
 
   isMinter: TypedContractMethod<[account: AddressLike], [boolean], "view">;
@@ -302,6 +342,8 @@ export interface RewardToken extends BaseContract {
   renounceOwnership: TypedContractMethod<[], [void], "nonpayable">;
 
   symbol: TypedContractMethod<[], [string], "view">;
+
+  totalBurned: TypedContractMethod<[], [bigint], "view">;
 
   totalSupply: TypedContractMethod<[], [bigint], "view">;
 
@@ -348,6 +390,16 @@ export interface RewardToken extends BaseContract {
     nameOrSignature: "balanceOf"
   ): TypedContractMethod<[account: AddressLike], [bigint], "view">;
   getFunction(
+    nameOrSignature: "burn"
+  ): TypedContractMethod<[amount: BigNumberish], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "burnFrom"
+  ): TypedContractMethod<
+    [account: AddressLike, amount: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
     nameOrSignature: "decimals"
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
@@ -379,6 +431,9 @@ export interface RewardToken extends BaseContract {
     nameOrSignature: "symbol"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
+    nameOrSignature: "totalBurned"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
     nameOrSignature: "totalSupply"
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
@@ -405,6 +460,13 @@ export interface RewardToken extends BaseContract {
     ApprovalEvent.InputTuple,
     ApprovalEvent.OutputTuple,
     ApprovalEvent.OutputObject
+  >;
+  getEvent(
+    key: "Burned"
+  ): TypedContractEvent<
+    BurnedEvent.InputTuple,
+    BurnedEvent.OutputTuple,
+    BurnedEvent.OutputObject
   >;
   getEvent(
     key: "MinterAdded"
@@ -445,6 +507,17 @@ export interface RewardToken extends BaseContract {
       ApprovalEvent.InputTuple,
       ApprovalEvent.OutputTuple,
       ApprovalEvent.OutputObject
+    >;
+
+    "Burned(address,uint256)": TypedContractEvent<
+      BurnedEvent.InputTuple,
+      BurnedEvent.OutputTuple,
+      BurnedEvent.OutputObject
+    >;
+    Burned: TypedContractEvent<
+      BurnedEvent.InputTuple,
+      BurnedEvent.OutputTuple,
+      BurnedEvent.OutputObject
     >;
 
     "MinterAdded(address)": TypedContractEvent<

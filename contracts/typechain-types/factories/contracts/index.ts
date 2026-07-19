@@ -2,6 +2,10 @@
 /* tslint:disable */
 /* eslint-disable */
 export { CommunityVoting__factory } from "./CommunityVoting__factory";
+export { DynamicVerification__factory } from "./DynamicVerification__factory";
+export { EcoBoost__factory } from "./EcoBoost__factory";
+export { EcoCredential__factory } from "./EcoCredential__factory";
+export { EcoDAO__factory } from "./EcoDAO__factory";
 export { ProfileRegistry__factory } from "./ProfileRegistry__factory";
 export { RewardToken__factory } from "./RewardToken__factory";
 export { Verification__factory } from "./Verification__factory";
