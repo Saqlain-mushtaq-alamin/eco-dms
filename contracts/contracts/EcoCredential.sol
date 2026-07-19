@@ -76,7 +76,7 @@ contract EcoCredential is ERC721, Ownable {
         address from = _ownerOf(tokenId);
         require(
             from == address(0),
-            "EcoCredential: soulbound — transfers disabled"
+            "EcoCredential: soulbound - transfers disabled"
         );
         return super._update(to, tokenId, auth);
     }
