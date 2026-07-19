@@ -23,6 +23,8 @@ from typing import Optional
 from .duplicate_detector import duplicate_detector
 from .exif_analyzer import exif_analyzer
 from .temporal_analyzer import temporal_analyzer
+from .ai_detector import ai_detector
+from .impact_scorer import impact_scorer
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +37,10 @@ class FraudResult:
     duplicate: bool = False
     exif_suspicious: bool = False
     temporal_suspicious: bool = False
+    ai_generated: bool = False
+    impact_score: float = 0.0         # 0-100 positive credibility score
+    impact_tier: str = "unknown"
+    impact_multiplier: float = 1.0
     reasons: list[str] = field(default_factory=list)
     details: dict = field(default_factory=dict)
 
@@ -53,6 +59,7 @@ class FraudPipeline:
 
     Scoring:
       duplicate found    → +60 (auto-block at >= 60)
+      AI-generated image → +45 (probable AI = block)
       EXIF auto-reject   → +50
       EXIF suspicious    → +20
       temporal burst     → +30
@@ -71,6 +78,10 @@ class FraudPipeline:
         post_cid: str,
         wallet: str,
         text_content: Optional[str] = None,
+        category: str = "general_eco_action",
+        ml_confidence: float = 1.0,
+        image_count: int = 1,
+        author_accuracy: float = -1.0,
     ) -> FraudResult:
         """
         Run the complete fraud detection pipeline.
@@ -150,7 +161,49 @@ class FraudPipeline:
         except Exception as e:
             logger.warning("Temporal analysis failed: %s", e)
 
+        # ── 4. AI-Generated Image Detection ──────────────────────
+        ai_result = None
+        if image_bytes:
+            try:
+                ai_result = ai_detector.detect(image_bytes)
+                details["ai_detection"] = {
+                    "is_ai_generated": ai_result.is_ai_generated,
+                    "confidence": ai_result.confidence,
+                    "fraud_score_contribution": ai_result.fraud_score,
+                    "signals": ai_result.signals,
+                    "reason": ai_result.reason,
+                }
+                if ai_result.fraud_score > 0:
+                    fraud_score += ai_result.fraud_score
+                    if ai_result.is_ai_generated:
+                        reasons.append(f"AI-generated: {ai_result.reason}")
+                    elif ai_result.confidence > 0.2:
+                        reasons.append(f"AI signals detected: {ai_result.reason}")
+            except Exception as e:
+                logger.warning("AI detection failed: %s", e)
+
+        # ── 5. Impact Scoring (positive credibility) ──────────────
+        impact_result = None
+        try:
+            impact_result = impact_scorer.score(
+                ml_confidence=ml_confidence,
+                category=category,
+                image_count=image_count,
+                text_content=text_content,
+                author_accuracy=author_accuracy,
+            )
+            details["impact"] = {
+                "value": impact_result.value,
+                "multiplier": impact_result.multiplier,
+                "tier": impact_result.tier,
+                "components": impact_result.components,
+            }
+        except Exception as e:
+            logger.warning("Impact scoring failed: %s", e)
+
         # ── Final Verdict ─────────────────────────────────────────
+        # Cap at 100 to prevent overflow from multiple triggers
+        fraud_score = min(fraud_score, 100)
         block = fraud_score >= self.BLOCK_THRESHOLD
         flag = not block and fraud_score >= self.REVIEW_THRESHOLD
 
@@ -161,12 +214,17 @@ class FraudPipeline:
             duplicate=bool(dup_result and dup_result.is_duplicate),
             exif_suspicious=bool(exif_result and exif_result.is_suspicious),
             temporal_suspicious=bool(temporal_result and temporal_result.is_suspicious),
+            ai_generated=bool(ai_result and ai_result.is_ai_generated),
+            impact_score=impact_result.value if impact_result else 0.0,
+            impact_tier=impact_result.tier if impact_result else "unknown",
+            impact_multiplier=impact_result.multiplier if impact_result else 1.0,
             reasons=reasons,
             details=details,
         )
         logger.info(
-            "FraudPipeline [%s] post=%s score=%d block=%s flag=%s",
-            wallet[:8], post_cid[:12], fraud_score, block, flag,
+            "FraudPipeline [%s] post=%s fraud=%d impact=%.1f block=%s flag=%s",
+            wallet[:8], post_cid[:12], fraud_score,
+            impact_result.value if impact_result else 0.0, block, flag,
         )
         return result
 
