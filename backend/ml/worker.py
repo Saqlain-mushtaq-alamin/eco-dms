@@ -360,15 +360,27 @@ def verify_eco_content(
         )
 
         # Auto-open community voting window now that ML has finished.
-        # The window is keyed by post_id (post CID). Only open if we have
-        # enough info — the Celery worker has the raw confidence (0-1) and
-        # the poster wallet right here, so this is the right place to do it.
         _open_voting_window_for_post(
             post_cid=post_id or media_cids[0],
             confidence=verdict.get('confidence', 0),
             poster_wallet=author_wallet,
         )
-        
+
+        # ── On-chain reward via DynamicVerification ───────────────
+        # Only trigger if the verdict is eco-positive AND we have a wallet.
+        # Non-fatal: if on-chain call fails, the off-chain record is still good.
+        chain_tx_hash = None
+        is_eco = verdict.get('is_eco', verdict.get('eco', False))
+        if is_eco and author_wallet and signed_verdict.get('chain_verdict') and signed_verdict.get('signature'):
+            try:
+                chain_tx_hash = _submit_dynamic_verification(
+                    chain_verdict=signed_verdict['chain_verdict'],
+                    signature=signed_verdict['signature'],
+                )
+                print(f"[worker] DynamicVerification.verifyAndReward tx: {chain_tx_hash}")
+            except Exception as _ce:
+                print(f"[worker] On-chain reward failed (non-fatal): {_ce}")
+
         # Return result
         result = {
             'status': 'success',
@@ -377,13 +389,14 @@ def verify_eco_content(
             'post_id': post_id,
             'author_wallet': author_wallet,
             'confidence': verdict.get('confidence', 0.0),
-            'eco': verdict.get('is_eco', verdict.get('eco', False)),
+            'eco': is_eco,
             'verdict': verdict,
             'signed_verdict_cid': signed_cid,
             'signature': signed_verdict['signature'],
             'verifier_address': signed_verdict['verifier_address'],
+            'chain_tx_hash': chain_tx_hash,
         }
-        
+
         return result
 
     except NonRetryableVerificationError as e:
@@ -524,6 +537,87 @@ def _store_verdict_mapping(
             redis_service.client.hset(_verdict_key(target_id), mapping={"payload": payload})
         except Exception as e:
             print(f"⚠️ Failed to persist verdict in Redis for {target_id}: {e}")
+
+
+
+def _submit_dynamic_verification(chain_verdict: Dict, signature: str) -> Optional[str]:
+    """
+    Submit a signed eco verdict to DynamicVerification.verifyAndReward() on-chain.
+
+    Args:
+        chain_verdict: EIP-712 Verdict struct dict from VerdictSigner
+        signature: Hex signature string (0x-prefixed or not)
+
+    Returns:
+        Transaction hash hex string, or None on failure
+    """
+    from web3 import Web3
+
+    rpc_url = (
+        os.getenv('RPC_URL')
+        or os.getenv('HARDHAT_RPC_URL')
+        or 'http://127.0.0.1:8545'
+    )
+    contract_addr = (
+        os.getenv('DYNAMIC_VERIFICATION_ADDRESS')
+        or os.getenv('VITE_DYNAMIC_VERIFICATION_ADDRESS')
+    )
+    private_key = (
+        os.getenv('VERIFIER_PRIVATE_KEY')
+        or os.getenv('HARDHAT_DEPLOYER_PRIVATE_KEY')
+    )
+
+    if not contract_addr or not private_key:
+        raise RuntimeError(
+            "DYNAMIC_VERIFICATION_ADDRESS and VERIFIER_PRIVATE_KEY must be set to submit on-chain"
+        )
+
+    w3 = Web3(Web3.HTTPProvider(rpc_url))
+    if not w3.is_connected():
+        raise RuntimeError(f"RPC not reachable at {rpc_url}")
+
+    abi = [{
+        "inputs": [
+            {"name": "postCid",    "type": "string"},
+            {"name": "isEco",      "type": "bool"},
+            {"name": "confidence", "type": "uint256"},
+            {"name": "timestamp",  "type": "uint256"},
+            {"name": "nonce",      "type": "uint256"},
+            {"name": "wallet",     "type": "address"},
+            {"name": "signature",  "type": "bytes"},
+        ],
+        "name": "verifyAndReward",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function",
+    }]
+
+    account = w3.eth.account.from_key(private_key)
+    contract = w3.eth.contract(
+        address=Web3.to_checksum_address(contract_addr),
+        abi=abi,
+    )
+    sig_bytes = bytes.fromhex(signature.lstrip('0x'))
+    tx = contract.functions.verifyAndReward(
+        chain_verdict['postCid'],
+        chain_verdict['isEco'],
+        chain_verdict['confidence'],
+        chain_verdict['timestamp'],
+        chain_verdict['nonce'],
+        Web3.to_checksum_address(chain_verdict['wallet']),
+        sig_bytes,
+    ).build_transaction({
+        'from': account.address,
+        'nonce': w3.eth.get_transaction_count(account.address),
+        'gas': 250_000,
+        'gasPrice': w3.eth.gas_price,
+    })
+    signed_tx = w3.eth.account.sign_transaction(tx, private_key)
+    tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+    receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
+    if receipt.status != 1:
+        raise RuntimeError(f"verifyAndReward reverted (tx={tx_hash.hex()})")
+    return tx_hash.hex()
 
 
 def _open_voting_window_for_post(
