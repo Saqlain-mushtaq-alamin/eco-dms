@@ -19,6 +19,7 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=False)
 
 from .inference import get_verifier
 from .signer import VerdictSigner
+from .fraud.pipeline import fraud_pipeline
 
 # Initialize Celery
 redis_url = os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/0')
@@ -195,17 +196,57 @@ def verify_eco_content(
         
         # Get verifier instance
         verifier = get_verifier()
-        
+
         # Get IPFS gateway URLs - try multiple gateways
         primary_gateway = os.getenv('IPFS_GATEWAY_URL', 'http://localhost:8080')
-        # Fallback to public gateways if local fails
         fallback_gateways = [
             "https://ipfs.nftstorage.link",
             "https://ipfs.io",
             "https://dweb.link",
         ]
-        
-        # Perform verification
+
+        # ── Fraud Detection (before ML inference) ───────────────
+        self.update_state(state='PROCESSING', meta={'status': 'Running fraud checks...'})
+        try:
+            # Fetch primary image bytes for fraud checks
+            _fraud_image_bytes = None
+            with __import__('httpx').Client(timeout=10) as _hc:
+                for _gw in [primary_gateway] + fallback_gateways:
+                    try:
+                        _r = _hc.get(f"{_gw}/ipfs/{media_cids[0]}")
+                        if _r.status_code == 200:
+                            _fraud_image_bytes = _r.content
+                            break
+                    except Exception:
+                        pass
+
+            fraud_result = fraud_pipeline.run(
+                image_bytes=_fraud_image_bytes,
+                post_cid=post_cid,
+                wallet=author_wallet or "",
+                text_content=text_content,
+            )
+
+            if fraud_result.block:
+                set_verification_status(
+                    post_cid=post_cid, status='failed',
+                    task_id=self.request.id,
+                    attempts=current_attempt,
+                    completed_at=_utc_now_iso(),
+                    last_error=f"FRAUD_BLOCKED: {fraud_result.summary}",
+                )
+                return {
+                    'status': 'fraud_blocked',
+                    'fraud_score': fraud_result.fraud_score,
+                    'reasons': fraud_result.reasons,
+                    'post_id': post_id,
+                    'author_wallet': author_wallet,
+                }
+        except Exception as _fe:
+            print(f"[worker] Fraud check error (non-fatal): {_fe}")
+            fraud_result = None
+
+        # Perform ML inference
         self.update_state(
             state='PROCESSING',
             meta={'status': 'Running ML inference...'}
