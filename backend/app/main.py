@@ -22,7 +22,7 @@ from .posts_manage.post_routes import router as posts_router
 from .verify_routes import router as verify_router
 from .notification_routes import router as notification_router
 from .voting_routes import router as voting_router
-from .portfolio_routes import router as portfolio_router, leaderboard_router
+from .portfolio_routes import router as portfolio_router, leaderboard_router, credentials_router, boost_router
 from .fraud_routes import router as fraud_router
 
 # Create FastAPI app
@@ -53,8 +53,10 @@ app.include_router(posts_router)  # Include posts router
 app.include_router(verify_router)  # ML verification routes
 app.include_router(notification_router)  # Decentralized notifications routes
 app.include_router(voting_router)  # Community voting routes
-app.include_router(portfolio_router)   # Eco Portfolio routes
+app.include_router(portfolio_router)    # Eco Portfolio routes
 app.include_router(leaderboard_router)  # Leaderboard routes
+app.include_router(credentials_router)  # Credential eligibility + owned
+app.include_router(boost_router)        # Boost status + history
 app.include_router(fraud_router)        # Admin fraud review routes
 
 

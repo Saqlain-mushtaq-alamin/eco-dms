@@ -64,9 +64,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         { to: '/feed',         icon: '🏠', label: 'Feed' },
         { to: '/dashboard',    icon: '📊', label: 'Dashboard' },
         { to: '/my-portfolio', icon: '🌱', label: 'Eco Portfolio' },
+        { to: '/credentials',  icon: '🎖️', label: 'Credentials' },
         { to: '/dao',          icon: '🗳️', label: 'DAO' },
-        { to: '/friends',      icon: '👥', label: 'Friends' }
-
+        { to: '/friends',      icon: '👥', label: 'Friends' },
+        { to: '/admin/fraud',  icon: '🛡️', label: 'Fraud Review' },
     ]), [])
 
     useEffect(() => {
