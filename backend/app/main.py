@@ -24,6 +24,7 @@ from .notification_routes import router as notification_router
 from .voting_routes import router as voting_router
 from .portfolio_routes import router as portfolio_router, leaderboard_router, credentials_router, boost_router
 from .fraud_routes import router as fraud_router
+from .openapi_config import configure_openapi
 
 # Create FastAPI app
 app = FastAPI(
@@ -58,6 +59,9 @@ app.include_router(leaderboard_router)  # Leaderboard routes
 app.include_router(credentials_router)  # Credential eligibility + owned
 app.include_router(boost_router)        # Boost status + history
 app.include_router(fraud_router)        # Admin fraud review routes
+
+# Configure custom OpenAPI schema (must be called after all routers are registered)
+configure_openapi(app)
 
 
 @app.on_event("startup")
