@@ -25,9 +25,14 @@ class TestLevelService:
         assert r.title == "Eco Seedling"
 
     def test_level_5_threshold(self):
-        # Level 5 needs 40 actions + 60 kg CO₂
-        r = get_level(40, 60.0)
+        # Level 5 (Green Citizen) needs 25 actions + 30 kg CO2
+        r = get_level(25, 30.0)
         assert r.level == 5
+
+    def test_level_6_threshold(self):
+        # Level 6 (Eco Activist) needs 40 actions + 60 kg CO2
+        r = get_level(40, 60.0)
+        assert r.level == 6
 
     def test_dual_gate_both_required(self):
         # High actions but low CO₂ → stuck at lower level
@@ -354,8 +359,8 @@ class TestFraudPipeline:
                     "impact_score", "impact_tier", "impact_multiplier", "reasons", "details"]
         for field in required:
             assert hasattr(r, field), f"Missing field: {field}"
-
-    def test_score_capped_at_100(self):
+        assert r.impact_tier in ("low", "medium", "high", "exceptional")
+        assert r.fraud_score <= 100
         # Force multiple signals by passing suspicious values
         r = fraud_pipeline.run(
             image_bytes=None,
