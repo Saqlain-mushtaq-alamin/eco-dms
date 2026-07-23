@@ -17,11 +17,13 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional
 
-from .auth_routes import get_current_user
+from .auth_routes import get_current_user, require_authenticated
 from .services.portfolio_service import portfolio_service
 
 router = APIRouter(prefix="/api/portfolio", tags=["portfolio"])
 leaderboard_router = APIRouter(prefix="/api/leaderboard", tags=["leaderboard"])
+credentials_router = APIRouter(prefix="/api/credentials", tags=["credentials"])
+boost_router = APIRouter(prefix="/api/boost", tags=["boost"])
 logger = logging.getLogger(__name__)
 
 
@@ -252,3 +254,119 @@ async def get_category_leaderboard(
     except Exception as e:
         logger.error("Category leaderboard error for %s: %s", category, e, exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to load leaderboard")
+
+
+# ─── Credential Endpoints ────────────────────────────────────────────────────
+
+@credentials_router.get("/eligibility", response_model=list)
+async def get_credential_eligibility(current_user=Depends(require_authenticated)):
+    """
+    Return credential eligibility for the authenticated user.
+    Checks all 9 milestone/community definitions against their portfolio.
+    """
+    wallet = current_user.get("wallet") or ""
+    if not wallet:
+        raise HTTPException(status_code=401, detail="No wallet in session")
+    try:
+        from .services.credential_service import credential_service
+        portfolio = await portfolio_service.get_portfolio(wallet.lower())
+        items = await credential_service.get_eligibility(wallet, portfolio)
+        return [
+            {
+                "credential_id":  item.credential_id,
+                "title":          item.title,
+                "credential_type": item.credential_type,
+                "rarity":         item.rarity,
+                "rarity_color":   item.rarity_color,
+                "description":    item.description,
+                "is_eligible":    item.is_eligible,
+                "already_minted": item.already_minted,
+                "eco_cost":       item.eco_cost,
+                "metadata_preview": item.metadata_preview,
+            }
+            for item in items
+        ]
+    except Exception as e:
+        logger.error("Credential eligibility error for %s: %s", wallet, e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to load credential eligibility")
+
+
+@credentials_router.get("/owned/{wallet}", response_model=list)
+async def get_owned_credentials(wallet: str, current_user=Depends(require_authenticated)):
+    """Fetch all on-chain soulbound credentials owned by any wallet."""
+    try:
+        from .services.credential_service import credential_service
+        owned = await credential_service.get_owned_credentials(wallet.lower())
+        return [
+            {
+                "token_id":        c.token_id,
+                "title":           c.title,
+                "credential_type": c.credential_type,
+                "rarity":          c.rarity,
+                "rarity_color":    c.rarity_color,
+                "earned_at":       c.earned_at,
+                "ipfs_uri":        c.ipfs_uri,
+                "description":     c.description,
+            }
+            for c in owned
+        ]
+    except Exception as e:
+        logger.error("Owned credentials error for %s: %s", wallet, e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to load credentials")
+
+
+# ─── Boost Endpoints ─────────────────────────────────────────────────────────
+
+@boost_router.get("/status/{post_cid}", response_model=dict)
+async def get_boost_status(post_cid: str, current_user=Depends(require_authenticated)):
+    """Get current boost level and expiry for a post CID."""
+    try:
+        from .services.boost_service import boost_service
+        status = await boost_service.get_boost_status(post_cid)
+        return {
+            "post_cid":         status.post_cid,
+            "is_boosted":       status.is_boosted,
+            "active_level":     status.active_level,
+            "active_tier_name": status.active_tier_name,
+            "reach_multiplier": status.reach_multiplier,
+            "expires_at":       status.expires_at,
+            "boost_count":      status.boost_count,
+            "total_eco_burned": status.total_eco_burned,
+        }
+    except Exception as e:
+        logger.error("Boost status error for %s: %s", post_cid, e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to load boost status")
+
+
+@boost_router.get("/history/{post_cid}", response_model=list)
+async def get_boost_history(post_cid: str, current_user=Depends(require_authenticated)):
+    """Get full boost event history for a post CID."""
+    try:
+        from .services.boost_service import boost_service
+        records = await boost_service.get_boost_history(post_cid)
+        return [
+            {
+                "booster":    r.booster,
+                "level":      r.level,
+                "tier_name":  r.tier_name,
+                "eco_cost":   r.eco_cost,
+                "boosted_at": r.boosted_at,
+                "expires_at": r.expires_at,
+                "is_active":  r.is_active,
+            }
+            for r in records
+        ]
+    except Exception as e:
+        logger.error("Boost history error for %s: %s", post_cid, e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to load boost history")
+
+
+@boost_router.post("/invalidate/{post_cid}", response_model=dict)
+async def invalidate_boost_cache(post_cid: str, current_user=Depends(require_authenticated)):
+    """Clear boost cache after a confirmed on-chain boost transaction."""
+    try:
+        from .services.boost_service import boost_service
+        boost_service.invalidate_cache(post_cid)
+        return {"success": True, "post_cid": post_cid}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
