@@ -1,4 +1,9 @@
 import React, { useState } from 'react'
+import ChallengesPanel from '../components/partnerships/ChallengesPanel'
+import ESGPanel from '../components/partnerships/ESGPanel'
+import SchoolPanel from '../components/partnerships/SchoolPanel'
+import CarbonPanel from '../components/partnerships/CarbonPanel'
+import ApplyPanel from '../components/partnerships/ApplyPanel'
 
 /* ── tab ids ── */
 type Tab = 'overview' | 'challenges' | 'esg' | 'school' | 'carbon' | 'apply'
@@ -39,11 +44,11 @@ function TabContent({ tab }: { tab: Tab }) {
     // each tab panel imported lazily in next steps
     switch (tab) {
         case 'overview':   return <OverviewPanel />
-        case 'challenges': return <div className="partnership-placeholder">🏆 Challenges panel — Step 7.4</div>
-        case 'esg':        return <div className="partnership-placeholder">📊 ESG panel — Step 7.5</div>
-        case 'school':     return <div className="partnership-placeholder">🏫 School panel — Step 7.6</div>
-        case 'carbon':     return <div className="partnership-placeholder">🌱 Carbon panel — Step 7.7</div>
-        case 'apply':      return <div className="partnership-placeholder">🤝 Apply panel — Step 7.8</div>
+        case 'challenges': return <ChallengesPanel />
+        case 'esg':        return <ESGPanel />
+        case 'school':     return <SchoolPanel />
+        case 'carbon':     return <CarbonPanel />
+        case 'apply':      return <ApplyPanel />
         default:           return null
     }
 }
