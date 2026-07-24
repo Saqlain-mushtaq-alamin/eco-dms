@@ -15,6 +15,7 @@ import { DAORoute } from './routes/DAORoute'
 import PublicPortfolio from './pages/PublicPortfolio'
 import AdminFraudDashboard from './pages/AdminFraudDashboard'
 import CredentialsPage from './pages/Credentials'
+import PartnershipsPage from './pages/Partnerships'
 import { useAuthSync } from './hooks/useAuthSync'
 
 function AppRoutes() {
@@ -125,6 +126,15 @@ function AppRoutes() {
                 element={
                     <ProtectedRoute>
                         <AdminFraudDashboard />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/partnerships"
+                element={
+                    <ProtectedRoute>
+                        <PartnershipsPage />
                     </ProtectedRoute>
                 }
             />
