@@ -66,6 +66,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         { to: '/my-portfolio', icon: '🌱', label: 'Eco Portfolio' },
         { to: '/credentials',  icon: '🎖️', label: 'Credentials' },
         { to: '/dao',          icon: '🗳️', label: 'DAO' },
+        { to: '/partnerships', icon: '🤝', label: 'Partnerships' },
         { to: '/friends',      icon: '👥', label: 'Friends' },
         { to: '/admin/fraud',  icon: '🛡️', label: 'Fraud Review' },
     ]), [])
