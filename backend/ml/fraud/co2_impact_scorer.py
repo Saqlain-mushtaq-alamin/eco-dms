@@ -83,33 +83,49 @@ IMPACT_TABLE: dict[str, float] = {
 
     # Generic fallback
     "general_eco_action":        0.5,
+
+    # YOLO raw label aliases (detected_objects from ML inference)
+    "bicycle":                   3.1,
+    "bike":                      3.1,
+    "tree":                     15.0,
+    "solar panel":              50.0,
+    "wind turbine":             40.0,
+    "electric car":              1.8,
+    "compost":                   0.5,
+    "recycle bin":               1.0,
 }
 
 # Eco-keyword → action_type mapping (for text-based classification)
+# NOTE: Order matters — more specific patterns first.
 _TEXT_ACTION_MAP: list[tuple[list[str], str]] = [
     (["solar panel", "solar installation", "pv panel", "photovoltaic"],   "solar_installation"),
     (["wind turbine", "wind farm"],                                        "renewable_energy"),
-    (["planted tree", "plant tree", "tree planting", "trees planted"],     "tree_planting"),
+    # Tree planting — match both 'tree planting' and 'planted * tree(s)'
+    (["planted tree", "plant tree", "tree planting", "trees planted",
+      "planted a tree", "planted the tree", "tree planted",
+      "planting tree"],                                                    "tree_planting"),
     (["electric vehicle", "ev ", "electric car", "tesla", "ev purchase"],  "electric_vehicle"),
-    (["bicycle", "bike", "cycling commute", "biking to work"],             "bicycle_commute"),
-    (["public transport", "bus", "metro", "subway", "train commute"],      "public_transport"),
+    (["bicycle", "bike", "biking", "cycling", "cycled"],                  "bicycle_commute"),
+    (["public transport", "bus ride", "metro", "subway", "train commute"], "public_transport"),
     (["beach cleanup", "coastal cleanup"],                                  "beach_cleanup"),
-    (["recycl", "e-waste", "electronics recycling"],                       "recycling_electronics"),
+    (["e-waste", "electronics recycling"],                                 "recycling_electronics"),
     (["compost", "composting"],                                             "composting"),
     (["rainwater", "rain water", "water harvesting"],                      "rainwater_collection"),
-    (["led", "led light", "energy saving bulb"],                           "led_lighting"),
+    (["led light", "energy saving bulb"],                                  "led_lighting"),
     (["insulation", "home insulation"],                                     "home_insulation"),
     (["vegan", "plant-based"],                                             "vegan_meal"),
     (["vegetarian"],                                                        "vegetarian_meal"),
     (["reusable bag", "cloth bag", "zero waste shopping"],                 "zero_waste_shopping"),
     (["second hand", "thrift", "repair cloth"],                            "clothing_repair"),
-    (["garden", "urban garden"],                                           "garden_creation"),
     (["habitat", "rewilding", "restoration"],                              "habitat_restoration"),
+    (["garden", "urban garden"],                                           "garden_creation"),
     (["carpool", "ride sharing", "rideshare"],                             "carpool"),
     (["recycl"],                                                           "recycling"),
     (["water sav", "water conserv", "low flow"],                          "water_conservation"),
     (["local food", "farmers market", "locally grown"],                   "local_food_purchase"),
     (["community cleanup", "litter picking", "trash cleanup"],            "community_cleanup"),
+    # Generic tree keyword (less specific, after specific planting patterns)
+    (["tree", "trees"],                                                    "tree_planting"),
 ]
 
 # Numbers in English words (0–20) for scale extraction
