@@ -20,6 +20,8 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=False)
 from .inference import get_verifier
 from .signer import VerdictSigner
 from .fraud.pipeline import fraud_pipeline
+from .fraud.co2_impact_scorer import co2_impact_scorer
+from .fraud.multimodal_verifier import multimodal_verifier
 
 # Initialize Celery
 redis_url = os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/0')
@@ -330,15 +332,76 @@ def verify_eco_content(
         finally:
             loop.close()
         
-        # Add metadata
+        # ── Plan 06 Phase 2: CO₂ Impact Scoring ─────────────────
+        self.update_state(state='PROCESSING', meta={'status': 'Calculating CO₂ impact...'})
+        co2_result = None
+        try:
+            co2_result = co2_impact_scorer.score_impact(
+                ml_detections=verdict.get('detected_objects', []) or [],
+                text_content=text_content or '',
+                category=verdict.get('category', 'general_eco_action'),
+            )
+        except Exception as _co2e:
+            print(f"[worker] CO₂ impact scoring failed (non-fatal): {_co2e}")
+
+        # ── Plan 06 Phase 4: Multi-Modal Verification ─────────────
+        self.update_state(state='PROCESSING', meta={'status': 'Running multi-modal verification...'})
+        mm_result = None
+        try:
+            mm_result = multimodal_verifier.verify(
+                ml_verdict=verdict,
+                text_content=text_content,
+                fraud_result=fraud_result if fraud_result else None,
+                category=verdict.get('category', 'general_eco_action'),
+            )
+            # Blend multi-modal confidence into the verdict confidence
+            verdict['multimodal_confidence'] = mm_result.multimodal_confidence
+        except Exception as _mme:
+            print(f"[worker] Multi-modal verification failed (non-fatal): {_mme}")
+
+        # ── Build enhanced verdict structure (Plan 06 spec) ────────
+        enhanced_fields: dict = {}
+
+        if co2_result:
+            enhanced_fields['impact'] = co2_result.to_dict()
+
+        if fraud_result:
+            _details = getattr(fraud_result, 'details', {}) or {}
+            _ai_det  = _details.get('ai_detection', {})
+            _exif    = _details.get('exif', {})
+            _dup     = _details.get('duplicate', {})
+            enhanced_fields['authenticity'] = {
+                'is_original':       not _dup.get('is_duplicate', False) and not (_ai_det.get('confidence', 0) > 0.7),
+                'ai_generated_prob': round(float(_ai_det.get('confidence', 0.0)), 4),
+                'has_exif':          bool(_exif.get('has_timestamp') or _exif.get('has_gps') or _exif.get('camera_model')),
+                'has_gps':           bool(_exif.get('has_gps', False)),
+                'duplicate_found':   bool(_dup.get('is_duplicate', False)),
+                'editing_detected':  bool(_exif.get('editing_software')),
+                'fraud_score':       int(getattr(fraud_result, 'fraud_score', 0)),
+            }
+
+        if mm_result:
+            enhanced_fields['consistency'] = mm_result.consistency.to_dict()
+
+        # Model-level detail block
+        enhanced_fields['model_details'] = {
+            'yolo_detections':       verdict.get('detected_objects', []),
+            'clip_similarity':       round(verdict.get('breakdown', {}).get('clip_score', 0.0), 3),
+            'efficientnet_eco_prob': round(verdict.get('breakdown', {}).get('efficientnet_score', 0.0), 3),
+            'text_score':            round(verdict.get('breakdown', {}).get('text_score', 0.0), 3),
+            'models_used':           verdict.get('models_used', []),
+        }
+
+        # Add metadata + enhanced fields
         verdict_with_metadata = {
             **verdict,
+            **enhanced_fields,
             'ipfs_cid': media_cids[0],
             'ipfs_cids': media_cids,
             'post_id': post_id,
             'author_wallet': author_wallet,
             'verified_at': datetime.utcnow().isoformat(),
-            'verifier_version': '1.0.0',
+            'verifier_version': '2.0.0',  # v2 = Plan 06 enhanced pipeline
         }
         
         # Sign the verdict
@@ -411,7 +474,7 @@ def verify_eco_content(
             except Exception as _ce:
                 print(f"[worker] On-chain reward failed (non-fatal): {_ce}")
 
-        # Return result
+        # Return enriched result (Plan 06 enhanced verdict)
         result = {
             'status': 'success',
             'ipfs_cid': media_cids[0],
@@ -419,8 +482,15 @@ def verify_eco_content(
             'post_id': post_id,
             'author_wallet': author_wallet,
             'confidence': verdict.get('confidence', 0.0),
+            'multimodal_confidence': mm_result.multimodal_confidence if mm_result else verdict.get('confidence', 0.0),
             'eco': is_eco,
-            'verdict': verdict,
+            'verdict': verdict_with_metadata,          # full enhanced verdict
+            # Plan 06 enhanced blocks (top-level for easy API access)
+            'impact':        enhanced_fields.get('impact'),
+            'authenticity':  enhanced_fields.get('authenticity'),
+            'consistency':   enhanced_fields.get('consistency'),
+            'model_details': enhanced_fields.get('model_details'),
+            # Chain + signing
             'signed_verdict_cid': signed_cid,
             'signature': signed_verdict['signature'],
             'verifier_address': signed_verdict['verifier_address'],
