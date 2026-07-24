@@ -12,7 +12,15 @@ import requests
 # Add root path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from backend.app.config import settings
+from ..config import settings
+
+
+def _safe_print(msg: str) -> None:
+    """Print safely on Windows consoles that don't support Unicode."""
+    try:
+        print(msg)
+    except UnicodeEncodeError:
+        print(msg.encode('ascii', errors='replace').decode('ascii'))
 
 
 class IPFSService:
@@ -60,16 +68,16 @@ class IPFSService:
                     except Exception:
                         ver = r.text.split("kubo/")[1].split("/")[0] if "kubo/" in r.text else "?"
                     self.client = True
-                    print(f"✅ Connected to IPFS (kubo/{ver}) at {self.api_url}")
+                    _safe_print(f"[OK] Connected to IPFS (kubo/{ver}) at {self.api_url}")
                 else:
                     self.pinata_only = True
-                    print(f"⚠️ IPFS API not responding (HTTP {r.status_code}), falling back to Pinata")
+                    _safe_print(f"[WARN] IPFS API not responding (HTTP {r.status_code}), falling back to Pinata")
             except Exception as exc:
                 self.pinata_only = True
-                print(f"⚠️ Could not connect to IPFS API ({exc}), falling back to Pinata")
+                _safe_print(f"[WARN] Could not connect to IPFS API ({exc}), falling back to Pinata")
         else:
             self.pinata_only = True
-            print("📌 Pinata-only mode enabled (no IPFS_API_URL)")
+            _safe_print("[INFO] Pinata-only mode enabled (no IPFS_API_URL)")
 
     # ----------------------------------------------------------------------
     # Add JSON
@@ -87,14 +95,14 @@ class IPFSService:
                 obj = json.loads(last)
                 return obj.get("Hash")
             except Exception as e:
-                print(f"⚠️ IPFS add_json failed: {e}. Falling back to Pinata.")
+                _safe_print(f"[WARN] IPFS add_json failed: {e}. Falling back to Pinata.")
 
         # Pinata fallback
         try:
-            from backend.app.services.pinata_service import pinata_service
+            from .pinata_service import pinata_service
             return pinata_service.pin_json(data)
         except Exception as e:
-            print(f"❌ Pinata add_json failed: {e}")
+            _safe_print(f"[ERR] Pinata add_json failed: {e}")
             return None
 
     # ----------------------------------------------------------------------
@@ -116,31 +124,30 @@ class IPFSService:
                     
                     # If rate limited, try next gateway immediately
                     if r.status_code == 429:
-                        print(f"⚠️ Rate limited on {gateway_url}, trying next gateway...")
+                        _safe_print(f"[WARN] Rate limited on {gateway_url}, trying next gateway...")
                         break
-                    
+
                     r.raise_for_status()
                     return r.json()
-                    
+
                 except requests.exceptions.HTTPError as e:
                     if e.response.status_code == 429:
-                        # Rate limited - don't retry on this gateway
                         break
                     elif attempt < max_retries - 1:
                         delay = base_delay * (2 ** attempt)
-                        print(f"⚠️ Attempt {attempt + 1} failed for {url}, retrying in {delay}s...")
+                        _safe_print(f"[WARN] Attempt {attempt + 1} failed for {url}, retrying in {delay}s...")
                         time.sleep(delay)
                     else:
-                        print(f"⚠️ All retries failed for gateway {gateway_url}: {e}")
+                        _safe_print(f"[WARN] All retries failed for gateway {gateway_url}: {e}")
                 except Exception as e:
                     if attempt < max_retries - 1:
                         delay = base_delay * (2 ** attempt)
                         time.sleep(delay)
                     else:
-                        print(f"⚠️ Gateway {gateway_url} failed: {e}")
+                        _safe_print(f"[WARN] Gateway {gateway_url} failed: {e}")
                         break
-        
-        print(f"❌ get_json failed for CID {cid} on all gateways")
+
+        _safe_print(f"[ERR] get_json failed for CID {cid} on all gateways")
         return None
 
     # ----------------------------------------------------------------------
@@ -157,14 +164,14 @@ class IPFSService:
                 obj = json.loads(last)
                 return obj.get("Hash")
             except Exception as e:
-                print(f"⚠️ IPFS add_bytes failed: {e}. Falling back to Pinata.")
+                _safe_print(f"[WARN] IPFS add_bytes failed: {e}. Falling back to Pinata.")
 
         # Pinata fallback
         try:
-            from backend.app.services.pinata_service import pinata_service
+            from .pinata_service import pinata_service
             return pinata_service.pin_file_bytes(data, filename=filename)
         except Exception as e:
-            print(f"❌ Pinata add_bytes failed: {e}")
+            _safe_print(f"[ERR] Pinata add_bytes failed: {e}")
             return None
 
     # ----------------------------------------------------------------------
@@ -177,13 +184,13 @@ class IPFSService:
                 r = requests.post(f"{self.api_url}/pin/add?arg={cid}", timeout=15)
                 return r.ok
             except Exception as e:
-                print(f"⚠️ IPFS pin failed: {e}. Falling back to Pinata.")
+                _safe_print(f"[WARN] IPFS pin failed: {e}. Falling back to Pinata.")
 
         try:
-            from backend.app.services.pinata_service import pinata_service
+            from .pinata_service import pinata_service
             return pinata_service.pin_by_cid(cid)
         except Exception as e:
-            print(f"❌ Pinata pin_by_cid failed: {e}")
+            _safe_print(f"[ERR] Pinata pin_by_cid failed: {e}")
             return False
 
     # ----------------------------------------------------------------------
