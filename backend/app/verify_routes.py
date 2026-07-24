@@ -29,6 +29,15 @@ try:
 except ImportError:
     get_verdict_for_post = None
 
+try:
+    from backend.ml.fraud.co2_impact_scorer import co2_impact_scorer
+    from backend.ml.fraud.multimodal_verifier import multimodal_verifier
+    _ML_PLAN06_AVAILABLE = True
+except ImportError:
+    co2_impact_scorer = None  # type: ignore
+    multimodal_verifier = None  # type: ignore
+    _ML_PLAN06_AVAILABLE = False
+
 router = APIRouter(prefix="/api/verify", tags=["verification"])
 
 
@@ -137,15 +146,52 @@ async def verify_content(request: VerifyRequest):
                     request.text_content
                 )
             
-            # Add metadata
+            # Plan 06: CO₂ impact + multi-modal verification (sync mode)
+            co2_result = None
+            mm_result = None
+            if _ML_PLAN06_AVAILABLE:
+                try:
+                    co2_result = co2_impact_scorer.score_impact(
+                        ml_detections=verdict.get('detected_objects', []) or [],
+                        text_content=request.text_content or '',
+                        category=verdict.get('category', 'general_eco_action'),
+                    )
+                except Exception as _co2e:
+                    logger.warning("Sync CO₂ scoring failed: %s", _co2e)
+
+                try:
+                    mm_result = multimodal_verifier.verify(
+                        ml_verdict=verdict,
+                        text_content=request.text_content,
+                        fraud_result=None,
+                        category=verdict.get('category', 'general_eco_action'),
+                    )
+                except Exception as _mme:
+                    logger.warning("Sync multi-modal verification failed: %s", _mme)
+
+            # Add metadata + Plan 06 enhanced fields
+            enhanced = {}
+            if co2_result:
+                enhanced['impact'] = co2_result.to_dict()
+            if mm_result:
+                enhanced['consistency'] = mm_result.consistency.to_dict()
+            enhanced['model_details'] = {
+                'yolo_detections':       verdict.get('detected_objects', []),
+                'clip_similarity':       round(verdict.get('breakdown', {}).get('clip_score', 0.0), 3),
+                'efficientnet_eco_prob': round(verdict.get('breakdown', {}).get('efficientnet_score', 0.0), 3),
+                'text_score':            round(verdict.get('breakdown', {}).get('text_score', 0.0), 3),
+                'models_used':           verdict.get('models_used', []),
+            }
+
             verdict_with_metadata = {
                 **verdict,
+                **enhanced,
                 'ipfs_cid': media_cids[0],
                 'ipfs_cids': media_cids,
                 'post_id': request.post_id,
                 'author_wallet': request.author_wallet,
                 'verified_at': datetime.utcnow().isoformat(),
-                'verifier_version': '1.0.0',
+                'verifier_version': '2.0.0',
             }
             
             # Sign the verdict
@@ -155,7 +201,7 @@ async def verify_content(request: VerifyRequest):
             # For sync mode, we'll skip IPFS storage and return directly
             return VerifyResponse(
                 status="completed",
-                verdict=verdict,
+                verdict=verdict_with_metadata,
                 signed_verdict_cid=None  # Not stored in sync mode
             )
     
@@ -361,6 +407,66 @@ async def get_claim_payload(post_cid: str, chain_timestamp: int | None = Query(d
             "verifier_address": verifier_address,
             "eip712_domain": eip712_domain,
             "eip712_types": eip712_types,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/impact/{post_cid}",
+    summary="Get enhanced Plan 06 verdict fields for a post",
+    response_description="CO₂ impact, authenticity, consistency, and model details",
+    tags=["verification"],
+)
+async def get_impact_verdict(post_cid: str):
+    """
+    Retrieve the full Plan 06 enhanced verdict for a verified post.
+
+    Returns the CO₂ impact estimate, authenticity analysis, cross-modal
+    consistency score, and per-model detail breakdown.
+
+    - **post_cid**: IPFS CID of the post (or its primary media CID)
+    """
+    try:
+        if not get_verdict_for_post:
+            raise HTTPException(status_code=503, detail="Verdict lookup unavailable")
+
+        verdict_data = get_verdict_for_post(post_cid)
+        if not verdict_data:
+            raise HTTPException(status_code=404, detail="No verdict found for post")
+
+        # These fields are written by the Plan 06 enhanced worker pipeline
+        impact = verdict_data.get('impact')
+        authenticity = verdict_data.get('authenticity')
+        consistency = verdict_data.get('consistency')
+        model_details = verdict_data.get('model_details')
+
+        # If the verdict pre-dates Plan 06, compute impact on-the-fly
+        if not impact and _ML_PLAN06_AVAILABLE:
+            try:
+                detected = verdict_data.get('detected_objects') or []
+                text = verdict_data.get('text_content') or ''
+                category = 'general_eco_action'
+                live_impact = co2_impact_scorer.score_impact(
+                    ml_detections=detected,
+                    text_content=text,
+                    category=category,
+                )
+                impact = live_impact.to_dict()
+                impact['_computed_live'] = True
+            except Exception as _le:
+                logger.warning("Live impact computation failed: %s", _le)
+
+        return {
+            "post_cid":      post_cid,
+            "eco":           verdict_data.get('eco', False),
+            "confidence":    verdict_data.get('confidence', 0.0),
+            "impact":        impact,
+            "authenticity":  authenticity,
+            "consistency":   consistency,
+            "model_details": model_details,
+            "verifier_version": verdict_data.get('verifier_version', '1.0.0'),
         }
     except HTTPException:
         raise
