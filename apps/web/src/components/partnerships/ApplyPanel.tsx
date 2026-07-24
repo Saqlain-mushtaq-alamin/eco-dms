@@ -172,7 +172,7 @@ export default function ApplyPanel() {
                         <div className="apply-field">
                             <label htmlFor="apply-challenge-idea">Challenge Idea</label>
                             <input id="apply-challenge-idea" className="partner-input"
-                                placeholder='e.g. "Repair, Don\'t Replace"'
+                                placeholder="e.g. Repair, Don't Replace"
                                 value={challengeIdea} onChange={e => setChallengeIdea(e.target.value)} />
                         </div>
                         <div className="apply-field">
