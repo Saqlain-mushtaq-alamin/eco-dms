@@ -48,8 +48,10 @@ class TestCO2ImpactScorer:
             text_content="Commuting today",
             category="general_eco_action",
         )
-        assert result.action_type in ("bicycle_commute", "cycling_commute")
+        # "bicycle" is a YOLO label alias for bicycle_commute in the IMPACT_TABLE
+        assert result.action_type in ("bicycle_commute", "cycling_commute", "bicycle")
         assert result.co2_offset_kg > 0
+        assert result.co2_offset_kg == pytest.approx(3.1, rel=0.01)
 
     def test_scale_extraction_word_number(self):
         result = self.scorer.score_impact(
