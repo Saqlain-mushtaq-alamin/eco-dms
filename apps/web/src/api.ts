@@ -385,3 +385,243 @@ export async function castVote(
     }
     return res.json()
 }
+
+// ── Industry & Partnerships API ───────────────────────────────────────────────
+
+function authHeaders(): Record<string, string> {
+    const token = localStorage.getItem('auth_token')
+    if (!token) throw new Error('No authentication token')
+    return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+}
+
+export interface Partner {
+    partner_id: string
+    org_name: string
+    org_type: string
+    contact_name: string
+    contact_email: string
+    website?: string
+    status: string
+    plan?: string
+    employee_count?: number
+    eco_budget_total: number
+    created_at: string
+}
+
+export interface Challenge {
+    challenge_id: string
+    partner_id: string
+    title: string
+    description: string
+    category: string
+    eco_prize_pool: number
+    burned_amount: number
+    platform_fee: number
+    max_participants?: number
+    participant_count: number
+    verified_actions: number
+    co2_offset_kg: number
+    starts_at: string
+    ends_at: string
+    status: string
+    banner_cid?: string
+}
+
+export interface ESGDashboardStats {
+    partner_id: string
+    org_name: string
+    plan: string
+    enrolled_employees: number
+    active_this_month: number
+    verified_actions: number
+    co2_offset_kg: number
+    eco_distributed: number
+    top_departments: { name: string; actions: number }[]
+    monthly_trend: { month: string; actions: number }[]
+    as_of: string
+}
+
+export interface SchoolDashboardStats {
+    partner_id: string
+    school_name: string
+    plan: string
+    enrolled_students: number
+    active_this_month: number
+    verified_actions: number
+    co2_offset_kg: number
+    school_rank?: number
+    class_leaderboard: { class_name: string; actions: number }[]
+    as_of: string
+}
+
+export interface EcoTranscript {
+    transcript_id: string
+    student_wallet: string
+    student_name?: string
+    school_name: string
+    period_start: string
+    period_end: string
+    total_verified_actions: number
+    community_service_hours: number
+    co2_offset_kg: number
+    action_breakdown: Record<string, number>
+    credentials_earned: string[]
+    on_chain_proof_url?: string
+    generated_at: string
+}
+
+export interface CarbonCreditPackage {
+    package_id: string
+    region: string
+    period: string
+    verified_actions: number
+    total_co2_offset_kg: number
+    price_usd: number
+    eco_tokens_included: number
+    status: string
+    created_at: string
+}
+
+export interface NGOEvent {
+    event_id: string
+    partner_id: string
+    title: string
+    description: string
+    location: string
+    event_date: string
+    volunteer_count: number
+    eco_per_volunteer: number
+    status: string
+}
+
+export interface RevenueSummary {
+    period: string
+    brand_challenge_revenue: number
+    esg_subscription_revenue: number
+    school_revenue: number
+    carbon_credit_revenue: number
+    vaas_revenue: number
+    total_revenue: number
+    eco_buy_pressure_usd: number
+}
+
+export async function registerPartner(payload: {
+    org_name: string; org_type: string; contact_name: string
+    contact_email: string; website?: string; description?: string
+    plan?: string; employee_count?: number; challenge_idea?: string; eco_budget?: number
+}): Promise<{ success: boolean; partner_id: string; status: string; message: string }> {
+    const res = await fetch(`${API_BASE}/api/partnerships/register`, {
+        method: 'POST', headers: authHeaders(), body: JSON.stringify(payload),
+    })
+    if (!res.ok) throw new Error(`Partner registration failed: ${res.status}`)
+    return res.json()
+}
+
+export async function listPartners(params?: { org_type?: string; status?: string }): Promise<Partner[]> {
+    const qs = params ? new URLSearchParams(params as Record<string, string>).toString() : ''
+    const res = await fetch(`${API_BASE}/api/partnerships/${qs ? `?${qs}` : ''}`, { headers: authHeaders() })
+    if (!res.ok) throw new Error(`Failed to list partners: ${res.status}`)
+    return res.json()
+}
+
+export async function getPartner(partnerId: string): Promise<Partner> {
+    const res = await fetch(`${API_BASE}/api/partnerships/${partnerId}`, { headers: authHeaders() })
+    if (!res.ok) throw new Error(`Failed to get partner: ${res.status}`)
+    return res.json()
+}
+
+export async function getEsgPricingPlans(): Promise<Record<string, unknown>> {
+    const res = await fetch(`${API_BASE}/api/partnerships/plans/esg`)
+    if (!res.ok) throw new Error(`Failed to get ESG plans: ${res.status}`)
+    return res.json()
+}
+
+export async function getSchoolPricingPlans(): Promise<Record<string, unknown>> {
+    const res = await fetch(`${API_BASE}/api/partnerships/plans/school`)
+    if (!res.ok) throw new Error(`Failed to get school plans: ${res.status}`)
+    return res.json()
+}
+
+export async function listChallenges(params?: { partner_id?: string; status?: string }): Promise<Challenge[]> {
+    const qs = params ? new URLSearchParams(params as Record<string, string>).toString() : ''
+    const res = await fetch(`${API_BASE}/api/partnerships/challenges/${qs ? `?${qs}` : ''}`, { headers: authHeaders() })
+    if (!res.ok) throw new Error(`Failed to list challenges: ${res.status}`)
+    return res.json()
+}
+
+export async function getChallenge(challengeId: string): Promise<Challenge> {
+    const res = await fetch(`${API_BASE}/api/partnerships/challenges/${challengeId}`, { headers: authHeaders() })
+    if (!res.ok) throw new Error(`Failed to get challenge: ${res.status}`)
+    return res.json()
+}
+
+export async function joinChallenge(challengeId: string): Promise<{ success: boolean; participation_id: string }> {
+    const res = await fetch(`${API_BASE}/api/partnerships/challenges/${challengeId}/join`, {
+        method: 'POST', headers: authHeaders(),
+    })
+    if (!res.ok) throw new Error(`Failed to join challenge: ${res.status}`)
+    return res.json()
+}
+
+export async function submitChallengePost(challengeId: string, postCid: string): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE}/api/partnerships/challenges/${challengeId}/submit`, {
+        method: 'POST', headers: authHeaders(), body: JSON.stringify({ post_cid: postCid }),
+    })
+    if (!res.ok) throw new Error(`Failed to submit post: ${res.status}`)
+    return res.json()
+}
+
+export async function getChallengeReport(challengeId: string): Promise<Record<string, unknown>> {
+    const res = await fetch(`${API_BASE}/api/partnerships/challenges/${challengeId}/report`, { headers: authHeaders() })
+    if (!res.ok) throw new Error(`Failed to get challenge report: ${res.status}`)
+    return res.json()
+}
+
+export async function getEsgDashboard(partnerId: string): Promise<ESGDashboardStats> {
+    const res = await fetch(`${API_BASE}/api/partnerships/esg/${partnerId}/dashboard`, { headers: authHeaders() })
+    if (!res.ok) throw new Error(`Failed to get ESG dashboard: ${res.status}`)
+    return res.json()
+}
+
+export async function generateEsgReport(partnerId: string, period: string): Promise<Record<string, unknown>> {
+    const res = await fetch(`${API_BASE}/api/partnerships/esg/${partnerId}/report`, {
+        method: 'POST', headers: authHeaders(), body: JSON.stringify({ partner_id: partnerId, period }),
+    })
+    if (!res.ok) throw new Error(`Failed to generate ESG report: ${res.status}`)
+    return res.json()
+}
+
+export async function getSchoolDashboard(partnerId: string): Promise<SchoolDashboardStats> {
+    const res = await fetch(`${API_BASE}/api/partnerships/school/${partnerId}/dashboard`, { headers: authHeaders() })
+    if (!res.ok) throw new Error(`Failed to get school dashboard: ${res.status}`)
+    return res.json()
+}
+
+export async function generateEcoTranscript(payload: {
+    partner_id: string; student_wallet: string; period_start: string; period_end: string
+}): Promise<EcoTranscript> {
+    const res = await fetch(`${API_BASE}/api/partnerships/school/transcript`, {
+        method: 'POST', headers: authHeaders(), body: JSON.stringify(payload),
+    })
+    if (!res.ok) throw new Error(`Failed to generate eco-transcript: ${res.status}`)
+    return res.json()
+}
+
+export async function listCarbonPackages(): Promise<CarbonCreditPackage[]> {
+    const res = await fetch(`${API_BASE}/api/partnerships/carbon-packages/`, { headers: authHeaders() })
+    if (!res.ok) throw new Error(`Failed to list carbon packages: ${res.status}`)
+    return res.json()
+}
+
+export async function listNgoEvents(partnerId?: string): Promise<NGOEvent[]> {
+    const qs = partnerId ? `?partner_id=${partnerId}` : ''
+    const res = await fetch(`${API_BASE}/api/partnerships/ngo/events/${qs}`, { headers: authHeaders() })
+    if (!res.ok) throw new Error(`Failed to list NGO events: ${res.status}`)
+    return res.json()
+}
+
+export async function getRevenueSummary(period: string): Promise<RevenueSummary> {
+    const res = await fetch(`${API_BASE}/api/partnerships/revenue/${period}`, { headers: authHeaders() })
+    if (!res.ok) throw new Error(`Failed to get revenue summary: ${res.status}`)
+    return res.json()
+}
