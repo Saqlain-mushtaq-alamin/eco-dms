@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { listChallenges, joinChallenge, type Challenge } from '../api'
+import { listChallenges, joinChallenge, type Challenge } from '../../api'
 
 const STATUS_COLOR: Record<string, string> = {
     active: '#10b981', draft: '#6366f1', completed: '#f59e0b', cancelled: '#ef4444',

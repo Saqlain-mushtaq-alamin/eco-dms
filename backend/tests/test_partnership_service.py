@@ -64,19 +64,19 @@ _fake_redis = _FakeRedis()
 import sys
 import types
 
-# Build a stub for backend.app.services.redis_service
-_redis_stub = types.ModuleType("backend.app.services.redis_service")
+# Build a stub for app.services.redis_service
+_redis_stub = types.ModuleType("app.services.redis_service")
 _redis_stub.redis_service = _fake_redis  # type: ignore[attr-defined]
-sys.modules.setdefault("backend.app.services.redis_service", _redis_stub)
+sys.modules.setdefault("app.services.redis_service", _redis_stub)
 
-# Also patch the dotted path used inside the service package
-_redis_stub2 = types.ModuleType("backend.app.config")
+# Also stub app.config
+_redis_stub2 = types.ModuleType("app.config")
 _settings_stub = MagicMock()
 _redis_stub2.settings = _settings_stub  # type: ignore[attr-defined]
-sys.modules.setdefault("backend.app.config", _redis_stub2)
+sys.modules.setdefault("app.config", _redis_stub2)
 
-from backend.app.services.partnership_service import PartnershipService  # noqa: E402
-from backend.app.partnership_models import (  # noqa: E402
+from app.services.partnership_service import PartnershipService  # noqa: E402
+from app.partnership_models import (  # noqa: E402
     ChallengeCreate, ChallengeStatus, EcoTranscriptRequest,
     ESGReportRequest, PartnerRegisterRequest, PartnerStatus, PartnerType,
 )
