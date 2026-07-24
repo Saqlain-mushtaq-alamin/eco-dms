@@ -128,10 +128,6 @@ async def get_current_user(authorization: str | None = Header(default=None)) -> 
     """
     Extract wallet address from Bearer token in Authorization header.
     """
-    # Use logging instead of print; avoid noisy sync I/O
-    # logger = logging.getLogger(__name__)
-    # logger.debug("get_current_user called auth header: %s", authorization)
-
     if not authorization:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -149,6 +145,10 @@ async def get_current_user(authorization: str | None = Header(default=None)) -> 
         raise
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Auth failed: {str(e)}")
+
+# Alias — some modules import require_authenticated instead of get_current_user
+require_authenticated = get_current_user
+
 
 # ---------------- Legacy endpoints (/auth/...) ----------------
 
