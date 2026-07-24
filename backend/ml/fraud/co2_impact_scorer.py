@@ -171,24 +171,38 @@ class CO2ImpactScorer:
         """
         Determine primary action type from ML detections + text + category slug.
 
-        Priority: category slug → text keywords → YOLO detections → fallback
+        Priority:
+          1. Non-generic category slug  (most authoritative)
+          2. Text keyword matching      (user description)
+          3. YOLO detection labels      (fallback)
+          4. generic_eco_action         (last resort)
         """
-        # 1. Category slug is the most authoritative source
-        if category and category in IMPACT_TABLE:
+        GENERIC = {"general_eco_action", "", None}
+
+        # 1. Non-generic category slug → direct IMPACT_TABLE lookup
+        if category and category not in GENERIC and category in IMPACT_TABLE:
             return category
 
-        # 2. Text-based keyword matching
+        # 2. Text-based keyword matching (runs before slug when slug is generic)
         if text_content:
             text_lower = text_content.lower()
             for keywords, action in _TEXT_ACTION_MAP:
                 if any(kw in text_lower for kw in keywords):
                     return action
 
-        # 3. ML detected objects fallback
+        # 3. Non-generic category that wasn't in IMPACT_TABLE yet (secondary)
+        if category and category not in GENERIC:
+            return category
+
+        # 4. ML detected objects fallback
         for detected_obj in (ml_detections or []):
             obj_lower = detected_obj.lower().replace(" ", "_")
             if obj_lower in IMPACT_TABLE:
                 return obj_lower
+            # Also check with spaces (as stored in table)
+            obj_spaced = detected_obj.lower()
+            if obj_spaced in IMPACT_TABLE:
+                return obj_spaced
 
         return "general_eco_action"
 
@@ -210,7 +224,7 @@ class CO2ImpactScorer:
             eco_pattern = (
                 r"(\d+(?:\.\d+)?)\s*"
                 r"(?:tree|plant|solar panel|panel|bag|bottle|"
-                r"cycle|bike|session|trip|action|kg|ton|tonne|lb)"
+                r"cycle|bike|session|trip|action|kg|ton|tonne|lb|hectare|acre)"
             )
             for match in re.finditer(eco_pattern, text_content, re.IGNORECASE):
                 try:
@@ -220,7 +234,7 @@ class CO2ImpactScorer:
 
             # Match word-form numbers
             for word, val in _WORD_NUMBERS.items():
-                pattern = rf"\b{word}\b\s+(?:tree|plant|panel|bag|bottle|trip|session)"
+                pattern = rf"\b{word}\b\s+(?:tree|plant|panel|bag|bottle|trip|session|hectare|acre)"
                 if re.search(pattern, text_content, re.IGNORECASE):
                     quantities.append(float(val))
 
