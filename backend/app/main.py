@@ -25,6 +25,7 @@ from .voting_routes import router as voting_router
 from .portfolio_routes import router as portfolio_router, leaderboard_router, credentials_router, boost_router
 from .fraud_routes import router as fraud_router
 from .partnership_routes import router as partnership_router
+from .social_auth_routes import social_router
 from .openapi_config import configure_openapi
 
 # Create FastAPI app
@@ -61,6 +62,7 @@ app.include_router(credentials_router)  # Credential eligibility + owned
 app.include_router(boost_router)        # Boost status + history
 app.include_router(fraud_router)        # Admin fraud review routes
 app.include_router(partnership_router)  # Industry & Partnerships routes
+app.include_router(social_router)       # Social OAuth2 routes (Google, GitHub, Twitter)
 
 # Configure custom OpenAPI schema (must be called after all routers are registered)
 configure_openapi(app)
