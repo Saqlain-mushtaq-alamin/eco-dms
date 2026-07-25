@@ -220,6 +220,93 @@ class PartnershipService:
             "generated_at":         datetime.utcnow().isoformat(),
         }
 
+    def get_challenge_leaderboard(self, challenge_id: str, limit: int = 50) -> Dict[str, Any]:
+        """
+        Return ranked participants for a challenge leaderboard.
+        Scans all participation:{challenge_id}:* keys in Redis.
+        Falls back to demo data when no real participants exist yet.
+        """
+        challenge = self._get_challenge_or_raise(challenge_id)
+        partner   = self.get_partner(challenge.partner_id)
+
+        # Scan participation keys for this challenge
+        entries: List[Dict[str, Any]] = []
+        try:
+            pattern = f"participation:{challenge_id}:*"
+            keys = redis_service.client.keys(pattern)
+            for key in keys:
+                key_str = key.decode("utf-8") if isinstance(key, (bytes, bytearray)) else str(key)
+                raw = redis_service.get_json(key_str)
+                if raw:
+                    entries.append(raw)
+        except Exception as e:
+            logger.warning("Leaderboard scan error: %s", e)
+
+        # Sort: verified first → eco_earned desc → joined_at asc
+        entries.sort(
+            key=lambda p: (
+                not p.get("verified", False),      # verified first
+                -int(p.get("eco_earned", 0)),       # higher eco first
+                p.get("joined_at", ""),             # earlier join first
+            )
+        )
+
+        # Build ranked list (truncate wallet for privacy)
+        ranked = []
+        for rank, p in enumerate(entries[:limit], start=1):
+            wallet = p.get("wallet_address", "")
+            ranked.append({
+                "rank":          rank,
+                "wallet":        wallet[:6] + "…" + wallet[-4:] if len(wallet) > 10 else wallet,
+                "wallet_full":   wallet,
+                "eco_earned":    int(p.get("eco_earned", 0)),
+                "verified":      bool(p.get("verified", False)),
+                "post_cid":      p.get("post_cid"),
+                "joined_at":     p.get("joined_at"),
+            })
+
+        # If no real participants yet, seed with demo data
+        if not ranked:
+            demo_wallets = [
+                ("0x1a2b…3c4d", 0x1a2b, "3c4d"),
+                ("0x5e6f…7a8b", 0x5e6f, "7a8b"),
+                ("0x9c0d…1e2f", 0x9c0d, "1e2f"),
+                ("0x3a4b…5c6d", 0x3a4b, "5c6d"),
+                ("0x7e8f…9a0b", 0x7e8f, "9a0b"),
+            ]
+            reward_pool = challenge.eco_prize_pool - challenge.burned_amount - challenge.platform_fee
+            for i, (label, _, _) in enumerate(demo_wallets):
+                ranked.append({
+                    "rank":       i + 1,
+                    "wallet":     label,
+                    "wallet_full": "",
+                    "eco_earned": int(reward_pool * [0.40, 0.25, 0.15, 0.12, 0.08][i]),
+                    "verified":   True,
+                    "post_cid":   None,
+                    "joined_at":  None,
+                    "demo":       True,
+                })
+
+        co2_rate = CO2_RATES.get(challenge.category, CO2_RATES.get("general_eco_action", 0.5))
+        total_eco = sum(e["eco_earned"] for e in ranked)
+
+        return {
+            "challenge_id":      challenge_id,
+            "title":             challenge.title,
+            "sponsor":           partner.org_name if partner else "Unknown",
+            "status":            challenge.status.value if hasattr(challenge.status, "value") else challenge.status,
+            "participant_count": challenge.participant_count,
+            "verified_actions":  challenge.verified_actions,
+            "co2_offset_kg":     round(challenge.verified_actions * co2_rate, 2),
+            "eco_prize_pool":    challenge.eco_prize_pool,
+            "reward_pool":       challenge.eco_prize_pool - challenge.burned_amount - challenge.platform_fee,
+            "ends_at":           challenge.ends_at.isoformat(),
+            "leaderboard":       ranked,
+            "total_eco_awarded": total_eco,
+            "generated_at":      datetime.utcnow().isoformat(),
+        }
+
+
     # ─── Corporate ESG (Tier 2) ───────────────────────────────────────────────
 
     def get_esg_dashboard(self, partner_id: str) -> ESGDashboardStats:
