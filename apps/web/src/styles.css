@@ -652,6 +652,172 @@ html.theme-dark ::-webkit-scrollbar-thumb:hover {
     animation: spin 0.85s linear infinite;
 }
 
+.signin-loader--sm {
+    width: 14px;
+    height: 14px;
+    position: static;
+    transform: none;
+    border-color: rgba(0, 0, 0, 0.15);
+    border-top-color: currentColor;
+    display: inline-block;
+}
+
+/* ── sign-in section label ── */
+.signin-section-label {
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #6b8b53;
+    margin-top: 0.2rem;
+    margin-bottom: -0.2rem;
+    text-align: left;
+    padding-left: 0.25rem;
+}
+
+/* ── wallet icon slot ── */
+.signin-wallet-btn__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+}
+
+/* ── divider ── */
+.signin-divider {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0.4rem 0;
+}
+
+.signin-divider__line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(171, 202, 47, 0.3), transparent);
+}
+
+.signin-divider__text {
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.74rem;
+    color: #7a9660;
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+/* ── social row ── */
+.signin-social-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.55rem;
+    margin-top: 0.1rem;
+}
+
+/* ── social button base ── */
+.signin-social-btn {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 0.75rem 0.5rem;
+    border-radius: 14px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.22s ease, box-shadow 0.22s ease, opacity 0.22s ease;
+    border: 1px solid rgba(171, 202, 47, 0.28);
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.82), rgba(240, 250, 220, 0.6));
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 6px 16px rgba(112, 140, 63, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    color: #24401f;
+}
+
+.signin-social-btn:hover:not(:disabled):not(.signin-social-btn--disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px rgba(112, 140, 63, 0.22), 0 0 12px rgba(171, 202, 47, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    border-color: rgba(171, 202, 47, 0.52);
+    background: linear-gradient(165deg, rgba(255, 255, 255, 0.94), rgba(207, 232, 109, 0.32));
+}
+
+.signin-social-btn--disabled {
+    opacity: 0.62;
+    cursor: default;
+}
+
+/* ── google specific ── */
+.signin-social-btn--google:hover:not(:disabled):not(.signin-social-btn--disabled) {
+    border-color: rgba(66, 133, 244, 0.45);
+    box-shadow: 0 10px 22px rgba(66, 133, 244, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+/* ── github specific ── */
+.signin-social-btn--github:hover:not(:disabled):not(.signin-social-btn--disabled) {
+    border-color: rgba(36, 41, 47, 0.4);
+    box-shadow: 0 10px 22px rgba(36, 41, 47, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+html.theme-dark .signin-social-btn--github {
+    color: #d1fae5;
+}
+
+/* ── twitter/X specific ── */
+.signin-social-btn--twitter:hover:not(:disabled):not(.signin-social-btn--disabled) {
+    border-color: rgba(0, 0, 0, 0.35);
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+/* ── setup required badge ── */
+.signin-social-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #fff;
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    padding: 0.15rem 0.35rem;
+    border-radius: 999px;
+    white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(245, 158, 11, 0.4);
+    text-transform: uppercase;
+}
+
+/* ── social note ── */
+.signin-social-note {
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.75rem;
+    color: #6b8b53;
+    line-height: 1.45;
+    text-align: center;
+    margin: 0;
+    padding: 0 0.5rem;
+}
+
+/* dark mode social buttons */
+html.theme-dark .signin-social-btn {
+    background: linear-gradient(160deg, rgba(30, 50, 20, 0.85), rgba(20, 38, 14, 0.8));
+    border-color: rgba(171, 202, 47, 0.22);
+    color: #d3f26a;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(171, 202, 47, 0.1);
+}
+
+html.theme-dark .signin-social-btn:hover:not(:disabled):not(.signin-social-btn--disabled) {
+    background: linear-gradient(160deg, rgba(40, 68, 26, 0.9), rgba(30, 52, 18, 0.88));
+    border-color: rgba(171, 202, 47, 0.45);
+}
+
+html.theme-dark .signin-divider__text { color: #7ea95a; }
+html.theme-dark .signin-section-label { color: #92b86d; }
+html.theme-dark .signin-social-note { color: #92b86d; }
+
 @media (max-width: 1024px) {
     .signin-shell {
         grid-template-columns: 1fr;
