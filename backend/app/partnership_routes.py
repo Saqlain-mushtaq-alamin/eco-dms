@@ -284,6 +284,27 @@ async def get_challenge_report(
         _err(500, "Failed to generate impact report")
 
 
+@router.get("/challenges/{challenge_id}/leaderboard", response_model=dict, summary="Challenge leaderboard (task 6.5 & 6.10)")
+async def get_challenge_leaderboard(
+    challenge_id: str,
+    limit: int = 50,
+    _current_user: str = Depends(get_current_user),
+):
+    """
+    Return the ranked leaderboard for a brand challenge.
+    Shows top participants by ECO earned + verified actions.
+    Falls back to seeded demo data when no real participants exist yet.
+    """
+    try:
+        return partnership_service.get_challenge_leaderboard(challenge_id, limit=limit)
+    except ValueError as e:
+        _err(404, str(e))
+    except Exception as e:
+        logger.error("Challenge leaderboard error: %s", e, exc_info=True)
+        _err(500, "Failed to load leaderboard")
+
+
+
 # ─── Corporate ESG Dashboard (Tier 2) ────────────────────────────────────────
 
 @router.get("/esg/{partner_id}/dashboard", response_model=dict, summary="ESG dashboard stats")
