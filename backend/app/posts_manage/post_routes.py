@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Header, UploadFile, File
 from datetime import datetime
 from typing import Dict, List
 import asyncio
-from ..models import PostCreate, CommentCreate, LikeCreate, ImageUpload
+from ..models import PostCreate, CommentCreate, LikeCreate, ImageUpload, VideoUpload
 from ..auth_routes import get_current_user
 # Use posts IPFS service for pin/get
 from backend.app.posts_manage.ipfs_post_service import ipfs_service
@@ -88,7 +88,7 @@ def _get_verification_state(post_cid: str, has_media: bool) -> Dict:
 
 
 def _attach_verification_state(post: Dict, post_cid: str) -> None:
-    has_media = bool(post.get("media_cids"))
+    has_media = bool(post.get("media_cids")) or bool(post.get("video_cids"))
     verification = _get_verification_state(post_cid, has_media)
     post.update(verification)
 
@@ -230,6 +230,53 @@ async def upload_image(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to upload image: {str(e)}")
 
+
+@router.post("/upload-video", response_model=VideoUpload)
+async def upload_video(
+    file: UploadFile = File(...),
+    authorization: str | None = Header(default=None),
+):
+    """
+    Upload a video to IPFS and return its CID.
+    Supports common video formats: mp4, webm, mov, avi, mkv.
+    Max size: 100MB.
+    """
+    wallet_address = await get_current_user(authorization)
+
+    ALLOWED_VIDEO_TYPES = {
+        "video/mp4", "video/webm", "video/quicktime",
+        "video/x-msvideo", "video/x-matroska", "video/ogg",
+        "video/mpeg", "video/3gpp",
+    }
+
+    content_type = file.content_type or ""
+    if not content_type.startswith("video/") and content_type not in ALLOWED_VIDEO_TYPES:
+        raise HTTPException(status_code=400, detail="File must be a video (mp4, webm, mov, avi, mkv)")
+
+    # Read video bytes
+    content = await file.read()
+    max_size = 100 * 1024 * 1024  # 100 MB
+    if len(content) > max_size:
+        raise HTTPException(status_code=400, detail="Video size must be less than 100MB")
+
+    try:
+        cid = await ipfs_service.pin_file(
+            file_content=content,
+            filename=file.filename or "video.mp4",
+            content_type=content_type or "video/mp4",
+        )
+
+        url = f"https://{cid}.ipfs.nftstorage.link"
+
+        return VideoUpload(
+            cid=cid,
+            url=url,
+            content_type=content_type or "video/mp4",
+            size_bytes=len(content),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to upload video: {str(e)}")
+
 @router.post("", response_model=Dict)
 async def create_post(
     payload: PostCreate,
@@ -249,6 +296,7 @@ async def create_post(
             "author_wallet": wallet_address.lower(),
             "content": payload.content,
             "media_cids": payload.media_cids or [],
+            "video_cids": payload.video_cids or [],
             "tags": payload.tags or [],
             "created_at": datetime.utcnow().isoformat(),
         })
@@ -257,18 +305,29 @@ async def create_post(
         social_service.set_post_author(cid, wallet_address.lower())
 
         ok = await orbitdb_service.append_post(wallet_address.lower(), cid)
+
+        # Combine image and video CIDs for ML verification
+        all_media_cids = list(payload.media_cids or [])
+        all_video_cids = list(payload.video_cids or [])
         
-        # Trigger ML verification for posts with images (async via Celery)
+        # Trigger ML verification for posts with images or videos (async via Celery)
         # This maintains decentralization - verification is optional and off-chain
-        if payload.media_cids:
+        if all_media_cids or all_video_cids:
+            # For video posts, we pass video CIDs separately so the ML worker
+            # can extract keyframes for verification
             task_id = _enqueue_verification_task(
                 post_cid=cid,
-                media_cids=payload.media_cids,
+                media_cids=all_media_cids + all_video_cids,
                 content=payload.content,
                 author_wallet=wallet_address.lower(),
                 attempts=1,
             )
-            print(f"Triggered merged ML verification for post {cid} with {len(payload.media_cids)} images (task={task_id})")
+            media_desc = []
+            if all_media_cids:
+                media_desc.append(f"{len(all_media_cids)} images")
+            if all_video_cids:
+                media_desc.append(f"{len(all_video_cids)} videos")
+            print(f"Triggered merged ML verification for post {cid} with {', '.join(media_desc)} (task={task_id})")
         
         if not ok:
             # We still return success for pinning; client can retry index update
