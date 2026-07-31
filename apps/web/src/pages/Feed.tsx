@@ -69,7 +69,7 @@ type Comment = {
     created_at: string
 }
 
-async function createPost(apiBase: string, token: string, authorWallet: string, content: string, mediaCids: string[] = []) {
+async function createPost(apiBase: string, token: string, authorWallet: string, content: string, mediaCids: string[] = [], videoCids: string[] = []) {
     const res = await fetch(`${apiBase}/api/posts`, {
         method: 'POST',
         headers: {
@@ -80,6 +80,7 @@ async function createPost(apiBase: string, token: string, authorWallet: string, 
             author_wallet: authorWallet,
             content,
             media_cids: mediaCids,
+            video_cids: videoCids,
             tags: [],
         }),
     })
@@ -568,6 +569,13 @@ export function Feed({
         setShowComposerModal(true)
         setTimeout(() => {
             quickPhotoInputRef.current?.click()
+        }, 0)
+    }
+
+    const handleQuickVideoAction = () => {
+        setShowComposerModal(true)
+        setTimeout(() => {
+            quickVideoInputRef.current?.click()
         }, 0)
     }
 
