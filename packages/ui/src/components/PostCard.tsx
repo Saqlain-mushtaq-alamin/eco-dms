@@ -135,7 +135,7 @@ export const PostCard: React.FC<PostCardProps> = ({
                 {/* Eco badge — shown when verified */}
                 {verified && (
                     <RNView style={styles.ecoBadge}>
-                        <RNText style={styles.ecoBadgeText}>🌿 Eco</RNText>
+                        <RNText style={styles.ecoBadgeText}>🌿 Rooted Sprout</RNText>
                         {ecoScore !== undefined && (
                             <RNText style={styles.ecoScore}>{Math.round(ecoScore * 100)}%</RNText>
                         )}
@@ -226,9 +226,9 @@ export const PostCard: React.FC<PostCardProps> = ({
                         styles.actionPill,
                         {
                             backgroundColor: isLiked
-                                ? (likeHovered ? 'rgba(254, 226, 226, 1)' : 'rgba(254, 226, 226, 0.82)')
+                                ? (likeHovered ? 'rgba(254, 242, 242, 1)' : 'rgba(254, 242, 242, 0.82)')
                                 : (likeHovered ? 'rgba(243, 244, 246, 1)' : 'rgba(255,255,255,0.84)'),
-                            borderColor: isLiked ? 'rgba(252,165,165,0.9)' : 'rgba(226,232,240,0.8)',
+                            borderColor: isLiked ? 'rgba(251,146,60,0.9)' : 'rgba(226,232,240,0.8)',
                             transform: [{ scale: likeHovered ? 1.03 : 1 }],
                         },
                     ]}
@@ -238,11 +238,11 @@ export const PostCard: React.FC<PostCardProps> = ({
                     onMouseLeave={() => setLikeHovered(false)}
                     activeOpacity={0.9}
                     accessibilityRole="button"
-                    accessibilityLabel={isLiked ? 'Unlike' : 'Like'}
+                    accessibilityLabel={isLiked ? 'Bloomed' : 'Bloom'}
                 >
-                    <RNText style={{ fontSize: 18 }}>{isLiked ? '❤️' : '🤍'}</RNText>
+                    <RNText style={{ fontSize: 18 }}>🌸</RNText>
                     <RNText style={[styles.actionText, { color: theme.colors.text, marginLeft: theme.spacing.xs }]}>
-                        {likes}
+                        {likes} Bloom{likes !== 1 ? 's' : ''}
                     </RNText>
                 </RNTouchableOpacity>
 
@@ -263,11 +263,31 @@ export const PostCard: React.FC<PostCardProps> = ({
                     onMouseLeave={() => setCommentHovered(false)}
                     activeOpacity={0.9}
                     accessibilityRole="button"
-                    accessibilityLabel="Comment"
+                    accessibilityLabel="Nurture"
                 >
-                    <RNText style={{ fontSize: 18 }}>💬</RNText>
+                    <RNText style={{ fontSize: 18 }}>💧</RNText>
                     <RNText style={[styles.actionText, { color: theme.colors.text, marginLeft: theme.spacing.xs }]}>
-                        {comments}
+                        {comments} Nurture{comments !== 1 ? 's' : ''}
+                    </RNText>
+                </RNTouchableOpacity>
+
+                <RNTouchableOpacity
+                    style={[
+                        styles.action,
+                        styles.actionPill,
+                        {
+                            marginLeft: theme.spacing.lg,
+                            backgroundColor: 'rgba(255,255,255,0.84)',
+                            borderColor: 'rgba(226,232,240,0.8)',
+                        },
+                    ]}
+                    activeOpacity={0.9}
+                    accessibilityRole="button"
+                    accessibilityLabel="Reseed"
+                >
+                    <RNText style={{ fontSize: 18 }}>🔄</RNText>
+                    <RNText style={[styles.actionText, { color: theme.colors.text, marginLeft: theme.spacing.xs }]}>
+                        Reseed
                     </RNText>
                 </RNTouchableOpacity>
             </RNView>
