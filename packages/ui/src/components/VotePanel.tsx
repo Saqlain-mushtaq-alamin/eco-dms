@@ -159,7 +159,7 @@ export const VotePanel: React.FC<VotePanelProps> = ({
         if (!viewerWallet) { showToast('Sign in to vote'); return; }
         if (status?.has_voted || localVote) { showToast('You already voted'); return; }
         if (!status?.window_open) { showToast('Voting window closed'); return; }
-        if (ecoBalance < 10) { showToast('You need at least 10 ECO to vote'); return; }
+        if (ecoBalance < 10) { showToast('You need at least 10 Sprout Token (SPT) to vote'); return; }
 
         setVoting(true);
         try {
@@ -175,7 +175,7 @@ export const VotePanel: React.FC<VotePanelProps> = ({
             if (result.success) {
                 setLocalVote(choice);
                 await fetchStatus();
-                showToast(choice === 'eco' ? '🌿 Voted Eco-Friendly!' : '🚫 Voted Not Eco');
+                showToast(choice === 'eco' ? '🌿 Voted Rooted Sprout!' : '🚫 Voted Not Rooted');
             } else {
                 // Ensure message is always a string (guards against API returning objects)
                 showToast(String(result.message || 'Vote was not accepted'));
@@ -225,7 +225,7 @@ export const VotePanel: React.FC<VotePanelProps> = ({
                             { backgroundColor: isEco ? '#d1fae5' : '#fee2e2' },
                         ]}>
                             <Text style={[styles.verdictText, { color: isEco ? '#065f46' : '#991b1b' }]}>
-                                {isEco ? '🌿 Eco-Friendly' : '🚫 Not Eco'}
+                                {isEco ? '🌿 Rooted Sprout' : '🚫 Not Rooted'}
                             </Text>
                         </View>
                     )}
@@ -293,7 +293,7 @@ export const VotePanel: React.FC<VotePanelProps> = ({
             ) : (
                 <View style={styles.buttonRow}>
                     <VoteButton
-                        label="🌿 Eco-Friendly"
+                        label="🌿 Rooted Sprout"
                         onPress={() => handleVote('eco')}
                         disabled={voting || !viewerWallet || ecoBalance < 10}
                         color="#16a34a"
@@ -301,7 +301,7 @@ export const VotePanel: React.FC<VotePanelProps> = ({
                         hoverBg="#bbf7d0"
                     />
                     <VoteButton
-                        label="🚫 Not Eco"
+                        label="🚫 Not Rooted"
                         onPress={() => handleVote('not_eco')}
                         disabled={voting || !viewerWallet || ecoBalance < 10}
                         color="#dc2626"
@@ -319,7 +319,7 @@ export const VotePanel: React.FC<VotePanelProps> = ({
             )}
             {viewerWallet && ecoBalance < 10 && !hasVoted && (
                 <Text style={[styles.hint, { color: '#b45309' }]}>
-                    Minimum 10 ECO required to vote
+                    Minimum 10 Sprout Token (SPT) required to vote
                 </Text>
             )}
 

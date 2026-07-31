@@ -56,11 +56,11 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                     <ViewComponent style={[styles.stats, { marginTop: theme.spacing.sm }]}>
                         <ViewComponent style={styles.stat}>
                             <TextComponent style={[styles.statValue, { color: theme.colors.primary }]}>{ecoScore}</TextComponent>
-                            <TextComponent style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Eco Score</TextComponent>
+                            <TextComponent style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Sprout Token (SPT)</TextComponent>
                         </ViewComponent>
                         <ViewComponent style={[styles.stat, { marginLeft: theme.spacing.lg }]}>
                             <TextComponent style={[styles.statValue, { color: theme.colors.primary }]}>{verifiedActions}</TextComponent>
-                            <TextComponent style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Verified</TextComponent>
+                            <TextComponent style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Rooted Sprouts</TextComponent>
                         </ViewComponent>
                     </ViewComponent>
                 </ViewComponent>
