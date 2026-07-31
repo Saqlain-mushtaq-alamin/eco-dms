@@ -300,7 +300,7 @@ class PortfolioService:
                 verified_posts = []
             if isinstance(profile, Exception):
                 logger.warning("Could not fetch profile: %s", profile)
-                profile = {}
+                profile = None
             if isinstance(voting_stats, Exception):
                 logger.warning("Could not fetch voting stats: %s", voting_stats)
                 voting_stats = {}
@@ -318,8 +318,9 @@ class PortfolioService:
 
             return EcoPortfolio(
                 wallet=wallet,
-                username=profile.get("username") if profile else None,
-                avatar_cid=profile.get("avatar_cid") if profile else None,
+                # profile is a UserProfile Pydantic model (not a dict) — use attribute access
+                username=getattr(profile, "username", None) if profile is not None else None,
+                avatar_cid=getattr(profile, "avatar_cid", None) if profile is not None else None,
                 total_verified_actions=len(verified_posts),
                 verification_accuracy=voting_stats.get("accuracy", 0.0),
                 co2_offset_kg=round(co2_total, 2),
