@@ -492,7 +492,20 @@ class EcoVerifier:
             raise RuntimeError("PIL is not installed")
         
         if isinstance(image_data, bytes):
-            img: "Image.Image" = Image.open(io.BytesIO(image_data)).convert('RGB')  # type: ignore
+            if self._is_video_content('', image_data):
+                # Video bytes supplied to verify_image -> extract keyframes
+                keyframes = self._extract_keyframes_from_video(image_data)
+                if keyframes:
+                    image_data = keyframes[0]
+            try:
+                img: "Image.Image" = Image.open(io.BytesIO(image_data)).convert('RGB')  # type: ignore
+            except Exception as parse_err:
+                # Last resort fallback: try extracting keyframe via OpenCV
+                keyframes = self._extract_keyframes_from_video(image_data)
+                if keyframes:
+                    img = Image.open(io.BytesIO(keyframes[0])).convert('RGB')
+                else:
+                    raise UnidentifiedImageError(f"Cannot identify image/video format: {parse_err}")
         elif isinstance(image_data, str):
             img = Image.open(image_data).convert('RGB')
         elif hasattr(image_data, 'convert'):
