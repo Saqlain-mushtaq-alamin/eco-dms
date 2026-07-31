@@ -103,10 +103,19 @@ class ImageUpload(BaseModel):
     url: str = Field(..., description="Public URL to access the image")
 
 
+class VideoUpload(BaseModel):
+    """Response model for video upload"""
+    cid: str = Field(..., description="IPFS CID of uploaded video")
+    url: str = Field(..., description="Public URL to access the video")
+    content_type: str = Field(..., description="MIME type of the video")
+    size_bytes: int = Field(..., description="Size of the video in bytes")
+
+
 class PostCreate(BaseModel):
     author_wallet: str = Field(..., description="Author's wallet address")
     content: str = Field(..., description="Post text content")
     media_cids: Optional[List[str]] = Field(default=None, description="Optional CID list for media/images")
+    video_cids: Optional[List[str]] = Field(default=None, description="Optional CID list for videos")
     tags: Optional[List[str]] = None
 
 
