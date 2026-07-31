@@ -301,6 +301,161 @@ class EcoVerifier:
             response = await client.get(image_url)
             response.raise_for_status()
             return response.content
+
+    async def _fetch_content_from_ipfs(self, ipfs_cid: str, ipfs_gateway: str) -> tuple:
+        """
+        Fetch content from IPFS gateway, returning (bytes, content_type).
+        Used for both images and videos.
+        """
+        content_url = f"{ipfs_gateway}/ipfs/{ipfs_cid}"
+
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=10.0),
+            follow_redirects=True,
+        ) as client:
+            response = await client.get(content_url)
+            response.raise_for_status()
+            content_type = response.headers.get('content-type', '').lower()
+            return response.content, content_type
+
+    def _is_video_content(self, content_type: str, content_bytes: bytes) -> bool:
+        """Detect if content is a video by MIME type or magic bytes."""
+        video_mimes = {
+            'video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo',
+            'video/x-matroska', 'video/ogg', 'video/mpeg', 'video/3gpp',
+        }
+
+        if any(mime in content_type for mime in video_mimes):
+            return True
+
+        # Check magic bytes for common video formats
+        if len(content_bytes) >= 12:
+            # MP4/MOV: 'ftyp' at offset 4
+            if content_bytes[4:8] == b'ftyp':
+                return True
+            # WebM/MKV: EBML header
+            if content_bytes[:4] == b'\x1a\x45\xdf\xa3':
+                return True
+            # AVI: RIFF....AVI
+            if content_bytes[:4] == b'RIFF' and content_bytes[8:12] == b'AVI ':
+                return True
+
+        return False
+
+    def _extract_keyframes_from_video(self, video_bytes: bytes, max_frames: int = 4) -> List[bytes]:
+        """
+        Extract representative keyframes from a video for ML verification.
+        Uses OpenCV (cv2) if available, otherwise falls back to ffmpeg subprocess.
+        
+        Args:
+            video_bytes: Raw video file bytes
+            max_frames: Maximum number of keyframes to extract (default 4)
+        
+        Returns:
+            List of JPEG-encoded image bytes for each keyframe
+        """
+        keyframes: List[bytes] = []
+
+        # Try OpenCV first (most reliable)
+        try:
+            import cv2
+            import tempfile
+            import os
+
+            # Write video to temp file (cv2 needs a file path)
+            with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as tmp:
+                tmp.write(video_bytes)
+                tmp_path = tmp.name
+
+            try:
+                cap = cv2.VideoCapture(tmp_path)
+                if not cap.isOpened():
+                    raise RuntimeError("OpenCV could not open video")
+
+                total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                if total_frames <= 0:
+                    total_frames = 300  # Fallback estimate
+
+                # Sample frames evenly across the video
+                step = max(1, total_frames // (max_frames + 1))
+                frame_indices = [step * (i + 1) for i in range(max_frames)]
+
+                for idx in frame_indices:
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
+                    ret, frame = cap.read()
+                    if ret and frame is not None:
+                        # Encode frame as JPEG bytes
+                        _, buf = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                        keyframes.append(buf.tobytes())
+
+                cap.release()
+            finally:
+                os.unlink(tmp_path)
+
+            if keyframes:
+                print(f"[inference] Extracted {len(keyframes)} keyframes via OpenCV")
+                return keyframes
+
+        except ImportError:
+            print("[inference] OpenCV not available, trying ffmpeg fallback")
+        except Exception as cv_err:
+            print(f"[inference] OpenCV keyframe extraction failed: {cv_err}")
+
+        # Fallback: try ffmpeg subprocess
+        try:
+            import subprocess
+            import tempfile
+            import os
+            import glob
+
+            with tempfile.TemporaryDirectory() as tmpdir:
+                video_path = os.path.join(tmpdir, 'input.mp4')
+                with open(video_path, 'wb') as f:
+                    f.write(video_bytes)
+
+                # Extract frames at regular intervals using ffmpeg
+                output_pattern = os.path.join(tmpdir, 'frame_%03d.jpg')
+                cmd = [
+                    'ffmpeg', '-i', video_path,
+                    '-vf', f'select=not(mod(n\\,30)),scale=640:-1',
+                    '-vsync', 'vfr',
+                    '-frames:v', str(max_frames),
+                    '-q:v', '3',
+                    output_pattern,
+                    '-y', '-loglevel', 'error'
+                ]
+
+                result = subprocess.run(cmd, capture_output=True, timeout=30)
+
+                # Read extracted frames
+                frame_files = sorted(glob.glob(os.path.join(tmpdir, 'frame_*.jpg')))
+                for frame_path in frame_files[:max_frames]:
+                    with open(frame_path, 'rb') as f:
+                        keyframes.append(f.read())
+
+            if keyframes:
+                print(f"[inference] Extracted {len(keyframes)} keyframes via ffmpeg")
+                return keyframes
+
+        except FileNotFoundError:
+            print("[inference] ffmpeg not found on PATH")
+        except Exception as ff_err:
+            print(f"[inference] ffmpeg keyframe extraction failed: {ff_err}")
+
+        # Last resort: try to read the first bytes as an image
+        # (some IPFS gateways serve video thumbnails)
+        if Image is not None:
+            try:
+                img = Image.open(io.BytesIO(video_bytes))
+                img = img.convert('RGB')
+                buf = io.BytesIO()
+                img.save(buf, format='JPEG', quality=85)
+                keyframes.append(buf.getvalue())
+                print("[inference] Extracted 1 frame via PIL fallback")
+            except Exception:
+                pass
+
+        return keyframes
     
     async def verify_image(
         self,
