@@ -701,7 +701,7 @@ async def record_claim(
         await notification_service.create_notification(
             recipient_wallet=wallet_address,
             event_type="reward",
-            message=f"Reward claimed: {amount} ECO",
+            message=f"Reward claimed: {amount} SPT",
             actor_wallet=wallet_address,
             post_cid=post_cid,
             metadata={"tx_hash": tx_hash, "amount": amount},

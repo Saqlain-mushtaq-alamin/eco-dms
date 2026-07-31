@@ -254,11 +254,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
         return `${diffDays}d ago`
     }
 
+    const formatNotificationMessage = (message: string): string => {
+        if (!message) return ''
+        return message
+            .replace(/liked your post/gi, 'bloomed your sprout')
+            .replace(/commented on your post/gi, 'nurtured your sprout')
+            .replace(/your post/gi, 'your sprout')
+            .replace(/\bECO\b/g, 'SPT')
+    }
+
     const getNotificationIcon = (type: string) => {
-        if (type === 'like') return '❤️'
-        if (type === 'comment') return '💬'
+        if (type === 'like') return '🌸'
+        if (type === 'comment') return '💧'
         if (type === 'reward') return '🏆'
-        return '🔔'
+        return '🌱'
     }
 
     const resolvePostMediaUrl = (value?: string): string => {
@@ -432,7 +441,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                                                         <div className="flex items-start gap-3">
                                                             <span className="text-base mt-0.5">{getNotificationIcon(item.type)}</span>
                                                             <span className="min-w-0 flex-1">
-                                                                <p className={`text-sm leading-5 ${isDarkMode ? 'text-slate-200' : 'text-gray-800'}`}>{item.message}</p>
+                                                                <p className={`text-sm leading-5 ${isDarkMode ? 'text-slate-200' : 'text-gray-800'}`}>{formatNotificationMessage(item.message)}</p>
                                                                 <p className={`text-xs mt-1 ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>{renderRelativeTime(item.created_at)}</p>
                                                             </span>
                                                             {!item.read && <span className="mt-1.5 h-2.5 w-2.5 rounded-full bg-lime-500" />}
@@ -584,7 +593,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         </div>
 
                         <div className="px-5 py-4 max-h-[70vh] overflow-y-auto">
-                            <p className={`text-base font-medium ${isDarkMode ? 'text-slate-100' : 'text-gray-900'}`}>{selectedNotification.message}</p>
+                            <p className={`text-base font-medium ${isDarkMode ? 'text-slate-100' : 'text-gray-900'}`}>{formatNotificationMessage(selectedNotification.message)}</p>
                             {selectedNotification.actor_wallet && (
                                 <p className={`text-xs mt-1 break-all ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>
                                     From: {selectedNotification.actor_wallet}
@@ -596,7 +605,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                             ) : selectedNotificationPost ? (
                                 <div className={`mt-4 rounded-xl border p-4 ${isDarkMode ? 'border-slate-700 bg-slate-950/50' : 'border-gray-200 bg-gray-50'}`}>
                                     <p className={`text-xs mb-1 ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>
-                                        Post by {selectedNotificationPost.author_wallet || selectedNotificationPost.author || 'Unknown'}
+                                        Sprout by {selectedNotificationPost.author_wallet || selectedNotificationPost.author || 'Unknown'}
                                     </p>
                                     <p className={`text-sm whitespace-pre-wrap ${isDarkMode ? 'text-slate-100' : 'text-gray-800'}`}>
                                         {selectedNotificationPost.content || 'No text content'}
@@ -605,15 +614,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
                                     {Array.isArray(selectedNotificationPost.media_cids) && selectedNotificationPost.media_cids.length > 0 && (
                                         <img
                                             src={resolvePostMediaUrl(selectedNotificationPost.media_cids[0])}
-                                            alt="Post media"
+                                            alt="Sprout media"
                                             className="mt-3 w-full max-h-80 object-cover rounded-xl border border-black/10"
                                         />
                                     )}
 
                                     <div className={`mt-3 flex items-center gap-4 text-xs ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>
-                                        <span>❤️ {selectedNotificationPost.likes_count || 0}</span>
-                                        <span>💬 {selectedNotificationPost.comments_count || 0}</span>
-                                        <span>✅ {selectedNotificationPost.verification_status || 'none'}</span>
+                                        <span>🌸 {selectedNotificationPost.likes_count || 0} blooms</span>
+                                        <span>💧 {selectedNotificationPost.comments_count || 0} nurtures</span>
+                                        <span>🌱 {selectedNotificationPost.verification_status === 'verified' ? 'ROOTED SPROUT' : selectedNotificationPost.verification_status || 'none'}</span>
                                     </div>
                                 </div>
                             ) : (

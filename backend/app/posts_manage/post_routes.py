@@ -603,7 +603,7 @@ async def like_post(
                     await notification_service.create_notification(
                         recipient_wallet=post_author,
                         event_type="like",
-                        message=f"{wallet_address[:6]}...{wallet_address[-4:]} liked your post",
+                        message=f"{wallet_address[:6]}...{wallet_address[-4:]} bloomed your sprout",
                         actor_wallet=wallet_address,
                         post_cid=post_cid,
                         metadata={"likes_count": likes_count},
@@ -693,7 +693,7 @@ async def create_comment(
                     await notification_service.create_notification(
                         recipient_wallet=post_author,
                         event_type="comment",
-                        message=f"{wallet_address[:6]}...{wallet_address[-4:]} commented on your post",
+                        message=f"{wallet_address[:6]}...{wallet_address[-4:]} nurtured your sprout",
                         actor_wallet=wallet_address,
                         post_cid=post_cid,
                         metadata={
