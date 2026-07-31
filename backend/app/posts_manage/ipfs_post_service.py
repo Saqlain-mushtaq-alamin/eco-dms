@@ -136,31 +136,53 @@ class PostsIPFS:
             return await self._pin_file_via_local_ipfs(file_content, filename, content_type)
 
     async def _pin_file_via_nft_storage(self, file_content: bytes, filename: str, content_type: str) -> str:
-        """Upload file to nft.storage"""
-        async with httpx.AsyncClient(timeout=60) as client:
-            files = {"file": (filename, file_content, content_type)}
-            r = await client.post(
-                f"{NFT_STORAGE_BASE}/upload",
-                headers={"Authorization": f"Bearer {self.token}"},
-                files=files,
-            )
-        if r.status_code >= 300:
-            raise RuntimeError(f"nft.storage file upload failed: {r.status_code} {r.text}")
-        resp = r.json()
-        cid = resp.get("value", {}).get("cid") or resp.get("cid")
-        if not cid:
-            raise RuntimeError(f"Missing CID in nft.storage response: {resp}")
-        return cid
+        """Upload file to nft.storage, with Pinata fallback for large/video files."""
+        # Use a generous timeout — video files can be 10-100 MB
+        try:
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(connect=15.0, read=300.0, write=300.0, pool=15.0)
+            ) as client:
+                files = {"file": (filename, file_content, content_type)}
+                r = await client.post(
+                    f"{NFT_STORAGE_BASE}/upload",
+                    headers={"Authorization": f"Bearer {self.token}"},
+                    files=files,
+                )
+            if r.status_code >= 300:
+                raise RuntimeError(f"nft.storage file upload failed: {r.status_code} {r.text[:300]}")
+            resp = r.json()
+            cid = resp.get("value", {}).get("cid") or resp.get("cid")
+            if not cid:
+                raise RuntimeError(f"Missing CID in nft.storage response: {resp}")
+            return cid
+        except Exception as nft_err:
+            print(f"[ipfs_post_service] nft.storage failed ({nft_err}), trying Pinata fallback")
+            # Fallback: Pinata
+            from backend.app.services.pinata_service import pinata_service
+            if pinata_service.jwt:
+                import asyncio
+                cid = await asyncio.get_event_loop().run_in_executor(
+                    None,
+                    lambda: pinata_service.pin_file_bytes(file_content, filename)
+                )
+                if cid:
+                    return cid
+            raise RuntimeError(f"nft.storage failed and Pinata not available: {nft_err}")
 
     async def _pin_file_via_local_ipfs(self, file_content: bytes, filename: str, content_type: str) -> str:
-        """Upload file to local IPFS node"""
+        """Upload file to local IPFS node, with Pinata fallback."""
         api_base = settings.IPFS_API_URL.rstrip("/")
-        
+
         # If IPFS_API_URL is not configured, try Pinata instead
         if not api_base:
             if settings.PINATA_JWT:
                 print("ℹ️ IPFS not configured, using Pinata for file upload")
-                cid = pinata_service.pin_file_bytes(file_content, filename)
+                import asyncio
+                from backend.app.services.pinata_service import pinata_service
+                cid = await asyncio.get_event_loop().run_in_executor(
+                    None,
+                    lambda: pinata_service.pin_file_bytes(file_content, filename)
+                )
                 if cid:
                     return cid
                 raise RuntimeError("Pinata file upload failed")
@@ -169,12 +191,15 @@ class PostsIPFS:
                     "Neither IPFS_API_URL nor PINATA_JWT is configured. "
                     "Please set either IPFS_API_URL or PINATA_JWT in your .env file."
                 )
-        
+
         files = {"file": (filename, file_content, content_type)}
-        async with httpx.AsyncClient(timeout=60) as client:
+        # Use generous timeout for large video files
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(connect=15.0, read=300.0, write=300.0, pool=15.0)
+        ) as client:
             r = await client.post(f"{api_base}/add", params={"pin": "true"}, files=files)
         if r.status_code >= 300:
-            raise RuntimeError(f"IPFS file /add failed: {r.status_code} {r.text}")
+            raise RuntimeError(f"IPFS file /add failed: {r.status_code} {r.text[:300]}")
         resp = r.json()
         cid = resp.get("Hash")
         if not cid:
