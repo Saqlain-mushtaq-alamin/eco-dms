@@ -64,6 +64,10 @@ class TemporalAnalyzer:
                 if ts_str:
                     try:
                         dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                        if dt.tzinfo is None:
+                            dt = dt.replace(tzinfo=timezone.utc)
+                        else:
+                            dt = dt.astimezone(timezone.utc)
                         times.append(dt)
                     except Exception:
                         pass
