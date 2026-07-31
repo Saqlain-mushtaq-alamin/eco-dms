@@ -1010,6 +1010,11 @@ export function Feed({
                                             .map((cid) => resolveIpfsUrl(cid))
                                             .filter((v): v is string => Boolean(v))
                                     }
+                                    videoUris={
+                                        (p.video_cids || [])
+                                            .map((cid) => resolveIpfsUrl(cid))
+                                            .filter((v): v is string => Boolean(v))
+                                    }
                                     timestamp={new Date(p.created_at).getTime()}
                                     likes={p.likes_count || 0}
                                     comments={p.comments_count || 0}
@@ -1230,6 +1235,33 @@ export function Feed({
                                 </div>
                             )}
 
+                            {videoPreviewUrls.length > 0 && (
+                                <div className="space-y-3">
+                                    {videoPreviewUrls.map((url, index) => (
+                                        <div key={`vid-${index}`} className="relative rounded-xl overflow-hidden bg-black/5 border border-gray-200">
+                                            <video
+                                                src={url}
+                                                controls
+                                                preload="metadata"
+                                                playsInline
+                                                className="w-full max-h-[200px] object-contain"
+                                                style={{ backgroundColor: '#000' }}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => removeVideo(index)}
+                                                className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full w-7 h-7 text-sm flex items-center justify-center transition"
+                                            >
+                                                ×
+                                            </button>
+                                            <div className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full">
+                                                🎬 Video {index + 1}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
                             <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                                 <div className="flex items-center gap-2">
                                     <label className="cursor-pointer px-3 py-2 rounded-lg bg-white/80 hover:bg-white text-sm font-medium text-gray-700 shadow-sm transition">
@@ -1243,12 +1275,17 @@ export function Feed({
                                             disabled={loading}
                                         />
                                     </label>
-                                    <button
-                                        type="button"
-                                        className="px-3 py-2 rounded-lg bg-white/80 text-sm font-medium text-gray-500 shadow-sm"
-                                    >
+                                    <label className="cursor-pointer px-3 py-2 rounded-lg bg-white/80 hover:bg-white text-sm font-medium text-gray-700 shadow-sm transition">
                                         🎬 Video
-                                    </button>
+                                        <input
+                                            type="file"
+                                            accept="video/*"
+                                            multiple
+                                            onChange={handleVideoSelect}
+                                            className="hidden"
+                                            disabled={loading}
+                                        />
+                                    </label>
                                     <button
                                         type="button"
                                         className="px-3 py-2 rounded-lg bg-white/80 text-sm font-medium text-gray-500 shadow-sm"
@@ -1258,12 +1295,12 @@ export function Feed({
                                 </div>
 
                                 <Button
-                                    title={uploadingImages ? 'Uploading Images...' : loading ? 'Posting...' : 'Post'}
+                                    title={uploadingVideos ? 'Uploading Videos...' : uploadingImages ? 'Uploading Images...' : loading ? 'Posting...' : 'Post'}
                                     onPress={() => {
                                         const event = { preventDefault: () => { } } as React.FormEvent
                                         onSubmit(event)
                                     }}
-                                    disabled={loading || uploadingImages}
+                                    disabled={loading || uploadingImages || uploadingVideos}
                                 />
                             </div>
                         </form>

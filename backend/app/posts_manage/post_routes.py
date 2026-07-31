@@ -359,13 +359,15 @@ async def retry_verification(
         raise HTTPException(status_code=403, detail="Only post author can retry verification")
 
     media_cids = post.get("media_cids") or []
-    if not isinstance(media_cids, list) or len(media_cids) == 0:
+    video_cids = post.get("video_cids") or []
+    all_media_cids = list(media_cids) + list(video_cids)
+    if not all_media_cids:
         raise HTTPException(status_code=400, detail="Post has no media to verify")
 
     attempts = _next_attempts_for_post(post_cid)
     task_id = _enqueue_verification_task(
         post_cid=post_cid,
-        media_cids=media_cids,
+        media_cids=all_media_cids,
         content=str(post.get("content") or ""),
         author_wallet=author_wallet,
         attempts=attempts,
