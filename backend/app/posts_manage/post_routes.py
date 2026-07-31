@@ -246,36 +246,58 @@ async def upload_video(
     ALLOWED_VIDEO_TYPES = {
         "video/mp4", "video/webm", "video/quicktime",
         "video/x-msvideo", "video/x-matroska", "video/ogg",
-        "video/mpeg", "video/3gpp",
+        "video/mpeg", "video/3gpp", "application/octet-stream",
     }
 
-    content_type = file.content_type or ""
+    content_type = (file.content_type or "").split(";")[0].strip().lower()
+
+    # Fix: reject only if it is neither a video/* MIME nor in our explicit allowlist
     if not content_type.startswith("video/") and content_type not in ALLOWED_VIDEO_TYPES:
-        raise HTTPException(status_code=400, detail="File must be a video (mp4, webm, mov, avi, mkv)")
+        raise HTTPException(
+            status_code=400,
+            detail=f"File must be a video (mp4, webm, mov, avi, mkv). Got: '{content_type}'"
+        )
 
     # Read video bytes
     content = await file.read()
     max_size = 100 * 1024 * 1024  # 100 MB
     if len(content) > max_size:
-        raise HTTPException(status_code=400, detail="Video size must be less than 100MB")
+        raise HTTPException(
+            status_code=413,
+            detail=f"Video size must be less than 100MB. Got: {len(content) // (1024*1024)}MB"
+        )
+
+    if len(content) == 0:
+        raise HTTPException(status_code=400, detail="Uploaded video file is empty")
+
+    # Normalise content type — browsers sometimes send application/octet-stream for videos
+    effective_content_type = content_type if content_type.startswith("video/") else "video/mp4"
+
+    safe_filename = file.filename or "video.mp4"
 
     try:
         cid = await ipfs_service.pin_file(
             file_content=content,
-            filename=file.filename or "video.mp4",
-            content_type=content_type or "video/mp4",
+            filename=safe_filename,
+            content_type=effective_content_type,
         )
 
+        # Build public gateway URL (nftstorage / Pinata / ipfs.io depending on config)
         url = f"https://{cid}.ipfs.nftstorage.link"
 
         return VideoUpload(
             cid=cid,
             url=url,
-            content_type=content_type or "video/mp4",
+            content_type=effective_content_type,
             size_bytes=len(content),
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to upload video: {str(e)}")
+        error_msg = str(e)
+        print(f"[upload_video] Failed for wallet {wallet_address}: {error_msg}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to upload video to IPFS: {error_msg}"
+        )
 
 @router.post("", response_model=Dict)
 async def create_post(
