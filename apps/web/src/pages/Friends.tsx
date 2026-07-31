@@ -160,9 +160,9 @@ export function Friends({ query }: FriendsProps) {
     return (
         <div className="p-6">
             <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-900">Friends</h1>
+                <h1 className="text-2xl font-bold text-gray-900">Rooters</h1>
                 <p className="text-gray-600 mt-1">
-                    {query.trim() ? `Search results for "${query}"` : 'All accounts'}
+                    {query.trim() ? `Search results for "${query}"` : 'Discover rooters in the Sproudtly network'}
                 </p>
             </div>
 
@@ -214,8 +214,8 @@ export function Friends({ query }: FriendsProps) {
                                 <p className="text-sm text-gray-600 line-clamp-2 min-h-[40px] mt-2">{user.bio || 'No bio yet'}</p>
 
                                 <div className="mt-3 text-xs text-gray-500 flex items-center gap-4">
-                                    <span><strong className="text-gray-700">{user.followers_count || 0}</strong> Followers</span>
-                                    <span><strong className="text-gray-700">{user.following_count || 0}</strong> Following</span>
+                                    <span><strong className="text-gray-700">{user.followers_count || 0}</strong> Rooters</span>
+                                    <span><strong className="text-gray-700">{user.following_count || 0}</strong> Rooting</span>
                                 </div>
 
                                 <button
@@ -230,8 +230,8 @@ export function Friends({ query }: FriendsProps) {
                                     {followLoading[user.wallet_address]
                                         ? 'Please wait...'
                                         : followStatus[user.wallet_address]
-                                            ? 'Following'
-                                            : 'Follow'}
+                                            ? 'Rooted'
+                                            : 'Root'}
                                 </button>
                             </div>
                         </div>
