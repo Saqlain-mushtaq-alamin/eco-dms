@@ -328,14 +328,20 @@ class EcoVerifier:
 
         # Check magic bytes for common video formats
         if len(content_bytes) >= 12:
-            # MP4/MOV: 'ftyp' at offset 4
-            if content_bytes[4:8] == b'ftyp':
+            # MP4/MOV: 'ftyp', 'moov', 'mdat', 'wide' at offset 4
+            if content_bytes[4:8] in (b'ftyp', b'moov', b'mdat', b'wide'):
+                return True
+            # MP4 without ftyp header or raw ISO media box headers
+            if content_bytes[:4] in (b'\x00\x00\x00\x14', b'\x00\x00\x00\x18', b'\x00\x00\x00\x20'):
                 return True
             # WebM/MKV: EBML header
             if content_bytes[:4] == b'\x1a\x45\xdf\xa3':
                 return True
             # AVI: RIFF....AVI
             if content_bytes[:4] == b'RIFF' and content_bytes[8:12] == b'AVI ':
+                return True
+            # Ogg Video container
+            if content_bytes[:4] == b'OggS':
                 return True
 
         return False
