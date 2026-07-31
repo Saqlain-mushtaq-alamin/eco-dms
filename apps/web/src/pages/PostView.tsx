@@ -256,9 +256,9 @@ export default function PostView({ postCid }: { postCid: string }) {
                     onClick={() => navigate(-1)}
                     className="rounded-xl border border-slate-200 bg-white/85 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-white"
                 >
-                    Back to feed
+                    Back to Garden Feed
                 </button>
-                <div className="text-sm text-slate-500">Post by {shortAddress(post.author_wallet)} · {createdAtText}</div>
+                <div className="text-sm text-slate-500">Sprout by {shortAddress(post.author_wallet)} · {createdAtText}</div>
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-10 gap-5">
@@ -339,7 +339,7 @@ export default function PostView({ postCid }: { postCid: string }) {
                     <Card variant="glass" style={{ borderWidth: 0 }}>
                         <div className="space-y-4">
                             <div>
-                                <div className="text-xs uppercase tracking-wide text-slate-500">Post content</div>
+                                <div className="text-xs uppercase tracking-wide text-slate-500">Sprout content</div>
                                 <p className="mt-2 text-slate-800 leading-relaxed whitespace-pre-wrap">{post.content || 'No text content'}</p>
                             </div>
 
@@ -347,19 +347,19 @@ export default function PostView({ postCid }: { postCid: string }) {
                                 <button
                                     onClick={handleLike}
                                     disabled={loadingLike}
-                                    className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${post.liked_by_user ? 'text-rose-600' : 'text-slate-700'}`}
+                                    className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${post.liked_by_user ? 'text-amber-600' : 'text-slate-700'}`}
                                 >
-                                    {post.liked_by_user ? '❤️ Liked' : '🤍 Like'}
+                                    {post.liked_by_user ? '🌸 Bloomed' : '🌸 Bloom'}
                                 </button>
-                                <div className="text-sm text-slate-600">{post.likes_count || 0} likes</div>
-                                <div className="text-sm text-slate-600">{comments.length} comments</div>
+                                <div className="text-sm text-slate-600">{post.likes_count || 0} blooms</div>
+                                <div className="text-sm text-slate-600">{comments.length} nurtures</div>
                             </div>
 
                             <div className="rounded-xl border border-slate-200 bg-white/75 p-3">
-                                <div className="text-sm font-semibold text-slate-800">Comments</div>
+                                <div className="text-sm font-semibold text-slate-800">Nurtures</div>
                                 <div className="mt-3 space-y-3 max-h-[42vh] overflow-y-auto pr-1">
                                     {comments.length === 0 && (
-                                        <p className="text-sm text-slate-500 italic">No comments yet</p>
+                                        <p className="text-sm text-slate-500 italic">No nurtures yet</p>
                                     )}
                                     {comments.map((comment) => (
                                         <div key={comment.cid} className="rounded-lg border border-slate-200 bg-white p-2.5">
@@ -377,7 +377,7 @@ export default function PostView({ postCid }: { postCid: string }) {
                                         value={commentInput}
                                         onChange={(e) => setCommentInput(e.target.value)}
                                         className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                                        placeholder="Write a comment..."
+                                        placeholder="Leave a nurture on this sprout..."
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter' && !e.shiftKey) {
                                                 e.preventDefault()
@@ -390,7 +390,7 @@ export default function PostView({ postCid }: { postCid: string }) {
                                         disabled={loadingComment || !commentInput.trim()}
                                         className="rounded-lg bg-lime-500 px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-lime-400 disabled:opacity-50"
                                     >
-                                        Post
+                                        Nurture
                                     </button>
                                 </div>
                             </div>

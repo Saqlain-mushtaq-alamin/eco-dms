@@ -272,7 +272,7 @@ export default function UserProfile({ address, onBack }: UserProfileProps) {
                                     <Button title="Cancel" onPress={() => setEditing(false)} variant="outline" />
                                 </>
                             )}
-                            <Button title="Back to Feed" onPress={onBack} variant="secondary" />
+                            <Button title="Back to Garden Feed" onPress={onBack} variant="secondary" />
                         </div>
                     </div>
                 </div>
@@ -333,21 +333,21 @@ export default function UserProfile({ address, onBack }: UserProfileProps) {
                         <div className="mt-4 pt-4 flex gap-6">
                             <div>
                                 <div className="text-xl font-semibold text-gray-900">{profile.followers?.length || 0}</div>
-                                <div className="text-sm text-gray-500">Followers</div>
+                                <div className="text-sm text-gray-500">Rooters</div>
                             </div>
                             <div>
                                 <div className="text-xl font-semibold text-gray-900">{profile.following?.length || 0}</div>
-                                <div className="text-sm text-gray-500">Following</div>
+                                <div className="text-sm text-gray-500">Rooting</div>
                             </div>
                         </div>
                     </Card>
                 </div>
 
                 <div className="lg:col-span-8 space-y-3">
-                    <h3 className="text-lg font-semibold">My Posts</h3>
+                    <h3 className="text-lg font-semibold">My Sprouts</h3>
                     {posts.length === 0 ? (
                         <Card variant="glass" style={{ borderWidth: 0 }}>
-                            <div className="text-gray-500">No posts yet.</div>
+                            <div className="text-gray-500">No sprouts planted yet.</div>
                         </Card>
                     ) : (
                         posts.map((post) => (
@@ -371,7 +371,7 @@ export default function UserProfile({ address, onBack }: UserProfileProps) {
                                 headerRight={post.verification_status === 'verified' || post.verification_status === 'not_eco' ? (
                                     <span className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-semibold ${post.verified ? 'border-emerald-200 bg-white/90 text-emerald-700' : 'border-rose-200 bg-white/90 text-rose-700'}`}>
                                         <span className={`h-2 w-2 rounded-full ${post.verified ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                                        <span>{post.verified ? 'ECO' : 'NOT ECO'}</span>
+                                        <span>{post.verified ? 'ROOTED SPROUT' : 'NOT ROOTED'}</span>
                                         {typeof post.eco_score === 'number' && (
                                             <span className="rounded-full bg-black/5 px-2 py-0.5 text-[11px] font-bold">
                                                 {Math.round(post.eco_score * 100)}%

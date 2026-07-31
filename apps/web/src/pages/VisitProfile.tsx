@@ -352,7 +352,7 @@ export default function VisitProfile({ walletAddress, currentUserAddress, onBack
                         <div className="flex gap-2">
                             {!isOwnProfile && (
                                 <Button
-                                    title={actionLoading ? 'Loading...' : isFollowing ? 'Following' : 'Follow'}
+                                    title={actionLoading ? 'Loading...' : isFollowing ? 'Rooted' : 'Root'}
                                     onPress={handleFollowToggle}
                                     disabled={actionLoading}
                                     variant={isFollowing ? 'secondary' : 'primary'}
@@ -376,9 +376,9 @@ export default function VisitProfile({ walletAddress, currentUserAddress, onBack
                                     color: '#15803d',
                                 }}
                             >
-                                🌱 Eco Portfolio
+                                🏡 Garden Portfolio
                             </button>
-                            <Button title="Back to Feed" onPress={onBack} variant="secondary" />
+                            <Button title="Back to Garden" onPress={onBack} variant="secondary" />
                         </div>
 
                     </div>
@@ -398,15 +398,15 @@ export default function VisitProfile({ walletAddress, currentUserAddress, onBack
                         <div className="mt-4 pt-4 flex gap-6">
                             <div>
                                 <div className="text-xl font-semibold text-gray-900">{profile.followers?.length || 0}</div>
-                                <div className="text-sm text-gray-500">Followers</div>
+                                <div className="text-sm text-gray-500">Rooters</div>
                             </div>
                             <div>
                                 <div className="text-xl font-semibold text-gray-900">{profile.following?.length || 0}</div>
-                                <div className="text-sm text-gray-500">Following</div>
+                                <div className="text-sm text-gray-500">Rooting</div>
                             </div>
                             <div>
                                 <div className="text-xl font-semibold text-gray-900">{posts.length}</div>
-                                <div className="text-sm text-gray-500">Posts</div>
+                                <div className="text-sm text-gray-500">Sprouts</div>
                             </div>
                         </div>
                     </Card>
@@ -440,7 +440,7 @@ export default function VisitProfile({ walletAddress, currentUserAddress, onBack
                                     headerRight={post.verification_status === 'verified' || post.verification_status === 'not_eco' ? (
                                         <span className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-semibold ${post.verified ? 'border-emerald-200 bg-white/90 text-emerald-700' : 'border-rose-200 bg-white/90 text-rose-700'}`}>
                                             <span className={`h-2 w-2 rounded-full ${post.verified ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                                            <span>{post.verified ? 'ECO' : 'NOT ECO'}</span>
+                                            <span>{post.verified ? 'ROOTED SPROUT' : 'NOT ROOTED'}</span>
                                             {typeof post.eco_score === 'number' && (
                                                 <span className="rounded-full bg-black/5 px-2 py-0.5 text-[11px] font-bold">
                                                     {Math.round(post.eco_score * 100)}%
@@ -476,7 +476,7 @@ export default function VisitProfile({ walletAddress, currentUserAddress, onBack
                                                     type="text"
                                                     value={commentInputs[post.cid] || ''}
                                                     onChange={(e) => setCommentInputs((prev) => ({ ...prev, [post.cid!]: e.target.value }))}
-                                                    placeholder="Write a comment..."
+                                                    placeholder="Leave a nurture on someone's sprout..."
                                                     className="flex-1 rounded-xl px-3 py-2.5 text-sm bg-white border border-gray-200 focus:outline-none focus:ring-2 focus:ring-lime-300"
                                                     onKeyDown={(e) => {
                                                         if (e.key === 'Enter' && !e.shiftKey) {
@@ -489,7 +489,7 @@ export default function VisitProfile({ walletAddress, currentUserAddress, onBack
                                                     onClick={() => handleAddComment(post.cid!)}
                                                     className="px-4 py-2.5 bg-lime-500 text-gray-900 rounded-xl text-sm font-semibold hover:bg-lime-400"
                                                 >
-                                                    Post
+                                                    Nurture
                                                 </button>
                                             </div>
 
