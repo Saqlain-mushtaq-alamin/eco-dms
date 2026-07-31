@@ -128,7 +128,7 @@ export function Dashboard({ address, onBack }: DashboardProps) {
                 }
             }
         } catch (err: any) {
-            setClaimError(err?.message || 'Failed to load eco posts')
+            setClaimError(err?.message || 'Failed to load rooted sprouts')
         } finally {
             setLoadingPosts(false)
         }
@@ -232,7 +232,7 @@ export function Dashboard({ address, onBack }: DashboardProps) {
             })
 
             if (wasAdded) {
-                alert('✅ ECO token added to your wallet!')
+                alert('✅ Sprout Token (SPT) added to your wallet!')
             }
         } catch (error: any) {
             console.error('Failed to add token:', error)
@@ -247,15 +247,15 @@ export function Dashboard({ address, onBack }: DashboardProps) {
                 <div className="flex items-center justify-between mb-6">
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-                            🌱 ECO Dashboard
+                            🌱 Sproudtly Dashboard
                         </h1>
-                        <p className="text-gray-600 mt-1">Track your eco-friendly rewards</p>
+                        <p className="text-gray-600 mt-1">Track your Sprout Token (SPT) rewards</p>
                     </div>
                     <button
                         onClick={onBack}
                         className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
                     >
-                        ← Back to Feed
+                        ← Back to Garden Feed
                     </button>
                 </div>
 
@@ -263,7 +263,7 @@ export function Dashboard({ address, onBack }: DashboardProps) {
                 <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl p-8 text-white shadow-2xl mb-6">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-green-100 text-sm uppercase tracking-wide mb-2">Your ECO Balance</p>
+                            <p className="text-green-100 text-sm uppercase tracking-wide mb-2">Your Sprout Token (SPT) Balance</p>
                             {balanceLoading ? (
                                 <div className="h-12 w-32 bg-white/20 animate-pulse rounded"></div>
                             ) : balanceError ? (
@@ -287,7 +287,7 @@ export function Dashboard({ address, onBack }: DashboardProps) {
                         className="mt-6 w-full bg-white text-green-600 font-semibold py-3 px-4 rounded-lg hover:bg-green-50 transition flex items-center justify-center gap-2"
                     >
                         <span>🦊</span>
-                        Add ECO to Wallet
+                        Add SPT to Wallet
                     </button>
                 </div>
 
@@ -303,7 +303,7 @@ export function Dashboard({ address, onBack }: DashboardProps) {
                             <div className="h-10 bg-gray-200 animate-pulse rounded"></div>
                         ) : (
                             <>
-                                <p className="text-3xl font-bold text-gray-900">{lifetimeEarned} ECO</p>
+                                <p className="text-3xl font-bold text-gray-900">{lifetimeEarned} SPT</p>
                                 <p className="text-sm text-gray-500 mt-1">{totalClaims} successful claims</p>
                             </>
                         )}
@@ -319,7 +319,7 @@ export function Dashboard({ address, onBack }: DashboardProps) {
                             <div className="h-10 bg-gray-200 animate-pulse rounded"></div>
                         ) : (
                             <>
-                                <p className="text-3xl font-bold text-gray-900">{todayEarned} ECO</p>
+                                <p className="text-3xl font-bold text-gray-900">{todayEarned} SPT</p>
                                 <p className="text-sm text-gray-500 mt-1">Last 24 hours</p>
                             </>
                         )}
@@ -331,8 +331,8 @@ export function Dashboard({ address, onBack }: DashboardProps) {
                             <h3 className="text-gray-600 font-semibold">Reward Rate</h3>
                             <span className="text-2xl">🎁</span>
                         </div>
-                        <p className="text-3xl font-bold text-gray-900">5 ECO</p>
-                        <p className="text-sm text-gray-500 mt-1">Per verified post</p>
+                        <p className="text-3xl font-bold text-gray-900">5 SPT</p>
+                        <p className="text-sm text-gray-500 mt-1">Per rooted sprout</p>
                     </div>
                 </div>
 
@@ -342,24 +342,24 @@ export function Dashboard({ address, onBack }: DashboardProps) {
                     <div className="bg-white rounded-xl p-6 shadow-lg">
                         <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
                             <span>💡</span>
-                            How to Earn ECO
+                            How to Earn Sprout Tokens (SPT)
                         </h3>
                         <ul className="space-y-3">
                             <li className="flex items-start gap-3">
                                 <span className="text-green-500 font-bold">1.</span>
-                                <span className="text-gray-700">Create eco-friendly posts (solar panels, recycling, nature, etc.)</span>
+                                <span className="text-gray-700">Plant sprouts with photo or video proof (solar energy, recycling, planting, etc.)</span>
                             </li>
                             <li className="flex items-start gap-3">
                                 <span className="text-green-500 font-bold">2.</span>
-                                <span className="text-gray-700">ML model verifies your post is eco-friendly</span>
+                                <span className="text-gray-700">ML engine verifies your sprout to root it</span>
                             </li>
                             <li className="flex items-start gap-3">
                                 <span className="text-green-500 font-bold">3.</span>
-                                <span className="text-gray-700">Click "Claim 5 ECO" button on verified posts</span>
+                                <span className="text-gray-700">Click "Claim 5 SPT" button on rooted sprouts</span>
                             </li>
                             <li className="flex items-start gap-3">
                                 <span className="text-green-500 font-bold">4.</span>
-                                <span className="text-gray-700">Receive tokens instantly to your wallet!</span>
+                                <span className="text-gray-700">Receive SPT tokens instantly in your wallet!</span>
                             </li>
                         </ul>
                     </div>
@@ -399,7 +399,7 @@ export function Dashboard({ address, onBack }: DashboardProps) {
                 <div className="bg-white rounded-xl p-6 shadow-lg mt-6">
                     <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
                         <span>🧾</span>
-                        Claim Rewards For Your ECO Posts
+                        Claim Rewards For Your Rooted Sprouts
                     </h3>
 
                     {claimError && (
@@ -409,9 +409,9 @@ export function Dashboard({ address, onBack }: DashboardProps) {
                     )}
 
                     {loadingPosts ? (
-                        <div className="text-gray-500">Loading your eco posts...</div>
+                        <div className="text-gray-500">Loading your sprouts...</div>
                     ) : sortedEcoPosts.length === 0 ? (
-                        <div className="text-gray-500 text-sm">No verified ECO posts available to claim yet.</div>
+                        <div className="text-gray-500 text-sm">No rooted sprouts available to claim yet.</div>
                     ) : (
                         <div className="space-y-3">
                             {sortedEcoPosts.map((post) => {
@@ -437,7 +437,7 @@ export function Dashboard({ address, onBack }: DashboardProps) {
                                                         : 'border-lime-300 bg-lime-50 text-lime-800 hover:bg-lime-100'
                                                     }`}
                                             >
-                                                {isClaimed ? 'Reward Claimed' : isClaiming ? 'Claiming...' : 'Claim 5 ECO'}
+                                                {isClaimed ? 'Reward Claimed' : isClaiming ? 'Claiming...' : 'Claim 5 SPT'}
                                             </button>
                                         </div>
                                     </div>
