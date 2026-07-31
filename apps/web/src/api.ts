@@ -314,6 +314,7 @@ export interface NotificationPost {
     author?: string
     content?: string
     media_cids?: string[]
+    video_cids?: string[]
     created_at?: string
     likes_count?: number
     comments_count?: number
