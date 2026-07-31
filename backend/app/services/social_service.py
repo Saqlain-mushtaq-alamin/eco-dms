@@ -551,5 +551,56 @@ class SocialService:
         """Manually set comments index CID (for recovery/initialization)"""
         await self._set_comments_index_cid(post_cid, index_cid)
 
+    # ==================== USER POSTS ====================
+
+    async def get_user_posts(self, wallet_address: str, limit: int = 500) -> List[Dict]:
+        """
+        Fetch all posts authored by a wallet address, hydrated from IPFS.
+
+        This is the canonical method for retrieving a user's full post objects.
+        CID index is stored in OrbitDB (decentralized), post content on IPFS.
+
+        Args:
+            wallet_address: Ethereum wallet address of the post author.
+            limit: Maximum number of posts to return (most recent first).
+
+        Returns:
+            List of post dicts, each containing post content plus its CID.
+        """
+        from backend.app.services.orbitdb_service import orbitdb_service
+        from backend.app.posts_manage.ipfs_post_service import ipfs_service as _ipfs
+
+        wallet = wallet_address.lower()
+
+        try:
+            all_cids: List[str] = await orbitdb_service.get_user_posts(wallet)
+        except Exception as e:
+            print(f"⚠️ Could not retrieve post CIDs for {wallet}: {e}")
+            return []
+
+        if not all_cids:
+            return []
+
+        # Apply limit (most recent posts are at the end of the CID list)
+        cids = all_cids[-limit:] if len(all_cids) > limit else all_cids
+
+        async def _fetch(cid: str) -> Optional[Dict]:
+            try:
+                post = await _ipfs.get_json(cid)
+                if isinstance(post, dict):
+                    post["cid"] = cid
+                    # Register author cache for social lookups
+                    author = post.get("author") or post.get("author_wallet")
+                    if author:
+                        self.set_post_author(cid, str(author))
+                    return post
+            except Exception:
+                pass
+            return None
+
+        results = await asyncio.gather(*[_fetch(cid) for cid in cids], return_exceptions=True)
+        posts = [p for p in results if isinstance(p, dict)]
+        return posts
+
 
 social_service = SocialService()
