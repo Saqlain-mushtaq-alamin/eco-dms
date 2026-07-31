@@ -60,15 +60,16 @@ class PinataService:
         """Pin file bytes to Pinata."""
         if not self.jwt:
             return None
-        
+
         url = f"{self.base_url}/pinning/pinFileToIPFS"
-        
+
         files = {"file": (filename, io.BytesIO(data))}
-        
+
         try:
-            response = requests.post(url, headers=self.headers, files=files)
+            # Use a long timeout: large video files can take several minutes to upload
+            response = requests.post(url, headers=self.headers, files=files, timeout=300)
             response.raise_for_status()
-            
+
             result = response.json()
             cid = result['IpfsHash']
             print(f"📌 File pinned: {cid}")
