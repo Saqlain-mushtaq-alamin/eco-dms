@@ -88,6 +88,29 @@ export async function uploadImage(file: File): Promise<{ cid: string; url: strin
     return res.json()
 }
 
+export async function uploadVideo(file: File): Promise<{ cid: string; url: string; content_type: string; size_bytes: number }> {
+    const token = localStorage.getItem('auth_token')
+    if (!token) throw new Error('No authentication token')
+
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const res = await fetch(`${API_BASE}/api/posts/upload-video`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        },
+        body: formData
+    })
+
+    if (!res.ok) {
+        const error = await res.text()
+        throw new Error(error || `Failed to upload video: ${res.status}`)
+    }
+
+    return res.json()
+}
+
 export async function getAllUsers() {
     const token = localStorage.getItem('auth_token')
     if (!token) throw new Error('No authentication token')
