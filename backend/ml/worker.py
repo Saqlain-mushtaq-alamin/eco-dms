@@ -303,14 +303,9 @@ def verify_eco_content(
             for gateway_base in gateways_to_try:
                 
                 try:
-                    if len(media_cids) == 1:
-                        verdict = loop.run_until_complete(
-                            verifier.verify_from_ipfs(media_cids[0], gateway_base, text_content)
-                        )
-                    else:
-                        verdict = loop.run_until_complete(
-                            verifier.verify_images_from_ipfs(media_cids, gateway_base, text_content)
-                        )
+                    verdict = loop.run_until_complete(
+                        verifier.verify_images_from_ipfs(media_cids, gateway_base, text_content)
+                    )
                     # Success! Break out of loop
                     break
                 except httpx.HTTPStatusError as e:
