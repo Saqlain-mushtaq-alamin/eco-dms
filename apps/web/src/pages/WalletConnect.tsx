@@ -200,11 +200,15 @@ export default function WalletConnect({ onConnected }: { onConnected: (address: 
                             <span className="signin-left-lines__beam signin-left-lines__beam--three" />
                         </div>
 
-                        <p className="signin-kicker">eco dms</p>
-                        <h1 className="signin-title">eco dms</h1>
+                        <p className="signin-kicker brand-sproudtly">
+                            sprou<span className="brand-d">d</span>tly
+                        </p>
+                        <h1 className="signin-title brand-sproudtly">
+                            sprou<span className="brand-d">d</span>tly
+                        </h1>
                         <p className="signin-tagline">Grow what you give.</p>
                         <p className="signin-support-copy">
-                            Build trust, verify impact, and turn sustainability into shared action.
+                            Plant eco-actions into the world, root connections, and watch your garden grow.
                         </p>
                     </div>
                 </section>
@@ -353,8 +357,10 @@ export default function WalletConnect({ onConnected }: { onConnected: (address: 
 
             <footer className="signin-footer" aria-label="Sign in page footer">
                 <div className="signin-footer__content">
-                    <p className="signin-footer__brand">Eco DMS</p>
-                    <p className="signin-footer__meta">Secure SIWE + OAuth access for a decentralized social impact ecosystem.</p>
+                    <p className="signin-footer__brand brand-sproudtly text-lg">
+                        Sprou<span className="brand-d">d</span>tly
+                    </p>
+                    <p className="signin-footer__meta">Secure SIWE + OAuth access for a decentralized garden impact ecosystem.</p>
                 </div>
 
                 <nav className="signin-footer__links" aria-label="Sign in resources">
