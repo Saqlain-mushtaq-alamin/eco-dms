@@ -826,7 +826,7 @@ export function Feed({
                                 onClick={() => onVisitProfile(address)}
                                 className="w-full text-left px-3 py-2 rounded-lg bg-white/70 hover:bg-white transition shadow-sm"
                             >
-                                👤 User Profile
+                                🏡 Garden Profile
                             </button>
                             <button
                                 type="button"
@@ -836,28 +836,28 @@ export function Feed({
                                 }}
                                 className="w-full text-left px-3 py-2 rounded-lg bg-white/70 hover:bg-white transition shadow-sm"
                             >
-                                👥 Follower Explore
+                                👥 Root Explore
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setShowingFeed(true)}
                                 className="w-full text-left px-3 py-2 rounded-lg bg-white/70 hover:bg-white transition shadow-sm"
                             >
-                                📰 Feed
+                                🌱 Garden Feed
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setShowingFeed(false)}
                                 className="w-full text-left px-3 py-2 rounded-lg bg-white/70 hover:bg-white transition shadow-sm"
                             >
-                                ✍️ My Posts
+                                🌿 My Sprouts
                             </button>
                             <button
                                 type="button"
-                                onClick={() => setError('Saved posts feature coming soon')}
+                                onClick={() => setError('Saved sprouts feature coming soon')}
                                 className="w-full text-left px-3 py-2 rounded-lg bg-white/70 hover:bg-white transition shadow-sm"
                             >
-                                🔖 Saved
+                                🔖 Saved Sprouts
                             </button>
                         </div>
                     </div>
@@ -893,7 +893,7 @@ export function Feed({
                                 onClick={openComposer}
                                 className="flex-1 text-left rounded-full bg-white/80 px-4 py-2.5 text-gray-500 hover:bg-white transition shadow-sm"
                             >
-                                What's on your mind?
+                                Share an eco-action and plant it into the world...
                             </button>
                         </div>
 
@@ -945,20 +945,20 @@ export function Feed({
                         <button
                             onClick={() => setShowingFeed(true)}
                             className={`px-4 py-2 font-medium transition ${showingFeed
-                                ? 'rounded-lg bg-white/90 text-blue-600 shadow-sm'
+                                ? 'rounded-lg bg-white/90 text-emerald-600 shadow-sm'
                                 : 'rounded-lg text-gray-600 hover:bg-white/70 hover:text-gray-900'
                                 }`}
                         >
-                            Following Feed
+                            Garden Feed
                         </button>
                         <button
                             onClick={() => setShowingFeed(false)}
                             className={`px-4 py-2 font-medium transition ${!showingFeed
-                                ? 'rounded-lg bg-white/90 text-blue-600 shadow-sm'
+                                ? 'rounded-lg bg-white/90 text-emerald-600 shadow-sm'
                                 : 'rounded-lg text-gray-600 hover:bg-white/70 hover:text-gray-900'
                                 }`}
                         >
-                            My Posts
+                            My Sprouts
                         </button>
                     </div>
 
@@ -972,7 +972,7 @@ export function Feed({
                     )}
 
                     <div className="space-y-4">
-                        {posts.length === 0 && !loading && <p>No posts yet.</p>}
+                        {posts.length === 0 && !loading && <p className="text-gray-500 text-center py-6">No sprouts in your garden yet. Plant a sprout to get started!</p>}
                         {posts.map((p) => (
                             <div key={p.cid ?? p.created_at} className="space-y-2">
                                 <PostCard
@@ -995,7 +995,7 @@ export function Feed({
                                                 className={`h-2 w-2 rounded-full ${p.verified ? 'bg-emerald-500' : 'bg-rose-500'
                                                     }`}
                                             />
-                                            <span>{p.verified ? 'ECO' : 'NOT ECO'}</span>
+                                            <span>{p.verified ? 'ROOTED SPROUT' : 'NOT ROOTED'}</span>
                                             {typeof p.eco_score === 'number' && (
                                                 <span className="rounded-full bg-black/5 px-2 py-0.5 text-[11px] font-bold">
                                                     {Math.round(p.eco_score * 100)}%
@@ -1081,7 +1081,7 @@ export function Feed({
                                                 type="text"
                                                 value={commentInputs[p.cid!] || ''}
                                                 onChange={(e) => setCommentInputs({ ...commentInputs, [p.cid!]: e.target.value })}
-                                                placeholder="Write a comment..."
+                                                placeholder="Leave a nurture on someone's sprout to water it with words..."
                                                 className="flex-1 rounded-xl px-3 py-2.5 text-sm bg-white border border-gray-200 focus:outline-none focus:ring-2 focus:ring-lime-300"
                                                 onKeyDown={(e) => {
                                                     if (e.key === 'Enter' && !e.shiftKey) {
@@ -1094,14 +1094,14 @@ export function Feed({
                                                 onClick={() => handleAddComment(p.cid!)}
                                                 className="px-4 py-2.5 bg-lime-500 text-gray-900 rounded-xl text-sm font-semibold hover:bg-lime-400"
                                             >
-                                                Post
+                                                Nurture
                                             </button>
                                         </div>
 
                                         {/* Comments List */}
                                         <div className="space-y-3">
                                             {comments[p.cid!]?.length === 0 && (
-                                                <p className="text-sm text-gray-500 italic">No comments yet</p>
+                                                <p className="text-sm text-gray-500 italic">No nurtures yet. Leave a nurture to water this sprout!</p>
                                             )}
                                             {comments[p.cid!]?.map((comment) => (
                                                 <div key={comment.cid} className="bg-white/85 rounded-xl p-3 border border-gray-100 shadow-sm">
@@ -1180,7 +1180,7 @@ export function Feed({
                                                         <p className="mt-1 truncate text-sm text-gray-600">{getUserBio(user)}</p>
                                                     )}
                                                 </div>
-                                                <div className="text-xs text-gray-500">{user.followers_count || 0} followers</div>
+                                                <div className="text-xs text-gray-500">{user.followers_count || 0} rooters</div>
                                             </div>
                                         </div>
                                     ))}
@@ -1201,7 +1201,7 @@ export function Feed({
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-xl font-semibold text-gray-900">Create Post</h3>
+                            <h3 className="text-xl font-semibold text-gray-900">Plant a Sprout 🌱</h3>
                             <button
                                 type="button"
                                 onClick={() => setShowComposerModal(false)}
@@ -1223,7 +1223,7 @@ export function Feed({
                             <textarea
                                 value={content}
                                 onChange={(e) => setContent(e.target.value)}
-                                placeholder="Write your post content..."
+                                placeholder="Share an eco-action and plant it into the world..."
                                 className="w-full min-h-[140px] rounded-xl bg-white/80 px-4 py-3 text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-lime-400"
                             />
 
@@ -1304,7 +1304,7 @@ export function Feed({
                                 </div>
 
                                 <Button
-                                    title={uploadingVideos ? 'Uploading Videos...' : uploadingImages ? 'Uploading Images...' : loading ? 'Posting...' : 'Post'}
+                                    title={uploadingVideos ? 'Uploading Videos...' : uploadingImages ? 'Uploading Images...' : loading ? 'Sprouting...' : 'Plant Sprout'}
                                     onPress={() => {
                                         const event = { preventDefault: () => { } } as React.FormEvent
                                         onSubmit(event)
@@ -1360,7 +1360,7 @@ export function Feed({
                                             <div>
                                                 <h3 className={`text-2xl font-bold ${verificationModal.details.is_eco ? 'text-green-700' : 'text-gray-700'
                                                     }`}>
-                                                    {verificationModal.details.is_eco ? '✅ Eco-Friendly' : '❌ Not Eco-Friendly'}
+                                                    {verificationModal.details.is_eco ? '✅ Rooted Sprout' : '❌ Not Rooted'}
                                                 </h3>
                                                 <p className="text-sm text-gray-600">
                                                     Confidence: <span className="font-bold">{Math.round(verificationModal.details.confidence * 100)}%</span>
