@@ -898,7 +898,7 @@ export function Feed({
                             </button>
                             <button
                                 type="button"
-                                onClick={openComposer}
+                                onClick={handleQuickVideoAction}
                                 className="px-3 py-2 rounded-lg bg-white/80 hover:bg-white text-gray-700 text-sm font-medium transition shadow-sm"
                             >
                                 🎬 Video
@@ -916,6 +916,15 @@ export function Feed({
                                 accept="image/*"
                                 multiple
                                 onChange={handleImageSelect}
+                                className="hidden"
+                                disabled={loading}
+                            />
+                            <input
+                                ref={quickVideoInputRef}
+                                type="file"
+                                accept="video/*"
+                                multiple
+                                onChange={handleVideoSelect}
                                 className="hidden"
                                 disabled={loading}
                             />
