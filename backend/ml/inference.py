@@ -140,7 +140,8 @@ class EcoVerifier:
         text_content: Optional[str] = None
     ) -> Dict:
         """
-        Verify eco-friendliness of content stored on IPFS.
+        Verify eco-friendliness of content (image or video) stored on IPFS.
+        Delegates to verify_images_from_ipfs for automatic video keyframe extraction.
         
         Args:
             ipfs_cid: IPFS content identifier
@@ -150,10 +151,7 @@ class EcoVerifier:
         Returns:
             Verification result with eco verdict and confidence score
         """
-        image_bytes = await self._fetch_image_from_ipfs(ipfs_cid, ipfs_gateway)
-        
-        # Perform verification
-        return await self.verify_image(image_bytes, text_content)
+        return await self.verify_images_from_ipfs([ipfs_cid], ipfs_gateway, text_content)
 
     async def verify_images_from_ipfs(
         self,
