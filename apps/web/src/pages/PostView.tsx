@@ -8,6 +8,7 @@ type Post = {
     author_wallet: string
     content: string
     media_cids: string[]
+    video_cids?: string[]
     created_at: string
     likes_count?: number
     comments_count?: number
@@ -53,6 +54,13 @@ export default function PostView({ postCid }: { postCid: string }) {
     const imageUrls = useMemo(() => {
         if (!post?.media_cids?.length) return []
         return post.media_cids
+            .map((cid) => resolveIpfsUrl(cid))
+            .filter((v): v is string => Boolean(v))
+    }, [post])
+
+    const videoUrls = useMemo(() => {
+        if (!post?.video_cids?.length) return []
+        return post.video_cids
             .map((cid) => resolveIpfsUrl(cid))
             .filter((v): v is string => Boolean(v))
     }, [post])
@@ -262,7 +270,7 @@ export default function PostView({ postCid }: { postCid: string }) {
                                     <img src={activeImageUrl} alt={`Post media ${activeImageIndex + 1}`} className="h-full w-full object-contain bg-slate-900" />
                                 ) : (
                                     <div className="h-full w-full flex items-center justify-center text-slate-500">
-                                        No image in this post
+                                        {videoUrls.length > 0 ? 'Scroll down for video' : 'No media in this post'}
                                     </div>
                                 )}
 
@@ -303,6 +311,27 @@ export default function PostView({ postCid }: { postCid: string }) {
                                 </div>
                             )}
                         </div>
+
+                        {/* Video Player Section */}
+                        {videoUrls.length > 0 && (
+                            <div className="mt-4 space-y-4">
+                                {videoUrls.map((url, idx) => (
+                                    <div key={`video-${idx}`} className="rounded-2xl overflow-hidden bg-black border border-white/60">
+                                        <video
+                                            src={url}
+                                            controls
+                                            preload="metadata"
+                                            playsInline
+                                            className="w-full max-h-[60vh] object-contain"
+                                            style={{ backgroundColor: '#000' }}
+                                        />
+                                        <div className="bg-white/80 px-4 py-2 text-xs text-slate-500">
+                                            🎬 Video {idx + 1} of {videoUrls.length}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </Card>
                 </div>
 
