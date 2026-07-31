@@ -511,10 +511,10 @@ export function Feed({
                 setUploadingImages(false)
             }
 
-            // Upload videos if any
+            // Upload videos if any (sequentially to avoid connection issues on large files)
             if (selectedVideos.length > 0) {
                 setUploadingVideos(true)
-                const videoUploadPromises = selectedVideos.map(async (file) => {
+                for (const file of selectedVideos) {
                     const formData = new FormData()
                     formData.append('file', file)
                     const res = await fetch(`${apiBase}/api/posts/upload-video`, {
@@ -522,11 +522,20 @@ export function Feed({
                         headers: { 'Authorization': `Bearer ${token}` },
                         body: formData
                     })
-                    if (!res.ok) throw new Error('Video upload failed')
+                    if (!res.ok) {
+                        let errMsg = `Video upload failed (HTTP ${res.status})`
+                        try {
+                            const errData = await res.json()
+                            errMsg = errData.detail || errMsg
+                        } catch {
+                            try { errMsg = await res.text() || errMsg } catch { /* ignore */ }
+                        }
+                        throw new Error(errMsg)
+                    }
                     const data = await res.json()
-                    return data.cid
-                })
-                videoCids = await Promise.all(videoUploadPromises)
+                    if (!data.cid) throw new Error('Video upload returned no CID')
+                    videoCids.push(data.cid)
+                }
                 setUploadingVideos(false)
             }
 
