@@ -317,7 +317,7 @@ export default function EcoPortfolioPage({ wallet, isOwnProfile = false }: EcoPo
     if (loading) return (
         <div className="eco-portfolio-loading">
             <div className="eco-portfolio-spinner" />
-            <p>Computing your eco portfolio…</p>
+            <p>Computing your garden portfolio…</p>
         </div>
     )
 
@@ -395,8 +395,8 @@ export default function EcoPortfolioPage({ wallet, isOwnProfile = false }: EcoPo
             <div className="eco-portfolio-stats-grid">
                 <StatCard
                     value={portfolio.total_verified_actions.toLocaleString()}
-                    label="Verified Eco Actions"
-                    sub="ML + community verified"
+                    label="Rooted Sprouts"
+                    sub="ML + community rooted"
                 />
                 <StatCard
                     value={CO2_FORMAT(portfolio.co2_offset_kg)}
@@ -410,22 +410,22 @@ export default function EcoPortfolioPage({ wallet, isOwnProfile = false }: EcoPo
                 />
                 <StatCard
                     value={portfolio.eco_level}
-                    label="Eco Level"
+                    label="Sprout Level"
                     sub={portfolio.eco_title}
                 />
             </div>
 
             {/* ── Streak ───────────────────────────────────── */}
             <div className="eco-portfolio-section">
-                <h2 className="eco-section-title">🔥 Eco Streak</h2>
+                <h2 className="eco-section-title">🔥 Garden Streak</h2>
                 <StreakDisplay current={portfolio.current_streak_days} longest={portfolio.longest_streak_days} />
             </div>
 
             {/* ── Contribution Graph ───────────────────────── */}
             {portfolio.action_graph && portfolio.action_graph.length > 0 && (
                 <div className="eco-portfolio-section">
-                    <h2 className="eco-section-title">🗓️ Eco Action Graph</h2>
-                    <p className="eco-section-sub">Your verified eco-actions over the last 52 weeks</p>
+                    <h2 className="eco-section-title">🗓️ Sprout Action Graph</h2>
+                    <p className="eco-section-sub">Your rooted sprouts over the last 52 weeks</p>
                     <ContributionGraph weeks={portfolio.action_graph} />
                 </div>
             )}
@@ -494,8 +494,8 @@ export default function EcoPortfolioPage({ wallet, isOwnProfile = false }: EcoPo
             {portfolio.total_verified_actions === 0 && (
                 <div className="eco-portfolio-empty">
                     <div className="eco-portfolio-empty-icon">🌱</div>
-                    <h3>Start your Eco Journey</h3>
-                    <p>Post your first verified eco-action to build your portfolio. Every verified action adds to your environmental credential.</p>
+                    <h3>Start your Sproudtly Journey</h3>
+                    <p>Plant your first sprout to build your garden profile. Every rooted sprout adds to your environmental credentials and Sprout tokens (SPT).</p>
                 </div>
             )}
         </div>
