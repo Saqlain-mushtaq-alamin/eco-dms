@@ -69,7 +69,7 @@ function MintModal({ item, onClose, onConfirm }: MintModalProps) {
                     padding: '0.6rem 0.85rem', margin: '14px 0',
                     fontSize: '0.72rem', color: '#92400e', fontWeight: 600,
                 }}>
-                    🔥 {item.eco_cost} ECO will be burned to mint this credential
+                    🔥 {item.eco_cost} SPT will be burned to mint this credential
                 </div>
 
                 {error && (
@@ -96,7 +96,7 @@ function MintModal({ item, onClose, onConfirm }: MintModalProps) {
                             background: `linear-gradient(135deg, ${item.rarity_color}, ${item.rarity_color}cc)`,
                             color: '#fff', opacity: loading ? 0.7 : 1,
                         }}>
-                        {loading ? 'Confirm in wallet…' : `Mint for ${item.eco_cost} ECO`}
+                        {loading ? 'Confirm in wallet…' : `Mint for ${item.eco_cost} SPT`}
                     </button>
                 </div>
             </div>
@@ -161,7 +161,7 @@ export default function CredentialsPage() {
             }}>
                 <div style={{ maxWidth: 800, margin: '0 auto' }}>
                     <h1 style={{ color: '#fff', margin: '0 0 4px', fontSize: '1.5rem', fontWeight: 900 }}>
-                        🎖️ Eco Credentials
+                        🎖️ Sprout Credentials
                     </h1>
                     <p style={{ color: 'rgba(255,255,255,0.7)', margin: 0, fontSize: '0.82rem' }}>
                         Soulbound NFTs — non-transferable proof of your environmental impact
@@ -245,7 +245,7 @@ export default function CredentialsPage() {
                             }}>
                                 <div style={{ fontSize: '2rem', marginBottom: 8 }}>🔒</div>
                                 <div style={{ fontWeight: 700 }}>
-                                    {filter === 'eligible' ? 'No claimable credentials yet — keep posting!' : 'Nothing here yet'}
+                                    {filter === 'eligible' ? 'No claimable credentials yet — keep sprouting!' : 'Nothing here yet'}
                                 </div>
                             </div>
                         )}

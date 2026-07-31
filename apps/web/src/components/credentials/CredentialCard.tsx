@@ -122,7 +122,7 @@ export function CredentialCard({
                         color: '#fff', marginTop: 6,
                     }}
                 >
-                    🎖️ Mint · {ecoCost} ECO
+                    🎖️ Mint · {ecoCost} SPT
                 </button>
             )}
 

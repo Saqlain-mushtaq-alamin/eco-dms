@@ -57,11 +57,11 @@ function TabContent({ tab }: { tab: Tab }) {
 function OverviewPanel() {
     const tiers = [
         { tier: 'Tier 1', name: 'Brand Challenges', icon: '🏆', color: '#f59e0b',
-          desc: 'Sponsor eco-challenges, buy ECO from DEX for prize pools, get verified impact reports.',
-          examples: ['Patagonia', 'REI', 'Whole Foods'], ecoBudget: '2,000–20,000 ECO' },
+          desc: 'Sponsor eco-challenges, buy SPT from DEX for prize pools, get verified impact reports.',
+          examples: ['Patagonia', 'REI', 'Whole Foods'], ecoBudget: '2,000–20,000 SPT' },
         { tier: 'Tier 2', name: 'Corporate ESG', icon: '📊', color: '#6366f1',
-          desc: 'Run employee eco-programs. Monthly subscription includes ECO for rewards.',
-          examples: ['$500–$5,000 / mo'], ecoBudget: '2,000–30,000 ECO / mo' },
+          desc: 'Run employee eco-programs. Monthly subscription includes SPT for rewards.',
+          examples: ['$500–$5,000 / mo'], ecoBudget: '2,000–30,000 SPT / mo' },
         { tier: 'Tier 3', name: 'Carbon Credits', icon: '🌿', color: '#10b981',
           desc: 'Bundle verified eco-actions into carbon credit packages for compliance buyers.',
           examples: ['Verra', 'Gold Standard', 'Climate Action Reserve'], ecoBudget: 'Custom' },
@@ -79,7 +79,7 @@ function OverviewPanel() {
         <div>
             {/* hero stats */}
             <div className="partnership-stats-row">
-                <StatCard icon="🎯" label="ECO Buy Target" value="35%" sub="from external sources by Month 12" />
+                <StatCard icon="🎯" label="SPT Buy Target" value="35%" sub="from external sources by Month 12" />
                 <StatCard icon="💰" label="Year 1 Revenue" value="$60K" sub="across all partnership streams" />
                 <StatCard icon="🌍" label="Year 3 Revenue" value="$4.75M" sub="projected platform growth" />
                 <StatCard icon="🤝" label="Partner Types" value="5" sub="Brand · ESG · School · NGO · Gov" />
@@ -163,8 +163,8 @@ export default function PartnershipsPage() {
             <div className="partnerships-header">
                 <h1 className="partnerships-title">🌍 Industry & Partnerships</h1>
                 <p className="partnerships-subtitle">
-                    External demand is what gives ECO real value.
-                    Connect companies, schools, and NGOs to the verified eco-action economy.
+                    External demand is what gives SPT real value.
+                    Connect companies, schools, and NGOs to the verified sprout economy.
                 </p>
             </div>
 

@@ -83,7 +83,7 @@ export default function PublicPortfolio() {
     const handleShare = () => {
         const url = window.location.href
         if (navigator.share) {
-            navigator.share({ title: `${portfolio?.username ?? address}'s Eco Portfolio`, url })
+            navigator.share({ title: `${portfolio?.username ?? address}'s Garden Portfolio`, url })
         } else {
             navigator.clipboard.writeText(url)
             alert('Portfolio URL copied to clipboard!')
@@ -247,7 +247,7 @@ export default function PublicPortfolio() {
                         border: '1px solid rgba(0,0,0,0.07)', marginBottom: 20,
                     }}>
                         <h3 style={{ margin: '0 0 1rem', fontSize: '0.95rem', fontWeight: 700, color: '#111827' }}>
-                            📅 52-Week Eco Activity
+                            📅 52-Week Garden Activity
                         </h3>
                         <ActionGraph
                             weeks={portfolio.action_graph.weeks}
@@ -317,7 +317,7 @@ export default function PublicPortfolio() {
                     fontSize: '0.72rem', color: '#9ca3af',
                 }}>
                     🔗 All actions verified by ML + community consensus on-chain ·{' '}
-                    Powered by <strong style={{ color: '#166534' }}>EcoDMS</strong>
+                    Powered by <strong style={{ color: '#166534' }}>Sproudtly</strong>
                 </div>
             </div>
         </div>
