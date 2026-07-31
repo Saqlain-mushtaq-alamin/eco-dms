@@ -18,6 +18,7 @@ export interface PostCardProps {
     content: string;
     imageUri?: string;
     imageUris?: string[];
+    videoUris?: string[];
     timestamp: number;
     likes: number;
     comments: number;
@@ -43,6 +44,7 @@ export const PostCard: React.FC<PostCardProps> = ({
     content,
     imageUri,
     imageUris,
+    videoUris,
     timestamp,
     likes,
     comments,
@@ -187,6 +189,32 @@ export const PostCard: React.FC<PostCardProps> = ({
                             </RNTouchableOpacity>
                         );
                     })}
+                </RNView>
+            )}
+
+            {/* Videos */}
+            {videoUris && videoUris.length > 0 && (
+                <RNView style={{ marginTop: theme.spacing.md }}>
+                    {videoUris.map((uri, index) => (
+                        <RNView key={`video-${index}`} style={styles.videoContainer}>
+                            <video
+                                src={uri}
+                                controls
+                                preload="metadata"
+                                playsInline
+                                style={{
+                                    width: '100%',
+                                    maxHeight: 420,
+                                    borderRadius: 12,
+                                    backgroundColor: '#000',
+                                    objectFit: 'contain',
+                                }}
+                                onError={(e) => {
+                                    console.warn('Video load error:', uri, e);
+                                }}
+                            />
+                        </RNView>
+                    ))}
                 </RNView>
             )}
 
@@ -379,5 +407,12 @@ const styles = StyleSheet.create({
     actionText: {
         fontSize: 14,
         fontWeight: '600',
+    },
+    videoContainer: {
+        width: '100%',
+        borderRadius: 12,
+        overflow: 'hidden',
+        backgroundColor: 'rgba(0,0,0,0.03)',
+        marginBottom: 8,
     },
 });
