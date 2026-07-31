@@ -25,6 +25,7 @@ type Post = {
     author_wallet: string
     content: string
     media_cids: string[]
+    video_cids: string[]
     tags: string[]
     created_at: string
     likes_count?: number
@@ -38,6 +39,7 @@ type Post = {
     verification_status?: 'queued' | 'processing' | 'retrying' | 'failed' | 'verified' | 'not_eco' | 'unqueued' | 'none' | 'pending'
     verification_error?: string
     local_image_uri?: string
+    local_video_uri?: string
     isOptimistic?: boolean
 }
 
@@ -239,11 +241,15 @@ export function Feed({
     const [selectedImages, setSelectedImages] = useState<File[]>([])
     const [uploadingImages, setUploadingImages] = useState(false)
     const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([])
+    const [selectedVideos, setSelectedVideos] = useState<File[]>([])
+    const [uploadingVideos, setUploadingVideos] = useState(false)
+    const [videoPreviewUrls, setVideoPreviewUrls] = useState<string[]>([])
     const [showingFeed, setShowingFeed] = useState(true) // true = feed timeline, false = my posts
     const [showComposerModal, setShowComposerModal] = useState(false)
     const [currentUserProfile, setCurrentUserProfile] = useState<CurrentUserProfile | null>(null)
     const [mlPollingActive, setMlPollingActive] = useState(false)
     const quickPhotoInputRef = useRef<HTMLInputElement>(null)
+    const quickVideoInputRef = useRef<HTMLInputElement>(null)
 
     // Configure your API base URL
     const apiBase = import.meta.env.VITE_API_BASE ?? 'http://127.0.0.1:8000'
@@ -408,9 +414,41 @@ export function Feed({
         setImagePreviewUrls(prev => prev.filter((_, i) => i !== index))
     }
 
+    const handleVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || [])
+        if (files.length === 0) return
+
+        const validFiles = files.filter(file => {
+            if (!file.type.startsWith('video/')) {
+                setError('Only video files are allowed')
+                return false
+            }
+            if (file.size > 100 * 1024 * 1024) {
+                setError('Video size must be less than 100MB')
+                return false
+            }
+            return true
+        })
+
+        setSelectedVideos(prev => [...prev, ...validFiles])
+
+        // Create preview URLs for videos
+        validFiles.forEach(file => {
+            const url = URL.createObjectURL(file)
+            setVideoPreviewUrls(prev => [...prev, url])
+        })
+    }
+
+    const removeVideo = (index: number) => {
+        // Revoke the object URL to free memory
+        URL.revokeObjectURL(videoPreviewUrls[index])
+        setSelectedVideos(prev => prev.filter((_, i) => i !== index))
+        setVideoPreviewUrls(prev => prev.filter((_, i) => i !== index))
+    }
+
     const onSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!content.trim() && selectedImages.length === 0) return false
+        if (!content.trim() && selectedImages.length === 0 && selectedVideos.length === 0) return false
         const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') ?? '' : ''
         if (!token) {
             setError('Not authenticated')
@@ -419,6 +457,7 @@ export function Feed({
 
         const draftContent = content.trim()
         const draftPreview = imagePreviewUrls[0]
+        const draftVideoPreview = videoPreviewUrls[0]
         const optimisticId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
         const optimisticPost: Post = {
             client_temp_id: optimisticId,
@@ -427,13 +466,15 @@ export function Feed({
             author_wallet: address,
             content: draftContent,
             media_cids: [],
+            video_cids: [],
             tags: [],
             created_at: new Date().toISOString(),
             likes_count: 0,
             comments_count: 0,
             liked_by_user: false,
-            verification_status: selectedImages.length > 0 ? 'pending' : 'none',
+            verification_status: (selectedImages.length > 0 || selectedVideos.length > 0) ? 'pending' : 'none',
             local_image_uri: draftPreview,
+            local_video_uri: draftVideoPreview,
             isOptimistic: true,
         }
 
@@ -442,10 +483,13 @@ export function Feed({
         setContent('')
         setSelectedImages([])
         setImagePreviewUrls([])
+        setSelectedVideos([])
+        setVideoPreviewUrls([])
         setLoading(true)
         setError(null)
         try {
             let mediaCids: string[] = []
+            let videoCids: string[] = []
 
             // Upload images if any
             if (selectedImages.length > 0) {
@@ -466,7 +510,26 @@ export function Feed({
                 setUploadingImages(false)
             }
 
-            const result = await createPost(apiBase, token, address, draftContent, mediaCids)
+            // Upload videos if any
+            if (selectedVideos.length > 0) {
+                setUploadingVideos(true)
+                const videoUploadPromises = selectedVideos.map(async (file) => {
+                    const formData = new FormData()
+                    formData.append('file', file)
+                    const res = await fetch(`${apiBase}/api/posts/upload-video`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        body: formData
+                    })
+                    if (!res.ok) throw new Error('Video upload failed')
+                    const data = await res.json()
+                    return data.cid
+                })
+                videoCids = await Promise.all(videoUploadPromises)
+                setUploadingVideos(false)
+            }
+
+            const result = await createPost(apiBase, token, address, draftContent, mediaCids, videoCids)
             console.log('Post created successfully:', result)
 
             setPosts((prev) => prev.map((post) =>
@@ -475,7 +538,9 @@ export function Feed({
                         ...post,
                         cid: result.cid,
                         media_cids: mediaCids,
+                        video_cids: videoCids,
                         local_image_uri: mediaCids[0] ? undefined : post.local_image_uri,
+                        local_video_uri: videoCids[0] ? undefined : post.local_video_uri,
                         isOptimistic: false,
                     }
                     : post,
@@ -491,6 +556,7 @@ export function Feed({
         } finally {
             setLoading(false)
             setUploadingImages(false)
+            setUploadingVideos(false)
         }
     }
 
