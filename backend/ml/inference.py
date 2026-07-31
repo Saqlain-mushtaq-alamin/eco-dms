@@ -162,7 +162,8 @@ class EcoVerifier:
         text_content: Optional[str] = None,
     ) -> Dict:
         """
-        Verify multiple images and return one merged verdict for the whole post.
+        Verify multiple images/videos and return one merged verdict for the whole post.
+        Video CIDs are automatically detected and keyframes are extracted for verification.
         """
         if not ipfs_cids:
             raise ValueError("ipfs_cids cannot be empty")
@@ -172,12 +173,64 @@ class EcoVerifier:
 
         for cid in ipfs_cids:
             try:
-                image_bytes = await self._fetch_image_from_ipfs(cid, ipfs_gateway)
-                image_verdict = await self.verify_image(image_bytes, text_content)
-                per_image_results.append({
-                    'ipfs_cid': cid,
-                    **image_verdict,
-                })
+                content_bytes, content_type = await self._fetch_content_from_ipfs(cid, ipfs_gateway)
+
+                if self._is_video_content(content_type, content_bytes):
+                    # Extract keyframes from video and verify each
+                    keyframes = self._extract_keyframes_from_video(content_bytes)
+                    if not keyframes:
+                        failed_images.append({'ipfs_cid': cid, 'error': 'Failed to extract keyframes from video'})
+                        continue
+
+                    keyframe_verdicts: List[Dict] = []
+                    for i, frame_bytes in enumerate(keyframes):
+                        try:
+                            verdict = await self.verify_image(frame_bytes, text_content)
+                            verdict['source'] = f'video_keyframe_{i}'
+                            keyframe_verdicts.append(verdict)
+                        except Exception as kfe:
+                            print(f"[inference] Keyframe {i} verification failed: {kfe}")
+
+                    if keyframe_verdicts:
+                        # Merge keyframe verdicts into one per-video result
+                        avg_conf = sum(v.get('confidence', 0.0) for v in keyframe_verdicts) / len(keyframe_verdicts)
+                        merged_objects: List[str] = []
+                        for v in keyframe_verdicts:
+                            for obj in v.get('detected_objects', []):
+                                if obj not in merged_objects:
+                                    merged_objects.append(obj)
+
+                        breakdown_keys = ('yolo_score', 'clip_score', 'efficientnet_score', 'text_score')
+                        merged_bd = {
+                            k: round(
+                                sum(v.get('breakdown', {}).get(k, 0.0) for v in keyframe_verdicts)
+                                / len(keyframe_verdicts), 3,
+                            )
+                            for k in breakdown_keys
+                        }
+
+                        eco_count = sum(1 for v in keyframe_verdicts if v.get('is_eco', False))
+                        per_image_results.append({
+                            'ipfs_cid': cid,
+                            'is_eco': avg_conf > float(self.scorer.eco_threshold),
+                            'confidence': round(avg_conf, 3),
+                            'breakdown': merged_bd,
+                            'detected_objects': merged_objects,
+                            'reasoning': f"Video: analyzed {len(keyframe_verdicts)} keyframes ({eco_count} eco-positive). Avg confidence: {avg_conf:.1%}.",
+                            'models_used': self._get_active_models(),
+                            'media_type': 'video',
+                            'keyframes_analyzed': len(keyframe_verdicts),
+                        })
+                    else:
+                        failed_images.append({'ipfs_cid': cid, 'error': 'All keyframe verifications failed'})
+                else:
+                    # Standard image verification
+                    image_verdict = await self.verify_image(content_bytes, text_content)
+                    per_image_results.append({
+                        'ipfs_cid': cid,
+                        'media_type': 'image',
+                        **image_verdict,
+                    })
             except Exception as e:
                 failed_images.append({'ipfs_cid': cid, 'error': str(e)})
 
@@ -206,10 +259,21 @@ class EcoVerifier:
             for key in breakdown_keys
         }
 
-        eco_images = sum(1 for v in per_image_results if bool(v.get('is_eco', False)))
+        # Count media types
+        image_count = sum(1 for v in per_image_results if v.get('media_type') == 'image')
+        video_count = sum(1 for v in per_image_results if v.get('media_type') == 'video')
+        eco_items = sum(1 for v in per_image_results if bool(v.get('is_eco', False)))
+
+        media_desc_parts = []
+        if image_count:
+            media_desc_parts.append(f"{image_count} image(s)")
+        if video_count:
+            media_desc_parts.append(f"{video_count} video(s)")
+        media_desc = " + ".join(media_desc_parts) if media_desc_parts else f"{len(per_image_results)} items"
+
         merged_reasoning = (
-            f"Merged result from {len(per_image_results)} images "
-            f"({eco_images} eco-positive). "
+            f"Merged result from {media_desc} "
+            f"({eco_items} eco-positive). "
             f"Average confidence: {merged_confidence:.1%}."
         )
 
