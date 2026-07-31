@@ -61,13 +61,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
     }
 
     const navItems: NavItem[] = useMemo(() => ([
-        { to: '/feed',         icon: '🏠', label: 'Feed' },
-        { to: '/dashboard',    icon: '📊', label: 'Dashboard' },
-        { to: '/my-portfolio', icon: '🌱', label: 'Eco Portfolio' },
+        { to: '/feed',         icon: '🌱', label: 'Garden Feed' },
+        { to: '/dashboard',    icon: '📊', label: 'Garden Dashboard' },
+        { to: '/my-portfolio', icon: '🏡', label: 'My Garden' },
         { to: '/credentials',  icon: '🎖️', label: 'Credentials' },
         { to: '/dao',          icon: '🗳️', label: 'DAO' },
         { to: '/partnerships', icon: '🤝', label: 'Partnerships' },
-        { to: '/friends',      icon: '👥', label: 'Friends' },
+        { to: '/friends',      icon: '👥', label: 'Rooters' },
         { to: '/admin/fraud',  icon: '🛡️', label: 'Fraud Review' },
     ]), [])
 
@@ -291,10 +291,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         <div className="flex items-center gap-4 min-w-0">
                             <Link
                                 to="/"
-                                className="text-2xl font-bold hover:opacity-80 transition-opacity whitespace-nowrap"
+                                className="text-2xl font-bold hover:opacity-80 transition-opacity whitespace-nowrap brand-sproudtly flex items-center gap-1.5"
                                 style={{ color: '#abca2f' }}
                             >
-                                🌱 Eco DMS
+                                <span className="text-2xl">🌱</span>
+                                <span className="tracking-tight">
+                                    sprou<span className="brand-d">d</span>tly
+                                </span>
                             </Link>
 
                             {isAuthenticated && (
@@ -493,8 +496,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
                                                 : 'hover:bg-gray-50 hover:text-gray-900 text-gray-700'
                                                 }`}
                                         >
-                                            <span className={`h-8 w-8 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-slate-800' : 'bg-lime-50'}`}>🌱</span>
-                                            <span>My Eco Portfolio</span>
+                                            <span className={`h-8 w-8 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-slate-800' : 'bg-lime-50'}`}>🏡</span>
+                                            <span>My Garden</span>
                                         </button>
                                         <button
                                             type="button"
